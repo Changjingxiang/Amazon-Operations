@@ -5,6 +5,12 @@ import { SIF_COUNTRIES } from '../lib/countries.js';
 export default function SettingsModal({ open, onClose, onResetWidths, models = [], onDeleteModel, onAddModel, onSetCountry }) {
   const [pendingAsin, setPendingAsin] = useState('');
   useEffect(() => { if (!open) setPendingAsin(''); }, [open]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleKeyDown = (event) => { if (event.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
   if (!open) return null;
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>

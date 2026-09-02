@@ -37,6 +37,7 @@ pnpm-debug.log*
 # Build and release artifacts
 dist/
 build/
+apps/keyword-rank/release/
 *.zip
 *.exe
 *.msi

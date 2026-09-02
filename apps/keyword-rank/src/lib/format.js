@@ -36,19 +36,50 @@ export function buildDateView(model, selectedDate) {
   }
   const watchMap = new Map((model.watches || []).map((watch, index) => [watch.keyword.toLowerCase(), { ...watch, order: index }]));
   const records = model.historyRecords;
+  // Build the indexes once per date view.  The previous implementation
+  // repeatedly filtered/sorted the complete history for every watched row and
+  // every trend point, which made a 500-keyword/365-day model needlessly scan
+  // hundreds of millions of records.  Map insertion order preserves the
+  // existing "first matching record" behavior for duplicate dates.
+  const recordsByDate = new Map();
+  const recordsByKeyword = new Map();
+  const recordsByKeywordDate = new Map();
+  records.forEach((item) => {
+    const keywordKey = item.keyword.toLowerCase();
+    const dateList = recordsByDate.get(item.snapshotDate) || [];
+    dateList.push(item);
+    recordsByDate.set(item.snapshotDate, dateList);
+
+    const keywordList = recordsByKeyword.get(keywordKey) || [];
+    keywordList.push(item);
+    recordsByKeyword.set(keywordKey, keywordList);
+
+    let dateMap = recordsByKeywordDate.get(keywordKey);
+    if (!dateMap) {
+      dateMap = new Map();
+      recordsByKeywordDate.set(keywordKey, dateMap);
+    }
+    if (!dateMap.has(item.snapshotDate)) dateMap.set(item.snapshotDate, item);
+  });
+  const sortedRecordsByKeyword = new Map(
+    [...recordsByKeyword.entries()].map(([key, list]) => [
+      key,
+      [...list].sort((a, b) => b.snapshotDate.localeCompare(a.snapshotDate)),
+    ]),
+  );
+  const latestRecord = (keywordKey, inclusive) => {
+    const list = sortedRecordsByKeyword.get(keywordKey) || [];
+    return list.find((item) => inclusive ? item.snapshotDate <= selectedDate : item.snapshotDate < selectedDate);
+  };
   const current = new Map();
-  records
-    .filter((item) => item.snapshotDate === selectedDate)
-    .forEach((item) => {
-      const key = item.keyword.toLowerCase();
-      if (watchMap.has(key) || (item.trafficRank != null && item.trafficRank <= 100)) current.set(key, { ...item });
-    });
+  (recordsByDate.get(selectedDate) || []).forEach((item) => {
+    const key = item.keyword.toLowerCase();
+    if (watchMap.has(key) || (item.trafficRank != null && item.trafficRank <= 100)) current.set(key, { ...item });
+  });
   for (const watch of model.watches || []) {
     const key = watch.keyword.toLowerCase();
     if (current.has(key)) continue;
-    const base = records
-      .filter((item) => item.keyword.toLowerCase() === key && item.snapshotDate <= selectedDate)
-      .sort((a, b) => b.snapshotDate.localeCompare(a.snapshotDate))[0];
+    const base = latestRecord(key, true);
     current.set(key, {
       ...(base || {}),
       snapshotDate: selectedDate,
@@ -68,10 +99,9 @@ export function buildDateView(model, selectedDate) {
   const trendDates = model.dates.filter((date) => date <= selectedDate).slice(-30);
   const rows = [...current.values()].map((record) => {
     const key = record.keyword.toLowerCase();
-    const previous = records
-      .filter((item) => item.keyword.toLowerCase() === key && item.snapshotDate < selectedDate)
-      .sort((a, b) => b.snapshotDate.localeCompare(a.snapshotDate))[0];
-    const getValue = (date, field) => records.find((item) => item.keyword.toLowerCase() === key && item.snapshotDate === date)?.[field] ?? null;
+    const previous = latestRecord(key, false);
+    const dateMap = recordsByKeywordDate.get(key) || new Map();
+    const getValue = (date, field) => dateMap.get(date)?.[field] ?? null;
     const naturalDirection = record.naturalRank == null || previous?.naturalRank == null
       ? 'none'
       : record.naturalRank < previous.naturalRank ? 'up' : record.naturalRank > previous.naturalRank ? 'down' : 'same';

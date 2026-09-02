@@ -11,4 +11,4 @@
 
 `dist/`、`release/`、`qa/` 和 `node_modules/` 都是本地生成目录，不纳入 Git。网页版的竞品、ASIN、月 ABA 和批量 SIF 增强由仓库根目录 `web/` 中的独立脚本在发布时注入；不要把 `outputs/` 内的 hash bundle 当作源码。
 
-版本规范为 `2.0.0`。在仓库根目录运行 `npm run dev`、`npm run build` 或 `npm run release:web` 即可调用本项目脚本。
+当前源码版本为 `2.1.0`（Release Readiness Pass 3）。在仓库根目录运行 `npm run dev`、`npm run build` 或 `npm run release:web` 即可调用本项目脚本。

@@ -1,9 +1,15 @@
 import { ImagePlus, X } from 'lucide-react';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { apparelIcons } from '../lib/apparelIcons.js';
 
 export default function IconPickerModal({ model, onClose, onSelect }) {
   const fileInputRef = useRef(null);
+  useEffect(() => {
+    if (!model) return undefined;
+    const handleKeyDown = (event) => { if (event.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [model, onClose]);
   if (!model) return null;
   const customIcon = model.iconKey && typeof model.iconKey === 'object' && model.iconKey.key === 'custom'
     ? model.iconKey

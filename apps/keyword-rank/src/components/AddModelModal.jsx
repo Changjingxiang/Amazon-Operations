@@ -9,12 +9,18 @@ export default function AddModelModal({ open, onClose, onSubmit }) {
   useEffect(() => {
     if (open) { setModelName(''); setParentAsin(''); setCountryCode('CA'); }
   }, [open]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleKeyDown = (event) => { if (event.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
   if (!open) return null;
   const valid = modelName.trim() && /^B0[A-Z0-9]{8}$/i.test(parentAsin.trim());
   return (
     <div className="modal-backdrop">
       <section className="add-model-modal" role="dialog" aria-modal="true" aria-label="新增型号">
-        <div className="drawer-header"><h2>新增型号</h2><button type="button" onClick={onClose}><X /></button></div>
+        <div className="drawer-header"><h2>新增型号</h2><button type="button" onClick={onClose} aria-label="关闭新增型号"><X /></button></div>
         <p>登记后会自动生成看板、历史、自然矩阵、SP矩阵和ABA月榜。</p>
         <label>产品名称<input value={modelName} onChange={(event) => setModelName(event.target.value)} placeholder="例如：LT25M1417 竹纤维背心" /></label>
         <label>父体 ASIN<input value={parentAsin} onChange={(event) => setParentAsin(event.target.value.toUpperCase())} placeholder="B0XXXXXXXX" maxLength={10} /></label>

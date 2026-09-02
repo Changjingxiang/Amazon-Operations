@@ -22,11 +22,17 @@
   const AUTO_BATCH_CAPTURE_ATTR = 'data-sif-auto-batch-capture';
   const MATRIX_HOVER_ATTR = 'data-competitor-matrix-hover';
   const MATRIX_BUBBLE_ID = 'keyword-tracker-matrix-competitor-bubble';
+  // The comparison bubble may survive a short pointer gap while the table's
+  // row/column highlight is cleared synchronously by MatrixView.  Keeping
+  // this timer local to the bubble prevents its grace period from leaking
+  // into the table hover lifecycle.
+  const MATRIX_BUBBLE_HIDE_DELAY = 240;
   let sidebarDataCache = null;
   let sidebarDataPromise = null;
   let matrixDataCache = null;
   let matrixDataPromise = null;
   let matrixBubbleToken = 0;
+  let matrixBubbleHideTimer = null;
   const ABA_COUNTRIES = [
     { code: 'US', label: '美国站' },
     { code: 'DE', label: '德国站' },
@@ -687,13 +693,32 @@
     bubble.style.top = `${Math.round(top)}px`;
   }
 
+  function cancelMatrixBubbleHide() {
+    if (matrixBubbleHideTimer == null) return;
+    window.clearTimeout(matrixBubbleHideTimer);
+    matrixBubbleHideTimer = null;
+  }
+
   function hideMatrixBubble() {
+    cancelMatrixBubbleHide();
     matrixBubbleToken += 1;
     const bubble = document.getElementById(MATRIX_BUBBLE_ID);
-    if (bubble) bubble.hidden = true;
+    if (bubble) {
+      bubble.hidden = true;
+      delete bubble.dataset.anchor;
+    }
+  }
+
+  function scheduleMatrixBubbleHide() {
+    cancelMatrixBubbleHide();
+    matrixBubbleHideTimer = window.setTimeout(() => {
+      matrixBubbleHideTimer = null;
+      hideMatrixBubble();
+    }, MATRIX_BUBBLE_HIDE_DELAY);
   }
 
   async function showMatrixBubble(table, cell) {
+    cancelMatrixBubbleHide();
     const currentRank = Number(cell?.getAttribute('data-rank'));
     if (!Number.isFinite(currentRank) || currentRank <= 0) {
       hideMatrixBubble();
@@ -739,9 +764,9 @@
         const bubble = document.getElementById(MATRIX_BUBBLE_ID);
         if (bubble && !bubble.hidden && bubble.dataset.anchor) positionMatrixBubble(bubble, cell);
       });
-      cell.addEventListener('mouseleave', hideMatrixBubble);
+      cell.addEventListener('mouseleave', scheduleMatrixBubbleHide);
       cell.addEventListener('focus', () => { showMatrixBubble(table, cell); });
-      cell.addEventListener('blur', hideMatrixBubble);
+      cell.addEventListener('blur', scheduleMatrixBubbleHide);
     });
   }
 

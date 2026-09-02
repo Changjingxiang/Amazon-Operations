@@ -38,6 +38,12 @@ export default function WatchDrawer({ open, model, onClose, onSave, initialKeywo
       setDraft((model?.watches || []).map((watch) => ({ keyword: watch.keyword, note: watch.note || '' })));
     }
   }, [open, initialKeyword, model?.parentAsin]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleKeyDown = (event) => { if (event.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
 
   const pendingKeywords = useMemo(
     () => keywords.split(/[\r\n,，;；]+/).map((value) => value.trim()).filter(Boolean),
@@ -115,7 +121,7 @@ export default function WatchDrawer({ open, model, onClose, onSave, initialKeywo
   if (!open) return null;
   return (
     <aside className="watch-drawer" aria-label="关注关键词">
-      <div className="drawer-header"><h2>关注关键词</h2><button type="button" onClick={onClose}><X /></button></div>
+      <div className="drawer-header"><h2>关注关键词</h2><button type="button" onClick={onClose} aria-label="关闭关注关键词"><X /></button></div>
       <p className="drawer-intro">支持批量导入；拖拽手柄、触屏或键盘都能调整同一张卡片的顺序。</p>
       <label>所属产品<input value={model.modelName} disabled /></label>
       <label>新增关键词（可批量填写）<textarea className="watch-keywords-input" value={keywords} onChange={(event) => setKeywords(event.target.value)} placeholder="每行一个关键词，也支持逗号、分号分隔" /></label>
