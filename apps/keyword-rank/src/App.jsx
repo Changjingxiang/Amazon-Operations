@@ -17,6 +17,32 @@ import { api } from './lib/api.js';
 import { buildDateView } from './lib/format.js';
 import { resetAllColumnWidths } from './lib/columnWidths.jsx';
 
+const KNOWN_TABS = new Set(['dashboard', 'natural', 'sp', 'aba', 'history']);
+
+function isoTime(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
+}
+
+function nearestDate(target, dates) {
+  const validDates = [...new Set((dates || []).filter((date) => isoTime(date) != null))].sort();
+  if (!validDates.length) return '';
+  const targetTime = isoTime(target);
+  if (targetTime == null) return validDates.at(-1);
+  return validDates.reduce((closest, candidate) => {
+    const distance = Math.abs(isoTime(candidate) - targetTime);
+    const closestDistance = Math.abs(isoTime(closest) - targetTime);
+    return distance < closestDistance || (distance === closestDistance && candidate > closest) ? candidate : closest;
+  }, validDates[0]);
+}
+
+function supportsTab(targetModel, tab) {
+  // Current model-shaped records support all five views.  Respect an
+  // explicitly supplied capability list for future/imported model types so a
+  // product switch can fall back only when the target truly lacks a view.
+  return !Array.isArray(targetModel?.supportedTabs) || targetModel.supportedTabs.includes(tab);
+}
+
 export default function App() {
   const [data, setData] = useState(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -50,8 +76,12 @@ export default function App() {
 
   const model = data?.models?.[activeIndex];
   useEffect(() => {
-    if (model) setSelectedDate(model.latestDate || model.dates.at(-1) || '');
-  }, [model?.parentAsin, model?.latestDate]);
+    if (!model) return;
+    setSelectedDate((currentDate) => {
+      const dates = model.dates || [];
+      return dates.includes(currentDate) ? currentDate : nearestDate(currentDate, dates);
+    });
+  }, [model?.parentAsin, model?.dates, model?.latestDate]);
 
   const dateView = useMemo(() => buildDateView(model, selectedDate), [model, selectedDate]);
 
@@ -157,7 +187,11 @@ export default function App() {
         <Sidebar
           models={data.models}
           activeIndex={activeIndex}
-          onSelect={(index) => { setActiveIndex(index); setActiveTab('natural'); }}
+          onSelect={(index) => {
+            setActiveIndex(index);
+            const nextModel = data.models[index];
+            if (!supportsTab(nextModel, activeTab) || !KNOWN_TABS.has(activeTab)) setActiveTab('natural');
+          }}
           onChooseIcon={setIconModel}
           onAddModel={() => setAddModelOpen(true)}
           onHistory={() => setActiveTab('history')}

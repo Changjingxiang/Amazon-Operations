@@ -1,4 +1,4 @@
-import { Download, FolderOpen, Plus, Settings } from 'lucide-react';
+import { ChevronDown, Download, FolderOpen, Plus, Settings } from 'lucide-react';
 import { getApparelIcon } from '../lib/apparelIcons.js';
 
 export default function Sidebar({ models, activeIndex, onSelect, onChooseIcon, onAddModel, onHistory, onOpenFolder, onSettings }) {
@@ -15,8 +15,28 @@ export default function Sidebar({ models, activeIndex, onSelect, onChooseIcon, o
               <i>换</i>
             </button>
             <button type="button" className="model-copy" onClick={() => onSelect(index)}>
-              <strong>{model.modelName.split(' ')[0]}</strong>
-              <small>{model.modelName.replace(model.modelName.split(' ')[0], '').trim() || model.parentAsin}</small>
+              <strong>{model.modelName}</strong>
+              <small>{model.parentAsin}</small>
+            </button>
+            <button
+              type="button"
+              className="dropdown-btn competitor-sidebar-toggle model-dropdown"
+              data-competitor-sidebar-toggle=""
+              aria-controls={`keyword-tracker-competitor-drawer-${model.parentAsin}`}
+              aria-expanded="false"
+              aria-label={`展开 ${model.modelName} 的竞品`}
+              title="展开竞品"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const toggle = event.currentTarget;
+                const list = toggle.parentElement?.nextElementSibling;
+                const expanded = toggle.getAttribute('aria-expanded') === 'true';
+                toggle.setAttribute('aria-expanded', String(!expanded));
+                if (list?.matches?.('[data-competitor-sidebar-list]')) list.hidden = expanded;
+              }}
+            >
+              <ChevronDown size={16} aria-hidden="true" />
             </button>
           </div>
         ))}
