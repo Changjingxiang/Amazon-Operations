@@ -141,12 +141,16 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
   };
   const widthStyle = (column) => ({ width: widths[column], minWidth: widths[column] });
   const resizeHandle = (column, label) => <ResizeHandle columnKey={column} onResize={startResize} onNudge={nudgeWidth} label={label} />;
+  const stickyLayoutStyle = {
+    '--sticky-keyword-left': `${widths.star}px`,
+    '--sticky-translation-left': `${widths.star + widths.keyword}px`,
+  };
 
   return (
     <section className="matrix-panel">
       <div className="matrix-note matrix-group-note"><span>{metric === 'natural' ? '自然矩阵' : 'SP矩阵'}：可按年份、月份收放</span><span>关键词为行、日期为列；0 表示未上榜。点击{metric === 'natural' ? '自然' : 'SP'}排名单元格添加标注，黑底白字表示已标注。</span><span><b className="legend-up">红色</b>=排名上升　<b className="legend-down">绿色</b>=排名下降　<b className="legend-none">灰色</b>=未上榜</span></div>
       <div className="matrix-scroll">
-        <table ref={tableRef} className={`matrix-table matrix-group-table matrix-layout-transition ${layoutAnimating ? 'is-animating' : ''}`}>
+        <table ref={tableRef} style={stickyLayoutStyle} className={`matrix-table matrix-group-table matrix-layout-transition ${layoutAnimating ? 'is-animating' : ''}`}>
           <colgroup>
             <col style={widthStyle('star')} /><col style={widthStyle('keyword')} /><col style={widthStyle('translation')} />
             {columns.map((column) => <col key={`width-${column.key}`} style={widthStyle('date')} />)}
