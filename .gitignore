@@ -46,6 +46,7 @@ build/
 work/*.png
 work/zip-check*/
 work/web-v182-backup/
+work/pw-*/
 
 # Captured SIF site bundles used only for inspection
 work/sif-*.js
@@ -64,3 +65,4 @@ outputs/Sif*.xlsx
 
 # Keep the bundled workbook shipped with the runnable web edition.
 !outputs/关键词排名每日跟进网页版-v1.8.2/data/关键词排名每日跟进表.xlsx
+!outputs/关键词排名每日跟进网页版-v2.0/data/关键词排名每日跟进表.xlsx

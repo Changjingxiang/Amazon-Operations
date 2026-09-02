@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Sif 批量反查</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">SIF · MULTI-SITE</p>
+          <h1>批量反查流量词</h1>
+        </div>
+        <span class="site-pill">8 站点</span>
+      </header>
+
+      <section class="panel input-panel">
+        <div class="label-row">
+          <label for="asin-input">ASIN 列表</label>
+          <span id="asin-counter">0 / 15</span>
+        </div>
+        <textarea id="asin-input" rows="7" spellcheck="false" placeholder="每行一个 ASIN，也支持逗号或空格分隔&#10;例如：B0FF4HCVXT"></textarea>
+        <p id="validation-message" class="validation" aria-live="polite">最多 15 个，重复项会自动去除。</p>
+
+        <div class="settings-row">
+          <label for="concurrency">并发速度</label>
+          <select id="concurrency">
+            <option value="1">1 个（最稳）</option>
+            <option value="2">2 个</option>
+            <option value="3" selected>3 个（推荐）</option>
+            <option value="4">4 个</option>
+            <option value="5">5 个（最快）</option>
+          </select>
+        </div>
+
+        <div class="button-row">
+          <button id="start-button" class="primary" type="button">开始批量下载</button>
+          <button id="stop-button" class="secondary" type="button" disabled>停止</button>
+        </div>
+      </section>
+
+      <section class="panel progress-panel">
+        <div class="progress-head">
+          <div>
+            <span class="section-title">任务进度</span>
+            <span id="summary-text" class="summary">尚未开始</span>
+          </div>
+          <button id="retry-button" class="text-button" type="button" hidden>重试失败项</button>
+        </div>
+        <div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div>
+        <ol id="task-list" class="task-list">
+          <li class="empty-state">输入 ASIN 后开始，扩展会在后台工作。</li>
+        </ol>
+      </section>
+
+      <footer>
+        请先在 Sif 登录。下载文件会保存到浏览器默认下载目录。
+      </footer>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
