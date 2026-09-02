@@ -1,0 +1,13 @@
+# v2.0 web release baseline captured before source migration (2026-09-02)
+# Repository HEAD: bac967abb89f2ecff5a6a3ba57ee4bbdcf16a96c (tag v2.0)
+# Migration checkpoint created immediately before changes:
+# 917dba2c2346898f64e2a054a6a5da1c49c2e780 (tag checkpoint-v2-source-migration-2026-09-02)
+#
+# These are the files actually referenced by outputs/关键词排名每日跟进网页版-v2.0/index.html.
+# The index references no CSS file directly; the Vite bundle contains the app styles.
+F619B8E9610033489F0607C3AC57F532B0B3B19B4545DE9C80ADD9023EF05A46  outputs/关键词排名每日跟进网页版-v2.0/favicon.png
+C9506197CAF809A075B6DEE1DA0D36FB19DA7158FFE8A88E7B0C96C5D8623C99  outputs/关键词排名每日跟进网页版-v2.0/vendor/xlsx.full.min.js
+C60A50E0D7BBEE15F773AAB1E78F32622F7ABD4292591808B3416366C830EFAC  outputs/关键词排名每日跟进网页版-v2.0/data/initial-data.js
+9E6AB86803188E079621652ABAF8CD27F14114B81DFE2780AD1D4047E1000F34  outputs/关键词排名每日跟进网页版-v2.0/browser-bridge.js
+0B81985391EB7A4265A65A86FF8CF93C8AC7449818E9B1CF373422CD2564C228  outputs/关键词排名每日跟进网页版-v2.0/assets/index-Dj2Py4Bh.js
+10A3377CC836419623E27CE23F49D6F9A260A3C9D3974244C687DD7B18E703CD  outputs/关键词排名每日跟进网页版-v2.0/web-settings-enhancements.js

@@ -1,0 +1,216 @@
+import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import Sidebar from './components/Sidebar.jsx';
+import Header from './components/Header.jsx';
+import SummaryBand from './components/SummaryBand.jsx';
+import MatrixView from './components/MatrixView.jsx';
+import DashboardView from './components/DashboardView.jsx';
+import WatchDrawer from './components/WatchDrawer.jsx';
+import ABAView from './components/ABAView.jsx';
+import HistoryView from './components/HistoryView.jsx';
+import AddModelModal from './components/AddModelModal.jsx';
+import IconPickerModal from './components/IconPickerModal.jsx';
+import SettingsModal from './components/SettingsModal.jsx';
+import { BusyOverlay, Toast } from './components/Feedback.jsx';
+import WindowTitlebar from './components/WindowTitlebar.jsx';
+import { api } from './lib/api.js';
+import { buildDateView } from './lib/format.js';
+import { resetAllColumnWidths } from './lib/columnWidths.jsx';
+
+export default function App() {
+  const [data, setData] = useState(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState('natural');
+  const [selectedDate, setSelectedDate] = useState('');
+  const [watchOpen, setWatchOpen] = useState(false);
+  const [addModelOpen, setAddModelOpen] = useState(false);
+  const [iconModel, setIconModel] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [busyLabel, setBusyLabel] = useState('正在读取关键词数据…');
+  const [toast, setToast] = useState(null);
+
+  const load = async () => {
+    setBusyLabel('正在读取关键词数据…');
+    try {
+      const result = await api.getData();
+      setData(result);
+      setActiveIndex((index) => Math.min(index, Math.max(0, result.models.length - 1)));
+    } catch (error) {
+      setToast({ type: 'error', title: '读取失败', message: error.message });
+    } finally {
+      setBusyLabel('');
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  useEffect(() => api.onSifProgress?.((progress) => {
+    if (progress?.message) setBusyLabel(progress.message);
+  }), []);
+
+  const model = data?.models?.[activeIndex];
+  useEffect(() => {
+    if (model) setSelectedDate(model.latestDate || model.dates.at(-1) || '');
+  }, [model?.parentAsin, model?.latestDate]);
+
+  const dateView = useMemo(() => buildDateView(model, selectedDate), [model, selectedDate]);
+
+  const applyResult = (result, title) => {
+    setData(result.data);
+    setActiveIndex((index) => Math.min(index, Math.max(0, (result.data?.models?.length || 0) - 1)));
+    setToast({ type: 'success', title, message: result.output?.split(/\r?\n/).filter(Boolean).at(-1) || '数据已保存并重新读取。' });
+  };
+
+  const runAction = async (label, action, successTitle) => {
+    setBusyLabel(label);
+    try {
+      const result = await action();
+      applyResult(result, successTitle);
+      return true;
+    } catch (error) {
+      setToast({ type: 'error', title: '操作未完成', message: error.message });
+      return false;
+    } finally {
+      setBusyLabel('');
+    }
+  };
+
+  const toggleWatch = (keyword, enabled, note = '') => runAction(
+    enabled ? `正在关注“${keyword}”…` : `正在取消关注“${keyword}”…`,
+    () => api.setWatch({ modelName: model.modelName, keyword, enabled, note }),
+    enabled ? '已设为关注' : '已取消关注',
+  );
+
+  const saveWatch = async (items) => {
+    const ok = await runAction('正在一次性保存关注词…', () => api.replaceWatches({
+      modelName: model.modelName,
+      items,
+    }), '关注词已统一保存');
+    if (ok) setWatchOpen(false);
+  };
+
+  const saveAnnotation = (payload) => runAction(
+    payload.text ? '正在保存单元格标注…' : '正在清除单元格标注…',
+    () => api.setAnnotation({ ...payload, modelName: model.modelName, metric: payload.metric || 'sp' }),
+    payload.text ? '单元格标注已保存' : '单元格标注已清除',
+  );
+
+  const resetWidths = () => {
+    resetAllColumnWidths();
+    setSettingsOpen(false);
+    setToast({ type: 'success', title: '列宽已还原', message: '所有表格已恢复原表宽度。' });
+  };
+
+  const addModel = async (payload) => {
+    const ok = await runAction('正在登记型号…', () => api.addModel(payload), '型号已生成');
+    if (ok) {
+      setAddModelOpen(false);
+      setActiveIndex(data?.models?.length || 0);
+    }
+  };
+
+  const deleteModel = (item) => runAction(
+    `正在删除“${item.modelName}”…`,
+    () => api.deleteModel({ modelName: item.modelName, parentAsin: item.parentAsin }),
+    '产品已删除',
+  );
+
+  const setModelCountry = (item, countryCode) => runAction(
+    '正在保存产品国家设置…',
+    () => api.setModelCountry({ modelName: item.modelName, parentAsin: item.parentAsin, countryCode }),
+    '产品国家已更新',
+  );
+
+  const startSifImport = () => runAction(
+    `正在为 ${model.modelName} 自动下载今日报表…`,
+    () => api.startSifImport({ parentAsin: model.parentAsin, countryCode: model.countryCode || 'CA' }),
+    '今日报表已下载并导入',
+  );
+
+  const saveModelIcon = async (iconKey) => {
+    const ok = await runAction(
+      '正在保存产品图标…',
+      () => api.setModelIcon({ parentAsin: iconModel.parentAsin, iconKey }),
+      '产品图标已更新',
+    );
+    if (ok) setIconModel(null);
+  };
+
+  if (!data || !model) {
+    return (
+      <div className="app-root">
+        <WindowTitlebar />
+        <main className="empty-app">
+          <BusyOverlay label={busyLabel} />
+          <h1>关键词排名每日跟进</h1>
+          <p>{data?.models?.length === 0 ? '“型号配置”中没有启用的型号。' : '正在准备软件数据…'}</p>
+          <Toast toast={toast} onClose={() => setToast(null)} />
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app-root">
+      <WindowTitlebar />
+      <div className="app-shell">
+        <Sidebar
+          models={data.models}
+          activeIndex={activeIndex}
+          onSelect={(index) => { setActiveIndex(index); setActiveTab('natural'); }}
+          onChooseIcon={setIconModel}
+          onAddModel={() => setAddModelOpen(true)}
+          onHistory={() => setActiveTab('history')}
+          onOpenFolder={() => api.openToolFolder()}
+          onSettings={() => setSettingsOpen(true)}
+        />
+        <main className="main-area">
+          <Header
+            model={model}
+            activeTab={activeTab}
+            onTab={setActiveTab}
+            selectedDate={selectedDate}
+            onDate={setSelectedDate}
+            busy={Boolean(busyLabel)}
+            onRefresh={() => runAction('正在刷新看板和矩阵…', () => api.runImport('refresh'), '刷新完成')}
+            onImport={() => runAction('正在导入每日关键词报表…', () => api.runImport('normal'), '导入完成')}
+            onSifImport={startSifImport}
+          />
+          {data.workbookOpen && data.storage !== 'local-json' && (
+            <div className="workbook-alert"><AlertTriangle size={18} /><span>检测到跟进表可能正在 WPS 中打开。首次迁移完成后，软件将使用本地数据运行，不再依赖工作簿。</span></div>
+          )}
+          {activeTab !== 'history' && activeTab !== 'aba' && (
+            <SummaryBand
+              metrics={dateView.metrics}
+              latestDate={selectedDate || model.latestDate}
+              loadedAt={data.loadedAt}
+              mode={activeTab}
+            />
+          )}
+          <div className="content-area view-transition" key={`${model.parentAsin}-${activeTab}-${selectedDate}`}>
+            {activeTab === 'dashboard' && <DashboardView rows={dateView.rows} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} />}
+            {activeTab === 'natural' && <MatrixView model={model} metric="natural" selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
+            {activeTab === 'sp' && <MatrixView model={model} metric="sp" selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
+            {activeTab === 'aba' && <ABAView model={model} onToggleWatch={toggleWatch} />}
+            {activeTab === 'history' && <HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} />}
+          </div>
+          <footer className="statusbar">
+            <span>本地数据已同步 · {dateView.rows.length} 个关键词 · 源文件 {data.sourceCount} 个</span>
+            <span><b className="legend-up">红色＝上升</b><b className="legend-down">绿色＝下降</b><b className="legend-none">灰色＝未上榜</b></span>
+          </footer>
+        </main>
+        <WatchDrawer
+          open={watchOpen}
+          model={model}
+          onClose={() => setWatchOpen(false)}
+          onSave={saveWatch}
+        />
+        <AddModelModal open={addModelOpen} onClose={() => setAddModelOpen(false)} onSubmit={addModel} />
+        <IconPickerModal model={iconModel} onClose={() => setIconModel(null)} onSelect={saveModelIcon} />
+        <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onResetWidths={resetWidths} models={data.models} onDeleteModel={deleteModel} onAddModel={() => setAddModelOpen(true)} onSetCountry={setModelCountry} />
+        <BusyOverlay label={busyLabel} />
+        <Toast toast={toast} onClose={() => setToast(null)} />
+      </div>
+    </div>
+  );
+}

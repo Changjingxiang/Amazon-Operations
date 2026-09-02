@@ -1,0 +1,15 @@
+{
+  "name": "amazon-operations",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Amazon Operations tools and keyword-rank web application",
+  "scripts": {
+    "install:keyword-rank": "npm --prefix apps/keyword-rank install",
+    "postinstall": "npm run install:keyword-rank",
+    "dev": "npm --prefix apps/keyword-rank run dev",
+    "build": "npm --prefix apps/keyword-rank run build",
+    "dist:win": "npm --prefix apps/keyword-rank run dist:win",
+    "release:web": "node tools/release-web.cjs",
+    "verify:web": "node tools/verify-web-release.cjs"
+  }
+}
