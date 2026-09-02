@@ -1,0 +1,66 @@
+# Secrets and local credentials
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*secret*
+*credential*
+*password*
+*apikey*
+*api-key*
+*access-token*
+*refresh-token*
+auth.json
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Dependency and tool caches
+node_modules/
+.cache/
+.vite/
+coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Build and release artifacts
+dist/
+build/
+*.zip
+*.exe
+*.msi
+*.dmg
+
+# Generated QA screenshots and temporary packaged copies
+work/*.png
+work/zip-check*/
+work/web-v182-backup/
+
+# Captured SIF site bundles used only for inspection
+work/sif-*.js
+work/sif-app.js
+work/sif-live.js
+work/sif.html
+
+# Local test data, caches, backups, and downloaded reports
+work/sif-native-test-2/备份/
+work/sif-native-test-2/每日源文件/
+work/sif-native-test-2/*.xlsx
+work/sif-native-test-2/关键词排名每日跟进数据.json
+work/sif-native-test-2/cache-migration.json
+outputs/Sif*.xlsx
+*.xlsx
+
+# Keep the bundled workbook shipped with the runnable web edition.
+!outputs/关键词排名每日跟进网页版-v1.8.2/data/关键词排名每日跟进表.xlsx
