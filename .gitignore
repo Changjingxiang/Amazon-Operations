@@ -70,5 +70,6 @@ outputs/Sif*.xlsx
 # Source assets intentionally kept for the formal app and web release.
 !apps/keyword-rank/build/
 !apps/keyword-rank/build/icon.ico
+!apps/keyword-rank/build/app-icon-source.png
 !web/data/
 !web/data/关键词排名每日跟进表.xlsx

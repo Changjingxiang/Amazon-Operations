@@ -5,7 +5,8 @@
 - `src/`：React 页面、矩阵/ABA/Dashboard/历史记录和交互组件。
 - `electron/`、`bridge/`：桌面版 IPC、本地数据存储和 Excel/SIF 桥接。
 - `public/`：开发预览数据和 favicon。
-- `build/icon.ico`：Electron 打包所需的源图标。
+- `build/app-icon-source.png`：图标生成脚本的源图。
+- `build/icon.ico`：由源图生成、供 Electron 打包使用的多尺寸图标。
 - `scripts/`：开发数据导出、图标和视觉 QA 工具。
 
 `dist/`、`release/`、`qa/` 和 `node_modules/` 都是本地生成目录，不纳入 Git。网页版的竞品、ASIN、月 ABA 和批量 SIF 增强由仓库根目录 `web/` 中的独立脚本在发布时注入；不要把 `outputs/` 内的 hash bundle 当作源码。
