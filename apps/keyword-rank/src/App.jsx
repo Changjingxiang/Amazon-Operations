@@ -43,6 +43,46 @@ function supportsTab(targetModel, tab) {
   return !Array.isArray(targetModel?.supportedTabs) || targetModel.supportedTabs.includes(tab);
 }
 
+// The standalone web enhancement asks the browser bridge for data when a
+// comparison bubble opens.  Rebuilding every model from all workbook history
+// on every hover blocks the main thread, so keep the snapshot already loaded
+// by React available to that bridge.  The cache is limited to the web bridge
+// (the Electron context bridge is intentionally left untouched) and is
+// invalidated by enhancement mutations before their normal reload/update path.
+function syncWebBridgeData(data) {
+  if (typeof window === 'undefined' || !data || !window.__KEYWORD_TRACKER_SEED__) return;
+  const bridge = window.keywordTracker;
+  if (!bridge || typeof bridge.getData !== 'function') return;
+  const cacheKey = '__keywordRankGetDataCache';
+  let cache = bridge[cacheKey];
+  if (!cache) {
+    const original = bridge.getData.bind(bridge);
+    cache = { value: data, pending: null, original };
+    try {
+      Object.defineProperty(bridge, cacheKey, { value: cache, configurable: true });
+      bridge.getData = (...args) => {
+        if (cache.value) return Promise.resolve(cache.value);
+        if (!cache.pending) {
+          cache.pending = Promise.resolve(cache.original(...args))
+            .then((next) => { cache.value = next; return next; })
+            .finally(() => { cache.pending = null; });
+        }
+        return cache.pending;
+      };
+      const invalidate = () => { cache.value = null; };
+      window.addEventListener('keyword-tracker-competitor-updated', invalidate);
+      window.addEventListener('keyword-tracker-aba-imported', invalidate);
+      cache.cleanup = () => {
+        window.removeEventListener('keyword-tracker-competitor-updated', invalidate);
+        window.removeEventListener('keyword-tracker-aba-imported', invalidate);
+      };
+    } catch {
+      return;
+    }
+  }
+  cache.value = data;
+}
+
 export default function App() {
   const [data, setData] = useState(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -84,6 +124,8 @@ export default function App() {
   }, [model?.parentAsin, model?.dates, model?.latestDate]);
 
   const dateView = useMemo(() => buildDateView(model, selectedDate), [model, selectedDate]);
+
+  useEffect(() => { syncWebBridgeData(data); }, [data]);
 
   const applyResult = (result, title) => {
     setData(result.data);

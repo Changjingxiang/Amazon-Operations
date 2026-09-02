@@ -100,7 +100,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .legend-up { color: #ed4f4f; }
 .legend-down { color: #29a360; }
 .legend-none { color: #7a838f; }
-.matrix-scroll, .dashboard-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-color: #8b929b #e4e7ea; scrollbar-width: thin; }
+.matrix-scroll, .dashboard-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-color: #8b929b #e4e7ea; scrollbar-width: thin; position: relative; }
 .matrix-table, .dashboard-table, .aba-table, .history-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; table-layout: fixed; font-size: 12px; }
 .matrix-table th, .matrix-table td, .dashboard-table th, .dashboard-table td, .history-table th, .history-table td { border-right: 1px solid #d8dee6; border-bottom: 1px solid #d8dee6; height: 34px; padding: 4px 7px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .matrix-table thead th, .dashboard-table thead th { position: sticky; top: 0; z-index: 5; height: 42px; background: var(--cyan); color: white; font-weight: 800; }
@@ -130,13 +130,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .matrix-table .star-col { left: 0; width: 54px; min-width: 54px; }
 .matrix-table .keyword-col { left: var(--sticky-keyword-left, 54px); width: 250px; min-width: 250px; text-align: left; }
 .matrix-table .translation-col { left: var(--sticky-translation-left, 304px); width: 180px; min-width: 180px; text-align: left; box-shadow: 3px 0 0 rgba(23,59,100,.13); }
-.matrix-table tbody tr:hover td { filter: brightness(.98); }
+.matrix-table tbody tr:hover > td { background-image: linear-gradient(rgba(39,199,217,.025), rgba(39,199,217,.025)) !important; }
 .matrix-table .watched-row .sticky-col, .dashboard-table tr.watched-row td { background: #fff9df; }
 .matrix-table .selected-date { box-shadow: inset 2px 0 0 rgba(23,59,100,.25), inset -2px 0 0 rgba(23,59,100,.25); }
 .matrix-date-label { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; }
 .matrix-today-dot { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.22); }
-.matrix-table td.matrix-hover-cell { position: relative; z-index: 4; outline: 2px solid #173b64; outline-offset: -2px; }
-.matrix-table thead th.matrix-hover-cell { z-index: 9; }
+.matrix-column-hover-overlay { position: absolute; top: 0; left: 0; width: 0; height: 0; z-index: 2; pointer-events: none; background: rgba(39,199,217,.045); contain: paint; }
+.matrix-table td.matrix-rank-cell:hover, .matrix-table td.matrix-rank-cell:focus-visible { position: relative; z-index: 4; outline: 2px solid #173b64; outline-offset: -2px; background-image: linear-gradient(rgba(39,199,217,.08), rgba(39,199,217,.08)) !important; }
 .column-resize-handle { display: block; position: absolute; top: 0; right: 0; bottom: 0; z-index: 20; width: 8px; cursor: col-resize; border: 0; background: rgba(23,59,100,.001); touch-action: none; }
 .column-resize-handle::after { content: ''; position: absolute; top: 7px; bottom: 7px; left: 3px; width: 2px; border-radius: 2px; background: rgba(23,59,100,.22); opacity: 0; transition: opacity .14s ease, background-color .14s ease; }
 .matrix-table thead th:hover .column-resize-handle::after, .column-resize-handle:focus-visible::after { opacity: 1; background: var(--cyan); }
@@ -152,14 +152,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .rank-down { background: #e0f5df !important; color: #19763e; }
 .rank-unranked { background: #ebedef !important; color: #626c79; }
 .rank-neutral { background: #fff !important; color: #25354d; }
-/* Hover feedback is layered after rank/annotation colors.  The tint is a
-   translucent background image, so the underlying rank semantics remain
-   visible while the Matrix row and column stay easy to track. */
-.matrix-table .matrix-hover-column { background-image: linear-gradient(rgba(39,199,217,.045), rgba(39,199,217,.045)) !important; }
-.matrix-table tbody tr.matrix-hover-row > td { background-image: linear-gradient(rgba(39,199,217,.025), rgba(39,199,217,.025)) !important; }
-.matrix-table tbody tr.matrix-hover-row > td.matrix-hover-column { background-image: linear-gradient(rgba(39,199,217,.05), rgba(39,199,217,.05)) !important; }
-.matrix-table td.matrix-hover-cell { background-image: linear-gradient(rgba(39,199,217,.08), rgba(39,199,217,.08)) !important; }
-
 .table-toolbar { justify-content: flex-end; }
 .table-toolbar > span { margin-right: auto; }
 .sort-controls { display: inline-flex; align-items: center; gap: 4px; }

@@ -40,6 +40,7 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
   const annotationField = metric === 'natural' ? 'naturalAnnotations' : 'spAnnotations';
   const [editing, setEditing] = useState(null);
   const tableRef = useRef(null);
+  const columnOverlayRef = useRef(null);
   const defaults = useMemo(() => ({ star: 54, keyword: 250, translation: 180, date: 82 }), []);
   const { widths, nudgeWidth, startResize } = useColumnWidths(`keyword-tracker:columns:${metric}`, defaults);
   const [collapsedYears, setCollapsedYears] = useState(() => new Set());
@@ -79,40 +80,40 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
   useEffect(() => {
     const table = tableRef.current;
     if (!table) return undefined;
-    const dateCells = new Map();
-    table.querySelectorAll('[data-matrix-date]').forEach((element) => {
-      const date = element.getAttribute('data-matrix-date');
-      if (!date) return;
-      const bucket = dateCells.get(date) || [];
-      bucket.push(element);
-      dateCells.set(date, bucket);
-    });
-    const rows = new Map();
-    table.querySelectorAll('tbody tr[data-matrix-keyword]').forEach((row) => {
-      rows.set(row.getAttribute('data-matrix-keyword'), row);
-    });
     let active = null;
+    const overlay = columnOverlayRef.current;
+    const scroll = table.closest('.matrix-scroll');
+    const clearColumnOverlay = () => {
+      if (!overlay) return;
+      overlay.hidden = true;
+      overlay.style.left = '';
+      overlay.style.width = '';
+    };
     const clearHover = () => {
       if (!active) return;
-      active.cell.classList.remove('matrix-hover-cell');
-      active.column.forEach((element) => element.classList.remove('matrix-hover-column'));
-      active.row?.classList.remove('matrix-hover-row');
+      clearColumnOverlay();
       active = null;
+    };
+    const showColumnOverlay = (cell) => {
+      if (!overlay || !cell) return;
+      const tableRect = table.getBoundingClientRect();
+      const cellRect = cell.getBoundingClientRect();
+      // The overlay is a sibling inside the scroll content.  Convert the
+      // rendered cell position back to the table's unscrolled coordinate so
+      // the browser moves the single layer together with horizontal/vertical
+      // scrolling without touching every date cell.
+      overlay.style.left = `${Math.round(cellRect.left - tableRect.left + (scroll?.scrollLeft || 0))}px`;
+      overlay.style.width = `${Math.round(cellRect.width)}px`;
+      overlay.style.height = `${Math.max(table.offsetHeight, table.parentElement?.clientHeight || 0)}px`;
+      overlay.hidden = false;
     };
     const handlePointerOver = (event) => {
       const cell = event.target.closest?.('td.matrix-rank-cell');
       if (!cell || !table.contains(cell)) return;
-      const date = cell.getAttribute('data-matrix-date');
-      const keyword = cell.getAttribute('data-matrix-keyword');
-      if (!date || !keyword) return;
       if (active?.cell === cell) return;
       clearHover();
-      const column = dateCells.get(date) || [];
-      column.forEach((element) => element.classList.add('matrix-hover-column'));
-      const row = rows.get(keyword);
-      row?.classList.add('matrix-hover-row');
-      cell.classList.add('matrix-hover-cell');
-      active = { cell, column, row };
+      showColumnOverlay(cell);
+      active = { cell };
     };
     const handlePointerOut = (event) => {
       const next = event.relatedTarget;
@@ -125,7 +126,7 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
       table.removeEventListener('pointerout', handlePointerOut);
       clearHover();
     };
-  }, [columns, model.matrixRows]);
+  }, []);
   const columnCount = (year, month) => columns.filter((column) => column.year === year && (!month || column.month === month)).length || 1;
   const toggleYear = (year) => { animateLayout(); setCollapsedYears((current) => { const next = new Set(current); next.has(year) ? next.delete(year) : next.add(year); return next; }); };
   const toggleMonth = (month) => { animateLayout(); setCollapsedMonths((current) => { const next = new Set(current); next.has(month) ? next.delete(month) : next.add(month); return next; }); };
@@ -150,6 +151,7 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
     <section className="matrix-panel">
       <div className="matrix-note matrix-group-note"><span>{metric === 'natural' ? '自然矩阵' : 'SP矩阵'}：可按年份、月份收放</span><span>关键词为行、日期为列；0 表示未上榜。点击{metric === 'natural' ? '自然' : 'SP'}排名单元格添加标注，黑底白字表示已标注。</span><span><b className="legend-up">红色</b>=排名上升　<b className="legend-down">绿色</b>=排名下降　<b className="legend-none">灰色</b>=未上榜</span></div>
       <div className="matrix-scroll">
+        <div ref={columnOverlayRef} className="matrix-column-hover-overlay" hidden aria-hidden="true" />
         <table ref={tableRef} style={stickyLayoutStyle} className={`matrix-table matrix-group-table matrix-layout-transition ${layoutAnimating ? 'is-animating' : ''}`}>
           <colgroup>
             <col style={widthStyle('star')} /><col style={widthStyle('keyword')} /><col style={widthStyle('translation')} />
