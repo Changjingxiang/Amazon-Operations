@@ -195,11 +195,12 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
       if (!overlay || !cell) return;
       const tableRect = table.getBoundingClientRect();
       const cellRect = cell.getBoundingClientRect();
-      // The overlay is a sibling inside the scroll content.  Convert the
-      // rendered cell position back to the table's unscrolled coordinate so
-      // the browser moves the single layer together with horizontal/vertical
-      // scrolling without touching every date cell.
-      overlay.style.left = `${Math.round(cellRect.left - tableRect.left + (scroll?.scrollLeft || 0))}px`;
+      // The overlay is a sibling inside the scroll content. `tableRect` already
+      // includes the scroll offset, so subtracting it from the rendered cell
+      // position yields the table-content coordinate directly. Adding
+      // scrollLeft here would double-count horizontal scrolling and place the
+      // highlight to the right of the hovered column.
+      overlay.style.left = `${Math.round(cellRect.left - tableRect.left)}px`;
       overlay.style.width = `${Math.round(cellRect.width)}px`;
       overlay.style.height = `${Math.max(table.offsetHeight, table.parentElement?.clientHeight || 0)}px`;
       overlay.hidden = false;
