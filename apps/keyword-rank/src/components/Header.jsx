@@ -5,6 +5,7 @@ const tabs = [
   ['dashboard', '看板'],
   ['natural', '自然矩阵'],
   ['sp', 'SP矩阵'],
+  ['comparison', '对比矩阵'],
   ['aba', 'ABA月榜'],
   ['history', '历史记录'],
 ];

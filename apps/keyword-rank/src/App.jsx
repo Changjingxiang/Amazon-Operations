@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar.jsx';
 import Header from './components/Header.jsx';
 import SummaryBand from './components/SummaryBand.jsx';
 import MatrixView from './components/MatrixView.jsx';
+import ComparisonMatrixView from './components/ComparisonMatrixView.jsx';
 import DashboardView from './components/DashboardView.jsx';
 import DashboardComparisonOverview from './components/DashboardComparisonOverview.jsx';
 import WatchDrawer from './components/WatchDrawer.jsx';
@@ -18,7 +19,7 @@ import { api } from './lib/api.js';
 import { buildDateView } from './lib/format.js';
 import { resetAllColumnWidths } from './lib/columnWidths.jsx';
 
-const KNOWN_TABS = new Set(['dashboard', 'natural', 'sp', 'aba', 'history']);
+const KNOWN_TABS = new Set(['dashboard', 'natural', 'sp', 'comparison', 'aba', 'history']);
 
 function isoTime(value) {
   const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -38,7 +39,7 @@ function nearestDate(target, dates) {
 }
 
 function supportsTab(targetModel, tab) {
-  // Current model-shaped records support all five views.  Respect an
+  // Current model-shaped records support all views.  Respect an
   // explicitly supplied capability list for future/imported model types so a
   // product switch can fall back only when the target truly lacks a view.
   return !Array.isArray(targetModel?.supportedTabs) || targetModel.supportedTabs.includes(tab);
@@ -88,6 +89,7 @@ export default function App() {
   const [data, setData] = useState(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('natural');
+  const [comparisonFocus, setComparisonFocus] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [watchOpen, setWatchOpen] = useState(false);
   const [addModelOpen, setAddModelOpen] = useState(false);
@@ -197,6 +199,11 @@ export default function App() {
     if (nextModel && (!supportsTab(nextModel, activeTab) || !KNOWN_TABS.has(activeTab))) setActiveTab('natural');
   };
 
+  const openComparison = (section) => {
+    setComparisonFocus(section);
+    setActiveTab('comparison');
+  };
+
   const addModel = async (payload) => {
     const ok = await runAction('正在登记型号…', () => api.addModel(payload), '型号已生成');
     if (ok) {
@@ -289,13 +296,14 @@ export default function App() {
                 loadedAt={data.loadedAt}
                 mode={activeTab}
               />
-              {activeTab === 'dashboard' && <DashboardComparisonOverview rows={dateView.rows} selectedDate={selectedDate || model.latestDate} />}
+              {activeTab === 'dashboard' && <DashboardComparisonOverview rows={dateView.rows} selectedDate={selectedDate || model.latestDate} onDetails={openComparison} />}
             </>
           )}
           <div className="content-area view-transition">
             {activeTab === 'dashboard' && <DashboardView rows={dateView.rows} model={model} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} />}
             {activeTab === 'natural' && <MatrixView model={model} metric="natural" selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
             {activeTab === 'sp' && <MatrixView model={model} metric="sp" selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
+            {activeTab === 'comparison' && <ComparisonMatrixView model={model} rows={dateView.rows} selectedDate={selectedDate} focusSection={comparisonFocus} onFocusHandled={() => setComparisonFocus(null)} onToggleWatch={toggleWatch} />}
             {activeTab === 'aba' && <ABAView model={model} onToggleWatch={toggleWatch} />}
             {activeTab === 'history' && <HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} />}
           </div>

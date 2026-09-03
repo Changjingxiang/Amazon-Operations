@@ -1,16 +1,17 @@
 # Amazon Operations
 
-## 关键词排名每日跟进网页版 v2.0
+## 关键词排名每日跟进网页版 v2.1
 
-当前正式 React/Vite 源码唯一位于 [`apps/keyword-rank`](apps/keyword-rank)。网页 bridge、settings enhancement、种子数据、SIF 扩展和说明文件分别位于 [`web`](web)。[`outputs`](outputs) 只保存可交付的构建产物；当前 v2.0 入口仍保留在 [`outputs/关键词排名每日跟进网页版-v2.0/index.html`](outputs/关键词排名每日跟进网页版-v2.0/index.html)。
+当前正式 React/Vite 源码唯一位于 [`apps/keyword-rank`](apps/keyword-rank)。网页 bridge、settings enhancement、种子数据、SIF 扩展和说明文件分别位于 [`web`](web)。[`outputs`](outputs) 只保存可交付的构建产物；本次 v2.1 对比矩阵包会由 `npm run release:web` 生成。
 
-v2.0 在保留看板、自然矩阵、SP 矩阵、ABA 月榜和历史记录的基础上，支持：
+v2.1 在保留看板、自然矩阵、SP 矩阵、ABA 月榜和历史记录的基础上，支持：
 
 - 自有产品与竞品分阶段自动导入（先全部自有产品，再全部竞品）；
 - 竞品层级导航、统一详情页和竞品抽屉对比；
 - 自然矩阵/SP 矩阵排名悬停竞品对比气泡；
 - 父体 ASIN 修改并保留历史、自定义产品图片和双确认删除；
 - 看板顶部自然/SP 对比总览（共同上榜、领先关系、第一页关键词数、排名页分布和差值分布）；
+- 对比矩阵按“自然领先”和“SP领先”分区，日期下并列显示自然/SP排名，并用 ①/②/③ 标记所在页；看板“详情”按钮可直接跳转到对应分区；
 - 月 ABA CSV 导入及去年环比趋势；看板关键词悬停可查看以 ABA CSV 为准的今年/去年双折线对照，并显示各月具体排名。
 
 ## 开发与发布

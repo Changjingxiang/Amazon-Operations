@@ -1,6 +1,6 @@
 # 关键词排名每日跟进（正式源码）
 
-这是 Amazon Operations 当前 v2.0 的 React/Vite + Electron 正式源码目录。
+这是 Amazon Operations 当前 v2.1 的 React/Vite + Electron 正式源码目录。
 
 - `src/`：React 页面、矩阵/ABA/Dashboard/历史记录和交互组件。
 - `electron/`、`bridge/`：桌面版 IPC、本地数据存储和 Excel/SIF 桥接。

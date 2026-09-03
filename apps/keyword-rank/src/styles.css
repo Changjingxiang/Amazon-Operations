@@ -115,6 +115,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .dashboard-overview-metric.tone-natural-only .dashboard-overview-metric-value strong { color: #208d7b; }
 .dashboard-overview-metric.tone-sp-only .dashboard-overview-metric-value strong { color: #b8781b; }
 .dashboard-overview-metric-detail { color: #7d8998; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dashboard-overview-metric-detail-row { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.dashboard-overview-metric-detail-row .dashboard-overview-metric-detail { flex: 1 1 auto; }
+.dashboard-overview-detail-button { flex: 0 0 auto; height: 23px; min-width: 40px; padding: 0 8px; border: 1px solid currentColor; border-radius: 7px; background: rgba(255,255,255,.72); color: #1688a8; font-size: 10px; font-weight: 800; line-height: 1; }
+.dashboard-overview-detail-button:hover { background: #fff; box-shadow: 0 2px 6px rgba(23,59,100,.12); transform: translateY(-1px); }
+.dashboard-overview-metric.tone-sp .dashboard-overview-detail-button { color: #d15a4f; }
 .dashboard-overview-panel { min-width: 0; border: 1px solid #d7e0e7; border-radius: 9px; background: #fff; overflow: hidden; }
 .dashboard-overview-panel-head { min-height: 39px; padding: 8px 10px 7px; border-bottom: 1px solid #e5e9ed; background: #fbfcfd; }
 .dashboard-overview-panel-head h3 { margin: 0; color: #334052; font-size: 12px; line-height: 1.25; }
@@ -213,6 +218,40 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .matrix-annotation-cell, .sp-annotation-cell { cursor: text; }
 .sp-rank-value { display: inline-block; min-width: 1ch; }
 .cell-annotation-input { width: 100%; min-width: 0; height: 27px; border: 1px solid var(--cyan); border-radius: 4px; padding: 2px 5px; outline: 0; background: #fff; color: #172231; font-size: 11px; }
+.comparison-panel { width: 100%; height: 100%; border: 1.5px solid var(--navy); border-radius: var(--radius-panel); background: white; overflow: hidden; display: flex; flex-direction: column; }
+.comparison-note { min-height: 51px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 8px 13px; border-bottom: 1px solid #d8dee6; color: #667385; font-size: 11px; background: #fffefa; }
+.comparison-note > div { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.comparison-note > div:last-child { flex: 0 0 auto; justify-content: flex-end; gap: 12px; color: #7c8794; font-size: 10px; }
+.comparison-note strong { flex: 0 0 auto; color: var(--navy); font-size: 16px; line-height: 1.2; }
+.comparison-note span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comparison-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-color: #8b929b #e4e7ea; scrollbar-width: thin; }
+.comparison-section { min-width: max-content; background: #fff; }
+.comparison-section + .comparison-section { margin-top: 14px; border-top: 1px solid #ccd7df; }
+.comparison-section-header { min-height: 50px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 13px; border-bottom: 1px solid #d8dee6; background: #f7fbfc; }
+.comparison-section-header > div:first-child { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.comparison-section-header h2 { margin: 0; color: #25354d; font-size: 15px; line-height: 1.2; }
+.comparison-section-natural .comparison-section-header h2 { color: #1688a8; }
+.comparison-section-sp .comparison-section-header h2 { color: #d15a4f; }
+.comparison-section-header span { color: #7c8996; font-size: 10px; white-space: nowrap; }
+.comparison-section-legend { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
+.comparison-section-legend .legend-up, .comparison-section-legend .legend-down { font-size: 10px; font-weight: 700; }
+.comparison-table-scroll { min-width: max-content; }
+.comparison-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; table-layout: fixed; font-size: 12px; }
+.comparison-table th, .comparison-table td { border-right: 1px solid #d8dee6; border-bottom: 1px solid #d8dee6; height: 42px; padding: 4px 7px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.comparison-table thead th { position: sticky; z-index: 5; color: white; font-weight: 800; }
+.comparison-table .comparison-date-row th { top: 0; height: 34px; background: #1f527d; }
+.comparison-table .comparison-metric-row th { top: 34px; height: 32px; background: #28769a; font-size: 11px; }
+.comparison-table .comparison-fixed-head { position: sticky; left: 0; z-index: 8; background: var(--navy) !important; }
+.comparison-table .comparison-keyword-head, .comparison-table .comparison-keyword-cell { left: var(--comparison-keyword-left, 54px); width: 250px; min-width: 250px; text-align: left; }
+.comparison-table .comparison-translation-head, .comparison-table .comparison-translation-cell { left: var(--comparison-translation-left, 304px); width: 180px; min-width: 180px; text-align: left; box-shadow: 3px 0 0 rgba(23,59,100,.13); }
+.comparison-table tbody .comparison-keyword-cell, .comparison-table tbody .comparison-translation-cell { position: sticky; z-index: 3; background: #fff; }
+.comparison-table tbody tr:hover > td { background-image: linear-gradient(rgba(39,199,217,.025), rgba(39,199,217,.025)); }
+.comparison-table .comparison-rank-cell { width: 82px; min-width: 82px; padding: 4px 5px; vertical-align: middle; }
+.comparison-table .comparison-rank-cell.selected-date { box-shadow: inset 2px 0 0 rgba(23,59,100,.25), inset -2px 0 0 rgba(23,59,100,.25); }
+.comparison-rank-number { display: block; min-height: 14px; font-size: 13px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.comparison-page-marker { display: block; min-height: 11px; margin-top: 2px; color: currentColor; font-size: 9px; font-weight: 800; line-height: 1; opacity: .72; }
+.comparison-table .star-button { margin: auto; }
+.comparison-empty { min-height: 80px; display: grid; place-items: center; color: #8995a1; font-size: 12px; }
 .star-button { width: 29px; height: 29px; border: 0; background: transparent; color: #6f7b88; display: inline-grid; place-items: center; border-radius: 8px; padding: 0; }
 .star-button:hover { background: #fff2b8; color: #d49700; }
 .star-button.watched { color: #e0a000; }

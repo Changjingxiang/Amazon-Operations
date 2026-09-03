@@ -91,12 +91,15 @@ function buildOverview(rows) {
   };
 }
 
-function OverviewMetric({ label, value, total, detail, tone }) {
+function OverviewMetric({ label, value, total, detail, tone, onDetails }) {
   return (
     <div className={`dashboard-overview-metric tone-${tone}`}>
       <span className="dashboard-overview-metric-label">{label}</span>
       <div className="dashboard-overview-metric-value"><strong>{integer(value)}</strong><small>{ratioText(value, total)}</small></div>
-      <span className="dashboard-overview-metric-detail">{detail}</span>
+      <div className="dashboard-overview-metric-detail-row">
+        <span className="dashboard-overview-metric-detail">{detail}</span>
+        {onDetails && <button type="button" className="dashboard-overview-detail-button" aria-label={`查看${label}详情`} onClick={(event) => { event.stopPropagation(); onDetails(); }}>详情</button>}
+      </div>
     </div>
   );
 }
@@ -166,7 +169,7 @@ function FirstPagePanel({ overview }) {
   );
 }
 
-export default function DashboardComparisonOverview({ rows, selectedDate }) {
+export default function DashboardComparisonOverview({ rows, selectedDate, onDetails }) {
   const overview = useMemo(() => buildOverview(rows), [rows]);
   return (
     <section className="dashboard-overview" data-dashboard-overview aria-labelledby="dashboard-overview-title">
@@ -178,8 +181,8 @@ export default function DashboardComparisonOverview({ rows, selectedDate }) {
         <div className="dashboard-overview-main">
           <div className="dashboard-overview-primary-grid">
             <OverviewMetric label="共同上榜" value={overview.common} total={overview.total} detail="自然 & SP 均有排名" tone="common" />
-            <OverviewMetric label="自然领先" value={overview.naturalLeading} total={overview.total} detail="自然排名更好" tone="natural" />
-            <OverviewMetric label="SP领先" value={overview.spLeading} total={overview.total} detail="SP排名更好" tone="sp" />
+            <OverviewMetric label="自然领先" value={overview.naturalLeading} total={overview.total} detail="自然排名更好" tone="natural" onDetails={onDetails ? () => onDetails('natural') : undefined} />
+            <OverviewMetric label="SP领先" value={overview.spLeading} total={overview.total} detail="SP排名更好" tone="sp" onDetails={onDetails ? () => onDetails('sp') : undefined} />
             <OverviewMetric label="仅自然上榜" value={overview.onlyNatural} total={overview.total} detail="SP未上榜" tone="natural-only" />
             <OverviewMetric label="仅SP上榜" value={overview.onlySp} total={overview.total} detail="自然未上榜" tone="sp-only" />
           </div>
