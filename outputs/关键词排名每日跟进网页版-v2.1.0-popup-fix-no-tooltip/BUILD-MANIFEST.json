@@ -1,0 +1,211 @@
+{
+  "package": "keyword-rank-daily-tracker",
+  "version": "2.1.0",
+  "webVersion": "2.1",
+  "generatedAt": "2026-09-03T06:59:35.643Z",
+  "source": "apps/keyword-rank + web",
+  "entryBundle": "index-C1eFrbnI.js",
+  "cssBundles": [],
+  "files": [
+    {
+      "path": "打开网页版.cmd",
+      "bytes": 39,
+      "sha256": "0EDBD8F5B22789C3F11971244871F1B36E23F9E710FDC8B25CA6429165EC81BE"
+    },
+    {
+      "path": "发送给使用者前必读.txt",
+      "bytes": 2930,
+      "sha256": "F33324322372F707E3F8985818F1B88C216838A1E78C9F000874B60A54F2EB42"
+    },
+    {
+      "path": "关键词排名每日跟进网页版-使用SOP.md",
+      "bytes": 18261,
+      "sha256": "2E1D4F126EDB64C3797E145E6CF46DB93936C84943D10CE0C4DFEAF49BA0B5A6"
+    },
+    {
+      "path": "使用说明.md",
+      "bytes": 5660,
+      "sha256": "B85367771BE620EE5E7AE830DB1B522EEB060992AD49C34A0761E5BBD0E58E90"
+    },
+    {
+      "path": "assets/01_app-logo-BDjjdeQ_.png",
+      "bytes": 175514,
+      "sha256": "F619B8E9610033489F0607C3AC57F532B0B3B19B4545DE9C80ADD9023EF05A46"
+    },
+    {
+      "path": "assets/05_daily-import-oRiCiwcN.png",
+      "bytes": 162829,
+      "sha256": "86898240D8DB328B951FAC4812CFB50F5EE0EEA74467D4FF8D0FD2AF6AEF170A"
+    },
+    {
+      "path": "assets/app-shell-icon-Cm196hNR.png",
+      "bytes": 668332,
+      "sha256": "04E9A01DAE0C74B70781C41DA09503BB56AEEA153A692320FFE82D49B6F34B4B"
+    },
+    {
+      "path": "assets/bomber-jacket-CURcYa8o.png",
+      "bytes": 188265,
+      "sha256": "2A39BDE865F948D0EF428A050288AF3379D9FE7E5BB5BE3336CA1C6C1A7CADF3"
+    },
+    {
+      "path": "assets/generic-apparel-CtZXfwei.png",
+      "bytes": 158786,
+      "sha256": "0A502F3D95ED914F253CCFC1CCD41B6C64F4E285BF4C7D623D5C9861246AF0D2"
+    },
+    {
+      "path": "assets/hooded-jacket-t65Lnl7t.png",
+      "bytes": 215023,
+      "sha256": "401281D6E7458CAF3C18C6847D59DB97221E7F53B796C8E1CDA8E6B1592000C0"
+    },
+    {
+      "path": "assets/hoodie-TMVJSGCh.png",
+      "bytes": 200031,
+      "sha256": "EAFBA8DC1FAFF72A5755DBD249A6CEFEBE81138ADC1267CE5707C0042E66AA50"
+    },
+    {
+      "path": "assets/index-C1eFrbnI.js",
+      "bytes": 255513,
+      "sha256": "C24B8C21530238DDC19AC574B349A073F8CA06F93BF6E3298B918363784DE670"
+    },
+    {
+      "path": "assets/jacket-CwCKyDMt.png",
+      "bytes": 190968,
+      "sha256": "C34466F3D9F9EE6FEE83427A416EFDEC30B24769231E8F3EB6072194D4E5AB8F"
+    },
+    {
+      "path": "assets/long-sleeve-tshirt-DFcE6nH5.png",
+      "bytes": 144140,
+      "sha256": "DCB9E822FEBCFB7F1F2AF4EAE536D6EDC10446A1E314B2C2CE65EAE6F71B5AD7"
+    },
+    {
+      "path": "assets/polo-BhhGRFK8.png",
+      "bytes": 172041,
+      "sha256": "2F20A34C1607BAF66338A92D6AFCA2B960FFE57A73386D81A8E410BCD2B92BAB"
+    },
+    {
+      "path": "assets/puffer-coat-DGuMV_8c.png",
+      "bytes": 184638,
+      "sha256": "E25A8C47AC20D77DD79A09CB9F38B4B4551F7D69ABE194463DFE55CBBF133019"
+    },
+    {
+      "path": "assets/shirt-C20CmSXr.png",
+      "bytes": 191251,
+      "sha256": "F98036C3B9310AC9EE62FC74423E792DD7E26127040B3428BFD4AA63AA65E6BB"
+    },
+    {
+      "path": "assets/sleeveless-tshirt-Cc5fF18E.png",
+      "bytes": 147834,
+      "sha256": "03FCDF88BEFD0773F88976064E9F097160085FBD79F4C413075BECD304B82680"
+    },
+    {
+      "path": "assets/sweater-CzQPkTrx.png",
+      "bytes": 186055,
+      "sha256": "758F0EA1CFCC95400E6C9B573CBE2541ECD2846DD88BDF7596F4EA2366B50946"
+    },
+    {
+      "path": "assets/sweatshirt-Ce8wGe2x.png",
+      "bytes": 171557,
+      "sha256": "06BE9F6EAF555482566CF0D9C16A9946908E4243EBE9F438A2B93B1179F34979"
+    },
+    {
+      "path": "assets/tank-top-3PcAnZ2I.png",
+      "bytes": 141363,
+      "sha256": "B814136FF58AF21175568E7DAB0F331159170A4B01AE9BFFC370AC95E6821F84"
+    },
+    {
+      "path": "assets/trench-coat-DLHsVomA.png",
+      "bytes": 208554,
+      "sha256": "F04C5591E499D1484607D51EC7947552BCD180505C29051331AAB2DCEDCF96F6"
+    },
+    {
+      "path": "assets/tshirt-CJ76tS6L.png",
+      "bytes": 146335,
+      "sha256": "251D26F4D8965BE90130FABB9F9B4F76F8ABA4939E16C007620B5F8E43CFECB0"
+    },
+    {
+      "path": "assets/vest-DFJB4jZ6.png",
+      "bytes": 187896,
+      "sha256": "EC9952D8631B0C7787BAB6FE4F4C0331B28566365ED72F700BD4070DC8501116"
+    },
+    {
+      "path": "browser-bridge.js",
+      "bytes": 92100,
+      "sha256": "9E6AB86803188E079621652ABAF8CD27F14114B81DFE2780AD1D4047E1000F34"
+    },
+    {
+      "path": "data/关键词排名每日跟进表.xlsx",
+      "bytes": 1807841,
+      "sha256": "4976F815FAF895BB9172D3D3EC8207B2F315EDC2111265429D06C0A62A4FA1A6"
+    },
+    {
+      "path": "data/initial-data.js",
+      "bytes": 20886968,
+      "sha256": "C60A50E0D7BBEE15F773AAB1E78F32622F7ABD4292591808B3416366C830EFAC"
+    },
+    {
+      "path": "favicon.png",
+      "bytes": 175514,
+      "sha256": "F619B8E9610033489F0607C3AC57F532B0B3B19B4545DE9C80ADD9023EF05A46"
+    },
+    {
+      "path": "index.html",
+      "bytes": 731,
+      "sha256": "93079B001CD358665040CC294C6F83DA33E5B228A8F6F64608FB3FCCA7436D69"
+    },
+    {
+      "path": "sif-batch-reverse-downloader/background.js",
+      "bytes": 19342,
+      "sha256": "102B2FF715CE8B368F8F24C0352FB287E4C46D91FA636C042E6DA1B44568BE04"
+    },
+    {
+      "path": "sif-batch-reverse-downloader/content.js",
+      "bytes": 10456,
+      "sha256": "83A3AA09F5AFFAF5FB06151B889FE88C231737CDAE0B9A89809DDF6754EAC5F2"
+    },
+    {
+      "path": "sif-batch-reverse-downloader/manifest.json",
+      "bytes": 870,
+      "sha256": "1E23EACF2536A7CD036DFC4D400B5658B28A27DC0FC88821B2638567C751E6DC"
+    },
+    {
+      "path": "sif-batch-reverse-downloader/popup.css",
+      "bytes": 4332,
+      "sha256": "C014ADA289418C1E8BCB4E5D392467FD298008B780EDD6504261D2E71B45D91C"
+    },
+    {
+      "path": "sif-batch-reverse-downloader/popup.html",
+      "bytes": 2469,
+      "sha256": "2E93A33569083E77CCDA98F5E1E09A439806D29766B13DB142A81812C7C0BBE0"
+    },
+    {
+      "path": "sif-batch-reverse-downloader/popup.js",
+      "bytes": 5479,
+      "sha256": "DCE8D0D1F0144BCD3603641A0B628E84A3D5268C7918CB22394115B1BE3992FA"
+    },
+    {
+      "path": "sif-batch-reverse-downloader/README.md",
+      "bytes": 4747,
+      "sha256": "9A3020FB666E504A67020A1E1C50FC517C4C1BA076FB6FEBB46FD85B4909AEAC"
+    },
+    {
+      "path": "sif-batch-reverse-downloader/tests/utils.test.mjs",
+      "bytes": 1675,
+      "sha256": "00E5144CEA5EB18D7E423724E78F8D9933090CE64CB05BD893477C9089CADEB8"
+    },
+    {
+      "path": "sif-batch-reverse-downloader/utils.mjs",
+      "bytes": 3149,
+      "sha256": "1471535FB972DD29A22F8FA1F2C519E46CA406657FA31F16CD8C4EE809708B7E"
+    },
+    {
+      "path": "vendor/xlsx.full.min.js",
+      "bytes": 881727,
+      "sha256": "C9506197CAF809A075B6DEE1DA0D36FB19DA7158FFE8A88E7B0C96C5D8623C99"
+    },
+    {
+      "path": "web-settings-enhancements.js",
+      "bytes": 101219,
+      "sha256": "6CA7F2F3E54E3FDF6AD6FD90D4050A30806951384A3CDA18F174A26E214190CD"
+    }
+  ]
+}
