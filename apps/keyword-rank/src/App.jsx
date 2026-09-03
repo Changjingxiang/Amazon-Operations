@@ -5,6 +5,7 @@ import Header from './components/Header.jsx';
 import SummaryBand from './components/SummaryBand.jsx';
 import MatrixView from './components/MatrixView.jsx';
 import DashboardView from './components/DashboardView.jsx';
+import DashboardComparisonOverview from './components/DashboardComparisonOverview.jsx';
 import WatchDrawer from './components/WatchDrawer.jsx';
 import ABAView from './components/ABAView.jsx';
 import HistoryView from './components/HistoryView.jsx';
@@ -281,12 +282,15 @@ export default function App() {
             <div className="workbook-alert"><AlertTriangle size={18} /><span>检测到跟进表可能正在 WPS 中打开。首次迁移完成后，软件将使用本地数据运行，不再依赖工作簿。</span></div>
           )}
           {activeTab !== 'history' && activeTab !== 'aba' && (
-            <SummaryBand
-              metrics={dateView.metrics}
-              latestDate={selectedDate || model.latestDate}
-              loadedAt={data.loadedAt}
-              mode={activeTab}
-            />
+            <>
+              <SummaryBand
+                metrics={dateView.metrics}
+                latestDate={selectedDate || model.latestDate}
+                loadedAt={data.loadedAt}
+                mode={activeTab}
+              />
+              {activeTab === 'dashboard' && <DashboardComparisonOverview rows={dateView.rows} selectedDate={selectedDate || model.latestDate} />}
+            </>
           )}
           <div className="content-area view-transition">
             {activeTab === 'dashboard' && <DashboardView rows={dateView.rows} model={model} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} />}
