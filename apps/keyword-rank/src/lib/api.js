@@ -12,6 +12,21 @@ export const api = {
     if (!electronApi()?.runImport) throw new Error('浏览器预览模式不能执行导入，请在桌面软件中操作。');
     return electronApi().runImport(mode);
   },
+  importAbaMonthlyCsv: (payload = {}) => {
+    const bridge = electronApi();
+    if (typeof bridge?.importAbaMonthlyCsv === 'function') {
+      // Browser File objects are consumed by browser-bridge directly.  The
+      // Electron preload receives a file path (or opens the native picker).
+      if (window.__KEYWORD_TRACKER_SEED__) return bridge.importAbaMonthlyCsv(payload);
+      return bridge.importAbaMonthlyCsv({
+        year: payload.year,
+        month: payload.month,
+        countryCode: payload.countryCode,
+        filePath: payload.filePath || payload.file?.path || '',
+      });
+    }
+    throw new Error('当前环境不支持月 ABA CSV 导入，请在最新版软件或网页版中操作。');
+  },
   startSifImport: (payload) => {
     if (!electronApi()?.startSifImport) throw new Error('浏览器预览模式不能自动打开 SIF，请在桌面软件中操作。');
     return electronApi().startSifImport(payload);

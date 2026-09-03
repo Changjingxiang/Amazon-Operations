@@ -383,15 +383,18 @@
 
   function installAbaImport() {
     const modal = document.querySelector('.settings-modal');
-    if (!modal || modal.querySelector(`[${ABA_IMPORT_ATTR}]`)) return;
+    // The React source now owns the same import section in both Electron and
+    // the web build.  Keep this enhancer as a compatibility fallback for an
+    // older bundle, but never inject a second section into the new UI.
+    if (!modal || modal.querySelector(`[${ABA_IMPORT_ATTR}]`) || modal.querySelector('.settings-aba-import')) return;
     const section = document.createElement('section');
     section.className = 'settings-aba-import';
     section.setAttribute(ABA_IMPORT_ATTR, '');
     const year = new Date().getFullYear() - 1;
     const month = new Date().getMonth() + 1;
     section.innerHTML = `
-      <div class="settings-aba-import-title"><span>去年月 ABA 导入</span><small>搜索词 = 关键词 · 搜索频率排名 = ABA排名</small></div>
-      <p class="settings-aba-import-help">按国家、年份、月份导入月度 ABA CSV。导入后会用于 ABA 月榜的同比和去年环比趋势；同一国家和月份再次导入会覆盖旧文件。</p>
+      <div class="settings-aba-import-title"><span>月 ABA CSV 导入</span><small>今年/去年均可 · 搜索词 = 关键词</small></div>
+      <p class="settings-aba-import-help">按国家、年份、月份导入月度 ABA CSV。看板和 ABA 月榜会优先使用自己记录的数据，仅在对应月份缺少记录时使用 CSV 补缺；同一国家和月份再次导入会覆盖旧文件。</p>
       <div class="settings-aba-import-fields">
         <label>国家<select data-aba-country>${ABA_COUNTRIES.map((item) => `<option value="${item.code}">${item.label}</option>`).join('')}</select></label>
         <label>年份<input data-aba-year type="number" min="2000" max="2100" step="1" value="${year}" /></label>
@@ -1406,7 +1409,10 @@
     ];
     cells.forEach((cell) => {
       if (!(cell instanceof HTMLElement) || cell.querySelector(`[${COMPETITOR_KEYWORD_ATTR}]`)) return;
-      const keyword = cell.getAttribute('title')?.trim() || '';
+      const keyword = cell.getAttribute('data-keyword')?.trim()
+        || cell.getAttribute('title')?.trim()
+        || cell.textContent?.trim()
+        || '';
       if (!keyword) return;
       const table = cell.closest('table');
       const isDashboard = table?.classList.contains('dashboard-table');

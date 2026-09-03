@@ -1,8 +1,9 @@
 import { AlertTriangle, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { SIF_COUNTRIES } from '../lib/countries.js';
+import AbaImportSection from './AbaImportSection.jsx';
 
-export default function SettingsModal({ open, onClose, onResetWidths, models = [], onDeleteModel, onAddModel, onSetCountry }) {
+export default function SettingsModal({ open, onClose, onResetWidths, models = [], activeModel, onDeleteModel, onAddModel, onSetCountry, abaMonthlyImports = [], onImportAba }) {
   const [pendingAsin, setPendingAsin] = useState('');
   useEffect(() => { if (!open) setPendingAsin(''); }, [open]);
   useEffect(() => {
@@ -24,6 +25,13 @@ export default function SettingsModal({ open, onClose, onResetWidths, models = [
           <button type="button" className="secondary-button settings-reset-button" onClick={onResetWidths}>
             <RotateCcw size={17} />还原原表宽度
           </button>
+          <AbaImportSection
+            imports={abaMonthlyImports}
+            defaultCountry={activeModel?.countryCode || models[0]?.countryCode || 'CA'}
+            defaultYear={activeModel?.selectedYear || models[0]?.selectedYear || new Date().getFullYear()}
+            defaultMonth={activeModel?.latestDate ? Number(activeModel.latestDate.slice(5, 7)) : (models[0]?.latestDate ? Number(models[0].latestDate.slice(5, 7)) : new Date().getMonth() + 1)}
+            onImport={onImportAba}
+          />
           <div className="settings-divider" />
           <div className="settings-section-heading"><div><h3>产品管理</h3><p>删除产品会同时移除本地历史、关注词、标注和图标配置，源报表文件不会被删除。</p></div><div className="settings-section-actions"><button type="button" className="settings-add-button" onClick={() => { onClose?.(); onAddModel?.(); }}><Plus size={16} />新增型号</button><Trash2 size={19} /></div></div>
           <div className="settings-delete-list">

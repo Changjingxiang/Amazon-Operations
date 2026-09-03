@@ -1,8 +1,8 @@
-const { app, BrowserWindow, ipcMain, shell, session } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
-const { readData, mutateWatch, replaceWatches, setAnnotation, addModel, deleteModel, setModelCountry, importReports, STORE_NAME } = require('./native-store.cjs');
+const { readData, mutateWatch, replaceWatches, setAnnotation, addModel, deleteModel, setModelCountry, importReports, importAbaMonthlyCsv, STORE_NAME } = require('./native-store.cjs');
 const { normalizeCountryCode, countryLabel } = require('./countries.cjs');
 
 const WORKBOOK_NAME = '关键词排名每日跟进表.xlsx';
@@ -396,6 +396,20 @@ app.whenReady().then(() => {
   ipcMain.handle('tracker:run-import', async (_event, { mode }) => {
     const toolRoot = findToolRoot();
     return importReports(toolRoot, bridgePath('export_tracker_data.ps1'), path.join(app.getPath('userData'), 'tracker-data-migration.json'), mode || 'normal');
+  });
+  ipcMain.handle('tracker:import-aba-monthly', async (_event, payload = {}) => {
+    const toolRoot = findToolRoot();
+    let filePath = String(payload.filePath || '').trim();
+    if (!filePath) {
+      const selection = await dialog.showOpenDialog(mainWindow, {
+        title: '选择月 ABA CSV 文件',
+        properties: ['openFile'],
+        filters: [{ name: 'ABA CSV', extensions: ['csv'] }, { name: '所有文件', extensions: ['*'] }],
+      });
+      if (selection.canceled || !selection.filePaths?.[0]) return { ok: true, output: '未选择月 ABA 文件，未修改数据。', data: loadTrackerData() };
+      filePath = selection.filePaths[0];
+    }
+    return importAbaMonthlyCsv(toolRoot, bridgePath('export_tracker_data.ps1'), path.join(app.getPath('userData'), 'tracker-data-migration.json'), { ...payload, filePath });
   });
   ipcMain.handle('tracker:start-sif-import', async (_event, payload) => {
     if (activeSifImport) throw new Error('已有 SIF 自动导入任务正在运行，请等待当前任务完成。');

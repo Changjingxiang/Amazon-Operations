@@ -216,6 +216,12 @@ export default function App() {
     '产品国家已更新',
   );
 
+  const importAbaMonthlyCsv = (payload) => runAction(
+    '正在导入月 ABA CSV…',
+    () => api.importAbaMonthlyCsv(payload),
+    '月 ABA 已导入',
+  );
+
   const startSifImport = () => runAction(
     `正在为 ${model.modelName} 自动下载今日报表…`,
     () => api.startSifImport({ parentAsin: model.parentAsin, countryCode: model.countryCode || 'CA' }),
@@ -283,7 +289,7 @@ export default function App() {
             />
           )}
           <div className="content-area view-transition">
-            {activeTab === 'dashboard' && <DashboardView rows={dateView.rows} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} />}
+            {activeTab === 'dashboard' && <DashboardView rows={dateView.rows} model={model} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} />}
             {activeTab === 'natural' && <MatrixView model={model} metric="natural" selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
             {activeTab === 'sp' && <MatrixView model={model} metric="sp" selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
             {activeTab === 'aba' && <ABAView model={model} onToggleWatch={toggleWatch} />}
@@ -302,7 +308,7 @@ export default function App() {
         />
         <AddModelModal open={addModelOpen} onClose={() => setAddModelOpen(false)} onSubmit={addModel} />
         <IconPickerModal model={iconModel} onClose={() => setIconModel(null)} onSelect={saveModelIcon} />
-        <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onResetWidths={resetWidths} models={data.models} onDeleteModel={deleteModel} onAddModel={() => setAddModelOpen(true)} onSetCountry={setModelCountry} />
+        <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onResetWidths={resetWidths} models={data.models} activeModel={model} onDeleteModel={deleteModel} onAddModel={() => setAddModelOpen(true)} onSetCountry={setModelCountry} abaMonthlyImports={data.abaMonthlyImports} onImportAba={importAbaMonthlyCsv} />
         <BusyOverlay label={busyLabel} />
         <Toast toast={toast} onClose={() => setToast(null)} />
       </div>

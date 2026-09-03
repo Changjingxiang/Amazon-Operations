@@ -519,6 +519,44 @@
     return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
   }
 
+  function buildAbaSeries(records, allAbaMonthly, countryCode, targetYear, itemKey, cutoffMonthNumber = 12) {
+    const pointsByDate = new Map();
+    const ownMonths = new Set();
+    const prefix = `${targetYear}-`;
+    for (const item of records) {
+      if (!item.snapshotDate?.startsWith(prefix)) continue;
+      const value = nullableNumber(item.weeklyAbaRank);
+      if (value == null || value <= 0) continue;
+      const month = item.snapshotDate.slice(0, 7);
+      const existing = pointsByDate.get(item.snapshotDate);
+      if (!existing || String(item.importTime || '') >= String(existing.importTime || '')) {
+        pointsByDate.set(item.snapshotDate, { date: item.snapshotDate, value, source: 'record', importTime: item.importTime });
+      }
+      ownMonths.add(month);
+    }
+    const maxMonth = Math.max(1, Math.min(12, Number(cutoffMonthNumber) || 12));
+    for (let monthIndex = 1; monthIndex <= maxMonth; monthIndex += 1) {
+      const month = `${targetYear}-${String(monthIndex).padStart(2, '0')}`;
+      if (ownMonths.has(month)) continue;
+      const entry = getAbaMonthlyEntry(allAbaMonthly, countryCode, month);
+      const rank = nullableNumber(abaEntryRows(entry)?.[itemKey]);
+      const date = monthEndDate(month);
+      if (rank == null || rank <= 0 || !date || pointsByDate.has(date)) continue;
+      pointsByDate.set(date, { date, value: rank, source: 'csv' });
+    }
+    return [...pointsByDate.values()]
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map(({ date, value, source }) => ({ date, value, source }));
+  }
+
+  function latestAbaRecordByMonth(records, year, month) {
+    if (!month) return null;
+    const candidates = records
+      .filter((item) => item.snapshotDate?.startsWith(`${year}-${month}-`) && nullableNumber(item.weeklyAbaRank) != null)
+      .sort((a, b) => String(a.snapshotDate).localeCompare(String(b.snapshotDate)) || String(a.importTime || '').localeCompare(String(b.importTime || '')));
+    return candidates.at(-1) || null;
+  }
+
   function listAbaMonthlyImports(abaMonthly) {
     if (!abaMonthly || typeof abaMonthly !== 'object') return [];
     return Object.entries(abaMonthly)
@@ -702,70 +740,41 @@
       const maxConversion = yearRecords.reduce((max, item) => Math.max(max, item.conversionRate ?? 0), 0) || null;
       const latestByMonth = new Map();
       for (const item of yearRecords) {
-        if (item.weeklyAbaRank == null) continue;
+        if (nullableNumber(item.weeklyAbaRank) == null || nullableNumber(item.weeklyAbaRank) <= 0) continue;
         const month = item.snapshotDate.slice(0, 7);
         const existing = latestByMonth.get(month);
         if (!existing || item.snapshotDate > existing.snapshotDate) latestByMonth.set(month, item);
       }
-      const months = Array.from({ length: 12 }, (_unused, monthIndex) =>
-        latestByMonth.get(`${selectedYear}-${String(monthIndex + 1).padStart(2, '0')}`)?.weeklyAbaRank ?? null,
-      );
-      const trendByDate = new Map();
-      for (const item of yearRecords) {
-        if (item.weeklyAbaRank == null) continue;
-        const existing = trendByDate.get(item.snapshotDate);
-        if (!existing || String(item.importTime || '') >= String(existing.importTime || '')) trendByDate.set(item.snapshotDate, item);
-      }
-      const abaTrend = [...trendByDate.values()]
-        .sort((a, b) => a.snapshotDate.localeCompare(b.snapshotDate))
-        .map((item) => ({ date: item.snapshotDate, value: item.weeklyAbaRank }));
+      // Imported months are explicit user input, so include them even when
+      // the latest daily snapshot is from an earlier month.
+      const currentMonthNumber = 12;
+      const abaTrend = buildAbaSeries(records, allAbaMonthly, config.countryCode || config.site, selectedYear, itemKey, currentMonthNumber);
+      const months = Array.from({ length: 12 }, (_unused, monthIndex) => {
+        const month = `${selectedYear}-${String(monthIndex + 1).padStart(2, '0')}`;
+        const own = latestByMonth.get(month);
+        if (own) return nullableNumber(own.weeklyAbaRank);
+        const imported = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, config.countryCode || config.site, month))?.[itemKey]);
+        return imported != null && imported > 0 ? imported : null;
+      });
       const previousYear = selectedYear - 1;
-      let previousStart = latestDate ? shiftCalendarMonths(latestDate, -12) : '';
       const previousYearRecords = keywordRecords
-        .filter((item) => item.weeklyAbaRank != null && item.snapshotDate.startsWith(`${previousYear}-`))
-        .sort((a, b) => a.snapshotDate.localeCompare(b.snapshotDate));
-      const exactOrNext = previousYearRecords.find((item) => item.snapshotDate >= previousStart);
-      const previousAnchor = exactOrNext || previousYearRecords.filter((item) => item.snapshotDate < previousStart).at(-1);
-      if (previousAnchor) previousStart = previousAnchor.snapshotDate;
-      const previousEnd = previousStart ? shiftCalendarMonths(previousStart, 2) : '';
-      const previousTrendByDate = new Map();
-      if (previousStart && previousEnd) {
-        for (const item of keywordRecords) {
-          if (item.weeklyAbaRank == null || item.snapshotDate < previousStart || item.snapshotDate > previousEnd) continue;
-          const existing = previousTrendByDate.get(item.snapshotDate);
-          if (!existing || String(item.importTime || '') >= String(existing.importTime || '')) previousTrendByDate.set(item.snapshotDate, item);
-        }
-      }
-      const abaPreviousTrendBase = [...previousTrendByDate.values()]
-        .sort((a, b) => a.snapshotDate.localeCompare(b.snapshotDate))
-        .map((item) => ({ date: item.snapshotDate, value: item.weeklyAbaRank }));
-      // Compare the latest/current month’s weekly ABA ranks (median) with the
-      // imported ABA month from last year.  A smaller rank is an improvement.
+        .filter((item) => item.snapshotDate.startsWith(`${previousYear}-`) && nullableNumber(item.weeklyAbaRank) != null && nullableNumber(item.weeklyAbaRank) > 0);
+      const abaPreviousTrend = buildAbaSeries(records, allAbaMonthly, config.countryCode || config.site, previousYear, itemKey, currentMonthNumber);
       const currentMonth = latestDate ? latestDate.slice(0, 7) : '';
       const previousYearMonth = currentMonth ? shiftMonthKey(currentMonth, -12) : '';
       const previousYearNextMonth = previousYearMonth ? shiftMonthKey(previousYearMonth, 1) : '';
-      const currentMonthMedian = median(keywordRecords
+      const previousMonthOwn = latestAbaRecordByMonth(previousYearRecords, previousYear, previousYearMonth.slice(5, 7));
+      const previousNextOwn = latestAbaRecordByMonth(previousYearRecords, previousYear, previousYearNextMonth.slice(5, 7));
+      const previousYearRank = nullableNumber(previousMonthOwn?.weeklyAbaRank)
+        ?? nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, config.countryCode || config.site, previousYearMonth))?.[itemKey]);
+      const previousYearNextRank = nullableNumber(previousNextOwn?.weeklyAbaRank)
+        ?? nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, config.countryCode || config.site, previousYearNextMonth))?.[itemKey]);
+      const currentOwnRanks = yearRecords
         .filter((item) => currentMonth && item.snapshotDate.startsWith(`${currentMonth}-`))
-        .map((item) => item.weeklyAbaRank));
-      const previousYearEntry = getAbaMonthlyEntry(allAbaMonthly, config.countryCode || config.site, previousYearMonth);
-      const previousYearNextEntry = getAbaMonthlyEntry(allAbaMonthly, config.countryCode || config.site, previousYearNextMonth);
-      const previousYearRows = abaEntryRows(previousYearEntry) || {};
-      const previousYearNextRows = abaEntryRows(previousYearNextEntry) || {};
-      const previousYearRank = nullableNumber(previousYearRows[itemKey]);
-      const previousYearNextRank = nullableNumber(previousYearNextRows[itemKey]);
-      // Monthly ABA imports are also valid reference points for the chart. Use
-      // month-end dates for the same month and the following two months, and
-      // let existing weekly history win when it already has that exact date.
-      const importedPreviousTrend = [...abaPreviousTrendBase];
-      [previousYearMonth, previousYearNextMonth, shiftMonthKey(previousYearNextMonth, 1)].forEach((monthKey) => {
-        if (!monthKey) return;
-        const entry = getAbaMonthlyEntry(allAbaMonthly, config.countryCode || config.site, monthKey);
-        const rank = nullableNumber(abaEntryRows(entry)?.[itemKey]);
-        const date = monthEndDate(monthKey);
-        if (rank == null || !date || importedPreviousTrend.some((point) => point.date === date)) return;
-        importedPreviousTrend.push({ date, value: rank });
-      });
-      const abaPreviousTrend = importedPreviousTrend.sort((a, b) => a.date.localeCompare(b.date));
+        .map((item) => nullableNumber(item.weeklyAbaRank))
+        .filter((value) => value != null && value > 0);
+      const currentCsvRank = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, config.countryCode || config.site, currentMonth))?.[itemKey]);
+      const currentMonthMedian = median(currentOwnRanks.length ? currentOwnRanks : (currentCsvRank == null ? [] : [currentCsvRank]));
       return {
         keyword: base?.keyword || watch?.keyword || itemKey,
         translation: base?.translation || '',

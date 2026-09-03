@@ -189,9 +189,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .aba-trend-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
 .aba-trend-title strong { font-size: 12px; color: var(--navy); }
 .aba-trend-title span, .aba-trend-latest, .aba-trend-empty { color: #718092; font-size: 10px; }
+.aba-trend-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 5px 0 1px; color: #667385; font-size: 10px; }
+.aba-trend-legend-item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.aba-trend-legend-item i { display: inline-block; width: 17px; height: 3px; border-radius: 2px; }
+.aba-trend-legend-item.current i { background: #16a7b7; }
+.aba-trend-legend-item.previous i { background: repeating-linear-gradient(90deg, #d85b64 0 5px, transparent 5px 8px); }
 .aba-trend-popover svg { display: block; width: 100%; height: 148px; margin: 2px 0 1px; }
 .aba-axis-label { fill: #7a8796; font-size: 9px; }
-.aba-trend-latest { display: block; margin-top: -2px; color: #0b91a2; font-weight: 800; }
+.aba-trend-latest { display: grid; gap: 2px; margin-top: -2px; color: #0b91a2; font-weight: 800; }
+.aba-trend-current-latest { color: #0b91a2; }
+.aba-trend-previous-latest { color: #c84d56; }
 .aba-trend-compare { color: #c84d56; font-weight: 600; }
 @keyframes trend-popover-in { from { opacity: 0; transform: translateY(-4px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
@@ -231,6 +238,27 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .settings-country-control { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: #6f5360; font-size: 11px; font-weight: 800; }
 .settings-country-control select { flex: 1; min-width: 0; height: 32px; border: 1px solid #d7b6b6; border-radius: 7px; background: white; padding: 0 8px; outline: 0; font-size: 12px; font-weight: 700; }
 .settings-country-control select:focus { border-color: #e05252; box-shadow: 0 0 0 3px rgba(224,82,82,.12); }
+.settings-aba-import { margin: 14px 0 12px; padding: 13px; border: 1px solid #d5c2ec; border-radius: 11px; background: linear-gradient(135deg, #fbf8ff, #f5fbff); }
+.settings-aba-import-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; color: #49356d; font-size: 13px; font-weight: 800; }
+.settings-aba-import-title small { color: #7a6a96; font-size: 10px; font-weight: 600; }
+.settings-aba-import-help { display: block; margin: 0 0 10px; color: #6e7890; font-size: 10px; line-height: 1.55; }
+.settings-aba-import-fields { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 9px; }
+.settings-aba-import-fields label { display: flex; min-width: 0; flex-direction: column; gap: 4px; color: #52617b; font-size: 10px; font-weight: 700; }
+.settings-aba-import-fields input, .settings-aba-import-fields select { box-sizing: border-box; width: 100%; height: 31px; border: 1px solid #c9b7df; border-radius: 7px; background: #fff; padding: 0 7px; color: #25354d; font: 700 11px Inter, "Microsoft YaHei", sans-serif; outline: 0; }
+.settings-aba-import-fields input:focus, .settings-aba-import-fields select:focus { border-color: #9066c4; box-shadow: 0 0 0 3px #9066c421; }
+.settings-aba-file { display: block; width: 100%; margin: 0 0 9px; color: #52617b; font-size: 10px; font-weight: 700; }
+.settings-aba-file input { box-sizing: border-box; width: 100%; margin-top: 4px; padding: 5px; border: 1px dashed #b9a2d7; border-radius: 7px; background: #fff; color: #52617b; font: 600 10px Inter, "Microsoft YaHei", sans-serif; }
+.settings-aba-import-button { width: 100%; height: 34px; border: 1px solid #6947a0; border-radius: 8px; background: #7650b5; color: #fff; font: 800 12px Inter, "Microsoft YaHei", sans-serif; cursor: pointer; }
+.settings-aba-import-button:hover:not(:disabled) { background: #633e9d; transform: translateY(-1px); }
+.settings-aba-import-button:disabled { cursor: wait; opacity: .6; }
+.settings-aba-import-status { display: block; min-height: 15px; margin-top: 7px; color: #3d6f74; font-size: 10px; line-height: 1.45; white-space: pre-wrap; }
+.settings-aba-import-status.is-error { color: #b43b3b; }
+.settings-aba-imported { margin-top: 9px; border-top: 1px solid #e6def0; padding-top: 8px; }
+.settings-aba-imported-title { display: block; margin-bottom: 4px; color: #684a8b; font-size: 10px; font-weight: 800; }
+.settings-aba-imported-list { display: grid; gap: 3px; max-height: 112px; overflow: auto; }
+.settings-aba-imported-item { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: #657389; font-size: 10px; line-height: 1.35; }
+.settings-aba-imported-item strong { color: #4a5870; font-size: 10px; }
+.settings-aba-imported-item small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-delete-actions { display: flex; align-items: stretch; gap: 8px; }
 .danger-button { min-height: 36px; flex: 1; border: 1.5px solid #d85454; border-radius: 8px; padding: 5px 8px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; font-weight: 800; }
 .danger-button span { width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center; color: white; background: #d85454; font-size: 11px; }

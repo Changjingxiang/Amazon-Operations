@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('keywordTracker', {
   getData: () => ipcRenderer.invoke('tracker:get-data'),
   runImport: (mode = 'normal') => ipcRenderer.invoke('tracker:run-import', { mode }),
+  importAbaMonthlyCsv: (payload = {}) => ipcRenderer.invoke('tracker:import-aba-monthly', payload),
   startSifImport: (payload) => ipcRenderer.invoke('tracker:start-sif-import', payload),
   onSifProgress: (callback) => {
     if (typeof callback !== 'function') return () => {};

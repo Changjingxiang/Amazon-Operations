@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowDownAZ, ArrowUpAZ, Star } from 'lucide-react';
 import Sparkline from './Sparkline.jsx';
+import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
 import { integer, percent } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 
@@ -9,8 +11,13 @@ function RankCell({ value, direction }) {
   return <td className={className}>{value == null ? '未上榜' : integer(value)}</td>;
 }
 
-export default function DashboardView({ rows, onToggleWatch, onManage }) {
+function keywordKey(value) {
+  return String(value || '').trim().toLocaleLowerCase('en-US');
+}
+
+export default function DashboardView({ rows, model, onToggleWatch, onManage }) {
   const [sort, setSort] = useState({ field: null, direction: 'asc' });
+  const [hovered, setHovered] = useState(null);
   const defaults = useMemo(() => ({ star: 52, traffic: 72, keyword: 190, translation: 130, naturalTrend: 92, spTrend: 92, trafficShare: 105, naturalRank: 82, spRank: 82, weeklyAbaRank: 98, weeklySearchVolume: 98, status: 128 }), []);
   const { widths, nudgeWidth, startResize } = useColumnWidths('keyword-tracker:columns:dashboard', defaults);
   const sortedRows = useMemo(() => {
@@ -38,9 +45,22 @@ export default function DashboardView({ rows, onToggleWatch, onManage }) {
     });
   }, [rows, sort]);
 
+  const abaRowsByKeyword = useMemo(
+    () => new Map((model?.abaRows || []).map((row) => [keywordKey(row.keyword), row])),
+    [model?.abaRows],
+  );
+  useEffect(() => { setHovered(null); }, [model?.parentAsin, model?.selectedYear, rows]);
+
   const chooseSort = (field, direction) => setSort({ field, direction });
   const widthStyle = (column) => ({ width: widths[column], minWidth: widths[column] });
   const resizeHandle = (column, label) => <ResizeHandle columnKey={column} onResize={startResize} onNudge={nudgeWidth} label={label} />;
+  const showTrend = (row, event) => {
+    const abaRow = abaRowsByKeyword.get(keywordKey(row.keyword)) || row;
+    setHovered({ keyword: row.keyword, row: abaRow, style: trendPopoverStyle(event, event?.currentTarget) });
+  };
+  const updateTrend = (row, event) => setHovered((current) => current?.keyword === row.keyword
+    ? { ...current, style: trendPopoverStyle(event) }
+    : current);
   const sortButton = (field, direction, label, Icon) => (
     <button
       type="button"
@@ -85,7 +105,17 @@ export default function DashboardView({ rows, onToggleWatch, onManage }) {
                   ><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button>
                 </td>
                 <td>{row.trafficRank ?? '—'}</td>
-                <td className="keyword-cell" title={row.keyword}>{row.keyword}</td>
+                <td
+                  className="keyword-cell"
+                  data-keyword={row.keyword}
+                  aria-label={`${row.keyword}，悬停查看 ABA 对照`}
+                  onMouseEnter={(event) => showTrend(row, event)}
+                  onMouseMove={(event) => updateTrend(row, event)}
+                  onMouseLeave={() => setHovered(null)}
+                  onFocus={(event) => showTrend(row, event)}
+                  onBlur={() => setHovered(null)}
+                  tabIndex="0"
+                >{row.keyword}</td>
                 <td title={row.translation}>{row.translation || '—'}</td>
                 <td><Sparkline values={row.naturalTrend || []} /></td>
                 <td><Sparkline values={row.spTrend || []} color="#FF6B6B" /></td>
@@ -100,6 +130,17 @@ export default function DashboardView({ rows, onToggleWatch, onManage }) {
           </tbody>
         </table>
       </div>
+      {hovered && createPortal(
+        <AbaTrendPopover
+          keyword={hovered.keyword}
+          trend={hovered.row.abaTrend}
+          previousTrend={hovered.row.abaPreviousTrend}
+          year={model?.selectedYear}
+          previousYear={hovered.row.previousYear}
+          style={hovered.style}
+        />,
+        document.body,
+      )}
     </section>
   );
 }

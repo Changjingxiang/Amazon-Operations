@@ -15,7 +15,7 @@ const STORE_NAME = '关键词排名每日跟进数据.json';
 const WORKBOOK_NAME = '关键词排名每日跟进表.xlsx';
 const ICON_CONFIG_NAME = '产品图标配置.json';
 const SOURCE_DIR_NAME = '每日源文件';
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 let readDataCache = null;
 
 function storePath(toolRoot) { return path.join(toolRoot, STORE_NAME); }
@@ -105,6 +105,97 @@ function sourceReport(filePath) {
   };
 }
 
+function normalizeAbaHeader(value) {
+  return normalizeHeader(value).replace(/^\uFEFF/, '');
+}
+
+function findAbaHeaderRow(rows) {
+  for (let index = 0; index < rows.length; index += 1) {
+    const labels = (rows[index] || []).map(normalizeAbaHeader);
+    const hasRank = labels.some((label) => /^搜索频率排名(?:$|[（(])/.test(label) || label === '搜索频率排名');
+    const hasKeyword = labels.some((label) => label === '搜索词' || label === '搜索词语');
+    if (hasRank && hasKeyword) return { index, labels };
+  }
+  return null;
+}
+
+function abaImportKey(countryCode, month) {
+  return `${normalizeCountryCode(countryCode || 'CA')}:${text(month)}`;
+}
+
+function parseAbaMonthlyCsv(filePath, year, month, countryCode) {
+  const stat = fs.statSync(filePath);
+  const workbook = XLSX.read(fs.readFileSync(filePath), {
+    type: 'buffer', raw: true, dense: true, cellDates: true, codepage: 65001,
+  });
+  const sheetName = workbook.SheetNames?.[0];
+  const sheet = sheetName ? workbook.Sheets[sheetName] : null;
+  const rows = sheet ? XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null }) : [];
+  const header = findAbaHeaderRow(rows);
+  if (!header) throw new Error('CSV 中没有找到“搜索频率排名”和“搜索词”字段。');
+  const rankIndex = header.labels.findIndex((label) => label === '搜索频率排名' || /^搜索频率排名[（(]/.test(label));
+  const keywordIndex = header.labels.findIndex((label) => label === '搜索词' || label === '搜索词语');
+  const dateIndex = header.labels.findIndex((label) => label === '报告日期' || /^报告日期/.test(label));
+  const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+  const dateCandidates = [];
+  if (dateIndex >= 0) {
+    for (const row of rows.slice(header.index + 1, header.index + 5)) dateCandidates.push(isoDate(row?.[dateIndex]));
+  }
+  const fileDate = path.basename(filePath).match(/(20\d{2})[-_](\d{1,2})[-_](\d{1,2})/);
+  if (fileDate) dateCandidates.push(`${fileDate[1]}-${String(fileDate[2]).padStart(2, '0')}-${String(fileDate[3]).padStart(2, '0')}`);
+  const detectedDate = dateCandidates.find((value) => /^20\d{2}-\d{2}-\d{2}$/.test(value)) || '';
+  if (detectedDate && detectedDate.slice(0, 7) !== monthKey) {
+    throw new Error(`所选月份为 ${monthKey}，但文件报告日期为 ${detectedDate.slice(0, 7)}。请重新选择对应月份。`);
+  }
+  const rowsByKeyword = {};
+  for (const row of rows.slice(header.index + 1)) {
+    const keyword = text(row?.[keywordIndex]);
+    const rank = nullableNumber(row?.[rankIndex]);
+    if (!keyword || rank == null || rank <= 0) continue;
+    const normalized = key(keyword);
+    const previous = rowsByKeyword[normalized];
+    if (previous == null || rank < previous) rowsByKeyword[normalized] = rank;
+  }
+  const rowCount = Object.keys(rowsByKeyword).length;
+  if (!rowCount) throw new Error('CSV 中没有可用的搜索词和搜索频率排名数据。');
+  const code = normalizeCountryCode(countryCode || 'CA');
+  return {
+    month: monthKey,
+    year: Number(year),
+    countryCode: code,
+    fileName: path.basename(filePath),
+    fingerprint: `${stat.size}:${stat.mtimeMs}`,
+    importedAt: new Date().toISOString(),
+    rowCount,
+    rows: rowsByKeyword,
+  };
+}
+
+function listAbaMonthlyImports(abaMonthly) {
+  if (!abaMonthly || typeof abaMonthly !== 'object') return [];
+  return Object.entries(abaMonthly)
+    .map(([entryKey, entry]) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const month = text(entry.month || entry.monthKey || (entryKey.match(/(\d{4}-\d{2})$/) || [])[1]);
+      if (!/^\d{4}-\d{2}$/.test(month)) return null;
+      const countryCode = normalizeCountryCode(entry.countryCode || entry.site || entryKey.split(':')[0]);
+      const rows = entry.rows && typeof entry.rows === 'object' ? entry.rows : {};
+      return {
+        key: entryKey,
+        month,
+        year: Number(month.slice(0, 4)),
+        countryCode,
+        countryName: countryLabel(countryCode),
+        fileName: text(entry.fileName || entry.sourceFile),
+        importedAt: text(entry.importedAt),
+        rowCount: Number(entry.rowCount) || Object.keys(rows).length,
+        fingerprint: text(entry.fingerprint),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.month.localeCompare(a.month) || a.countryCode.localeCompare(b.countryCode));
+}
+
 function createModelConfig(payload, order, configs) {
   const asin = text(payload.parentAsin).toUpperCase();
   const suffix = asin.slice(-6);
@@ -149,6 +240,10 @@ function normalizeStore(value) {
     watches: Array.isArray(store.watches) ? store.watches : [],
     histories: store.histories && typeof store.histories === 'object' ? store.histories : {},
     importedFiles: store.importedFiles && typeof store.importedFiles === 'object' ? store.importedFiles : {},
+    // Monthly ABA CSV imports are kept separate from daily SIF history.  The
+    // source CSV is never rewritten; only its compact keyword -> rank map is
+    // persisted here for comparison and CSV-gap filling.
+    abaMonthly: store.abaMonthly && typeof store.abaMonthly === 'object' ? store.abaMonthly : {},
     annotations: normalizeAnnotations(store.annotations),
     migratedFromWorkbookAt: store.migratedFromWorkbookAt || null,
     updatedAt: store.updatedAt || null,
@@ -178,7 +273,7 @@ function migrateWorkbook(toolRoot, exporterPath, cachePath) {
   const watches = data.models.flatMap((model) => (model.watches || []).map((item, index) => ({
     modelName: model.modelName, keyword: item.keyword, note: item.note || '', enabled: true, order: item.order ?? index,
   })));
-  return normalizeStore({ configs, watches, histories, importedFiles: {}, migratedFromWorkbookAt: new Date().toISOString() });
+  return normalizeStore({ configs, watches, histories, importedFiles: {}, abaMonthly: {}, migratedFromWorkbookAt: new Date().toISOString() });
 }
 
 function ensureStore(toolRoot, exporterPath, cachePath) {
@@ -215,7 +310,7 @@ function readData(toolRoot, exporterPath, cachePath) {
   if (readDataCache?.toolRoot === toolRoot && readDataCache.signature === signature) return readDataCache.data;
   const iconSelections = readIconSelections(toolRoot);
   const models = store.configs.map((config) => ({
-    ...buildModel(config, store.histories[config.historySheet] || [], store.watches, store.annotations),
+    ...buildModel(config, store.histories[config.historySheet] || [], store.watches, store.annotations, store.abaMonthly),
     iconKey: iconSelections[config.parentAsin] || defaultIconKey(config.modelName),
   }));
   let workbookModifiedAt = '';
@@ -224,6 +319,7 @@ function readData(toolRoot, exporterPath, cachePath) {
     toolRoot, workbookPath, workbookModifiedAt,
     workbookOpen: fs.existsSync(path.join(toolRoot, `~$${WORKBOOK_NAME}`)),
     sourceCount,
+    abaMonthlyImports: listAbaMonthlyImports(store.abaMonthly),
     models, loadedAt: new Date().toISOString(), storage: 'local-json',
   };
   readDataCache = { toolRoot, signature, data: result };
@@ -357,4 +453,30 @@ function importReports(toolRoot, exporterPath, cachePath, mode = 'normal') {
   return { ok: failed === 0, imported, skipped, failed, output: `本地导入完成：${imported} 个文件，跳过 ${skipped} 个，失败 ${failed} 个。${suffix}`, data: readData(toolRoot, exporterPath, cachePath) };
 }
 
-module.exports = { STORE_NAME, storePath, ensureStore, readData, mutateWatch, replaceWatches, setAnnotation, addModel, deleteModel, setModelCountry, importReports };
+function importAbaMonthlyCsv(toolRoot, exporterPath, cachePath, payload = {}) {
+  const year = Number(payload.year);
+  const month = Number(payload.month);
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) throw new Error('ABA 年份应为 2000 至 2100 的整数。');
+  if (!Number.isInteger(month) || month < 1 || month > 12) throw new Error('ABA 月份应为 1 至 12。');
+  const filePath = text(payload.filePath);
+  if (!filePath || !fs.existsSync(filePath)) throw new Error('未选择月 ABA CSV 文件。');
+  const countryCode = normalizeCountryCode(payload.countryCode || payload.site || 'CA');
+  const entry = parseAbaMonthlyCsv(filePath, year, month, countryCode);
+  const store = ensureStore(toolRoot, exporterPath, cachePath);
+  if (!store.abaMonthly || typeof store.abaMonthly !== 'object') store.abaMonthly = {};
+  const storageKey = abaImportKey(countryCode, entry.month);
+  const replaced = Boolean(store.abaMonthly[storageKey]);
+  store.abaMonthly[storageKey] = entry;
+  writeStore(toolRoot, store);
+  return {
+    ok: true,
+    output: `${countryLabel(countryCode)} ${entry.month} 月 ABA 已${replaced ? '覆盖' : '导入'}：${entry.rowCount.toLocaleString('zh-CN')} 个搜索词。`,
+    data: readData(toolRoot, exporterPath, cachePath),
+    abaMonthly: entry,
+  };
+}
+
+module.exports = {
+  STORE_NAME, storePath, ensureStore, readData, mutateWatch, replaceWatches, setAnnotation,
+  addModel, deleteModel, setModelCountry, importReports, importAbaMonthlyCsv,
+};
