@@ -1,0 +1,157 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: #152139;
+  background: #f3f6fb;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  width: 430px;
+  min-height: 590px;
+  margin: 0;
+  background:
+    radial-gradient(circle at 92% 2%, rgba(28, 107, 255, .18), transparent 28%),
+    #f3f6fb;
+}
+
+button, textarea, select { font: inherit; }
+
+.app-shell { padding: 20px; }
+
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: #1c6bff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+h1 { margin: 0; font-size: 23px; letter-spacing: -.03em; }
+
+.site-pill {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(28,107,255,.22);
+  border-radius: 13px;
+  color: #1c6bff;
+  background: rgba(255,255,255,.72);
+  font-weight: 800;
+  box-shadow: 0 8px 22px rgba(25, 61, 118, .08);
+}
+
+.panel {
+  border: 1px solid rgba(22, 48, 87, .08);
+  border-radius: 16px;
+  background: rgba(255,255,255,.94);
+  box-shadow: 0 10px 28px rgba(24, 50, 90, .08);
+}
+
+.input-panel { padding: 16px; }
+
+.label-row, .settings-row, .progress-head, .button-row, .task-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.label-row label, .settings-row label, .section-title { font-weight: 750; }
+
+#asin-counter { color: #718096; font-size: 12px; }
+
+textarea {
+  width: 100%;
+  margin-top: 9px;
+  padding: 12px 13px;
+  resize: vertical;
+  border: 1px solid #d9e1ed;
+  border-radius: 11px;
+  outline: none;
+  background: #fbfcfe;
+  color: #18243a;
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+textarea:focus {
+  border-color: #1c6bff;
+  box-shadow: 0 0 0 3px rgba(28,107,255,.11);
+}
+
+.validation { min-height: 18px; margin: 7px 0 13px; color: #718096; font-size: 12px; }
+.validation.error { color: #d83b45; }
+
+.settings-row { padding-top: 12px; border-top: 1px solid #edf1f6; }
+
+select {
+  padding: 7px 30px 7px 10px;
+  border: 1px solid #d9e1ed;
+  border-radius: 9px;
+  color: #253451;
+  background: #fff;
+}
+
+.button-row { gap: 9px; margin-top: 14px; }
+
+button {
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 750;
+  transition: transform .12s, opacity .12s, box-shadow .12s;
+}
+
+button:hover:not(:disabled) { transform: translateY(-1px); }
+button:disabled { cursor: not-allowed; opacity: .45; }
+
+.primary {
+  flex: 1;
+  padding: 11px 16px;
+  color: #fff;
+  background: linear-gradient(135deg, #1c6bff, #0755dc);
+  box-shadow: 0 8px 18px rgba(28,107,255,.23);
+}
+
+.secondary { padding: 11px 18px; color: #31405b; background: #edf2f8; }
+
+.progress-panel { margin-top: 13px; padding: 15px 16px 12px; }
+.progress-head > div { display: flex; align-items: baseline; gap: 9px; }
+.summary { color: #718096; font-size: 12px; }
+.text-button { padding: 4px; color: #1c6bff; background: transparent; font-size: 12px; }
+
+.progress-track { height: 6px; margin: 12px 0; overflow: hidden; border-radius: 999px; background: #e9eef5; }
+#progress-bar { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #1c6bff, #4b91ff); transition: width .25s; }
+
+.task-list {
+  max-height: 190px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.task-list li { padding: 8px 2px; border-top: 1px solid #eef2f7; }
+.task-list li:first-child { border-top: 0; }
+.empty-state { color: #8995a8; font-size: 12px; text-align: center; }
+.asin { font-family: Consolas, monospace; font-size: 12px; font-weight: 700; }
+.task-status { display: inline-flex; align-items: center; gap: 5px; color: #718096; font-size: 12px; }
+.task-status::before { width: 7px; height: 7px; border-radius: 50%; background: #9aa6b8; content: ""; }
+.status-working::before, .status-opening::before, .status-downloading::before { background: #1c6bff; box-shadow: 0 0 0 3px rgba(28,107,255,.12); }
+.status-done::before { background: #19a974; }
+.status-failed::before { background: #e14b55; }
+.status-cancelled::before { background: #d3a126; }
+.task-error { margin: 4px 0 0; color: #c33c46; font-size: 11px; line-height: 1.35; }
+
+footer { margin: 11px 4px 0; color: #7b8799; font-size: 11px; line-height: 1.5; text-align: center; }
