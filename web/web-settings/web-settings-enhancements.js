@@ -27,10 +27,14 @@
   // this timer local to the bubble prevents its grace period from leaking
   // into the table hover lifecycle.
   const MATRIX_BUBBLE_HIDE_DELAY = 240;
+  const MATRIX_BUBBLE_SHOW_DELAY = 210;
+  const MATRIX_HOVER_DELEGATED_ATTR = 'data-matrix-hover-delegated';
   let sidebarDataCache = null;
   let sidebarDataPromise = null;
   let matrixDataCache = null;
   let matrixDataPromise = null;
+  let matrixLookupCache = null;
+  let matrixBubbleShowTimer = null;
   let matrixBubbleToken = 0;
   let matrixBubbleHideTimer = null;
   const ABA_COUNTRIES = [
@@ -150,13 +154,13 @@
       .competitor-drawer-body{flex:1;min-height:0;padding:17px 20px 24px;overflow:auto}.competitor-drawer-note{margin:0 0 12px;padding:9px 11px;border-left:3px solid #27c7d9;border-radius:5px;background:#edfafd;color:#4d6b7d;font-size:11px;line-height:1.5}.competitor-drawer-empty{display:grid;place-items:center;min-height:180px;padding:20px;border:1px dashed #a7ced6;border-radius:12px;background:#fff;color:#69808f;text-align:center;font-size:12px;line-height:1.6}.competitor-drawer-empty button{margin-top:11px;height:31px;border:1px solid #178b9a;border-radius:7px;background:#27c7d9;color:#173b64;padding:0 12px;font:800 11px Inter,"Microsoft YaHei",sans-serif;cursor:pointer}
       .competitor-owner-card,.competitor-product-card{margin-bottom:14px;border:1px solid #d8e7ed;border-radius:12px;background:#fff;box-shadow:0 4px 16px rgba(31,73,101,.06)}.competitor-owner-card{padding:13px 15px}.competitor-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;padding:13px 15px 9px;border-bottom:1px solid #edf1f4}.competitor-card-title{min-width:0}.competitor-card-title strong{display:block;color:#173b64;font-size:14px}.competitor-card-title small{display:block;margin-top:3px;color:#74879a;font-size:10px}.competitor-card-badge{flex:0 0 auto;padding:4px 7px;border-radius:999px;background:#e9f8fb;color:#237281;font-size:10px;font-weight:800}.competitor-owner-meta{display:flex;flex-wrap:wrap;gap:7px 15px;color:#5d7282;font-size:11px}.competitor-owner-meta b{color:#245b68}.competitor-card-actions{display:flex;align-items:center;gap:7px}.competitor-refresh-button{height:27px;border:1px solid #8ecbd4;border-radius:6px;background:#effcff;color:#217080;padding:0 8px;font:800 10px Inter,"Microsoft YaHei",sans-serif;cursor:pointer}.competitor-refresh-button:disabled{opacity:.55;cursor:wait}
       .competitor-table-wrap{max-height:440px;overflow:auto}.competitor-table{width:100%;min-width:700px;border-collapse:separate;border-spacing:0;font-size:10px}.competitor-table th{position:sticky;top:0;z-index:2;padding:8px 7px;border-bottom:1px solid #cddfe6;background:#f2f8fa;color:#5f7385;font-weight:800;text-align:left;white-space:nowrap}.competitor-table td{padding:7px;border-bottom:1px solid #edf1f4;color:#344c60;white-space:nowrap}.competitor-table tbody tr:last-child td{border-bottom:0}.competitor-table .number{text-align:right;font-variant-numeric:tabular-nums}.competitor-table .keyword{max-width:210px;overflow:hidden;text-overflow:ellipsis}.competitor-table .status-missing{color:#b47a35}.competitor-table .self-row td{background:#f3fbfd;color:#173b64;font-weight:700}.competitor-table .highlight-rank{color:#18798a;font-weight:900}.competitor-compare-table{min-width:760px}.competitor-compare-table td:first-child,.competitor-compare-table th:first-child{position:sticky;left:0;z-index:1;background:#f8fbfd}.competitor-compare-table .self-row td:first-child{background:#f3fbfd}.competitor-compare-table th:first-child{z-index:3}.competitor-compare-section{margin-bottom:14px;border:1px solid #d8e7ed;border-radius:12px;background:#fff;box-shadow:0 4px 16px rgba(31,73,101,.06)}.competitor-compare-section .competitor-card-head{border-bottom:1px solid #edf1f4}.competitor-no-data{color:#9aa7b2!important;font-style:italic}.competitor-drawer-loading{display:grid;place-items:center;min-height:180px;color:#66818a;font-size:12px}
-      .matrix-competitor-bubble{position:fixed;z-index:120;width:min(430px,calc(100vw - 20px));max-height:min(330px,calc(100vh - 20px));overflow:auto;padding:12px 13px 13px;border:1.5px solid var(--navy);border-radius:14px;background:#fff;box-shadow:0 16px 38px rgba(23,59,100,.28);color:#25354d;pointer-events:none;font-family:Inter,"Microsoft YaHei",sans-serif}
+      .matrix-competitor-bubble{position:fixed;z-index:120;width:min(320px,calc(100vw - 20px));max-height:min(290px,calc(100vh - 20px));overflow:auto;padding:10px 11px 11px;border:1.5px solid var(--navy);border-radius:11px;background:#fff;box-shadow:0 10px 24px rgba(23,59,100,.22);color:#25354d;pointer-events:none;font-family:Inter,"Microsoft YaHei",sans-serif}
       .matrix-competitor-bubble:after{content:"";position:absolute;width:12px;height:12px;background:#fff;border-right:1.5px solid var(--navy);border-bottom:1.5px solid var(--navy);transform:rotate(45deg);top:calc(50% - 6px);left:-7px}
       .matrix-competitor-bubble.is-left:after{left:auto;right:-7px;transform:rotate(225deg)}
       .matrix-competitor-bubble.is-above:after{top:auto;bottom:-7px;left:calc(50% - 6px);right:auto;transform:rotate(45deg)}
       .matrix-competitor-bubble.is-above.is-left:after{left:calc(50% - 6px);right:auto;transform:rotate(45deg)}
       .matrix-competitor-bubble.is-below:after{top:-7px;bottom:auto;left:calc(50% - 6px);right:auto;transform:rotate(225deg)}
-      .matrix-competitor-bubble-title{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid #e4edf0}.matrix-competitor-bubble-title strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--navy);font-size:13px}.matrix-competitor-bubble-title small{flex:0 0 auto;color:#718092;font-size:10px}.matrix-competitor-bubble-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.matrix-competitor-bubble-section{min-width:0}.matrix-competitor-bubble-section+ .matrix-competitor-bubble-section{padding-left:12px;border-left:1px solid #e4edf0}.matrix-competitor-bubble-section h4{margin:0 0 6px;color:#5e7184;font-size:10px;font-weight:800}.matrix-competitor-bubble-row{display:flex;align-items:center;justify-content:space-between;gap:7px;min-height:24px;color:#344c60;font-size:11px}.matrix-competitor-bubble-row span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.matrix-competitor-bubble-row b{flex:0 0 auto;color:#173b64;font-variant-numeric:tabular-nums}.matrix-competitor-bubble-row.self-rank b{color:#14798b}.matrix-competitor-bubble-annotation{margin-top:6px;padding:6px 7px;border-radius:6px;background:#f5f8fa;color:#657789;font-size:10px;line-height:1.45;white-space:pre-wrap;word-break:break-word}.matrix-competitor-bubble-empty{color:#9aa7b2;font-size:10px;font-style:italic;line-height:1.5}
+      .matrix-competitor-bubble-title{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:7px;padding-bottom:6px;border-bottom:1px solid #e4edf0}.matrix-competitor-bubble-title strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--navy);font-size:12px}.matrix-competitor-bubble-title small{flex:0 0 auto;color:#718092;font-size:9px}.matrix-competitor-bubble-grid{display:flex;flex-direction:column;gap:7px}.matrix-competitor-bubble-section{min-width:0}.matrix-competitor-bubble-section+ .matrix-competitor-bubble-section{padding:7px 0 0;border-top:1px solid #e4edf0}.matrix-competitor-bubble-section h4{margin:0 0 4px;color:#5e7184;font-size:10px;font-weight:800}.matrix-competitor-bubble-row{display:flex;align-items:center;justify-content:space-between;gap:7px;min-height:22px;color:#344c60;font-size:10px}.matrix-competitor-bubble-row span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.matrix-competitor-bubble-row b{flex:0 0 auto;color:#173b64;font-variant-numeric:tabular-nums}.matrix-competitor-bubble-row.self-rank b{color:#14798b}.matrix-competitor-bubble-annotation{margin-top:5px;padding:5px 6px;border-radius:6px;background:#f5f8fa;color:#657789;font-size:9px;line-height:1.4;white-space:pre-wrap;word-break:break-word}.matrix-competitor-bubble-empty{color:#9aa7b2;font-size:10px;font-style:italic;line-height:1.5}
       @media (max-width:1180px){.header-actions{flex-wrap:wrap}.sif-all-import-status{flex-basis:100%;max-width:none;text-align:right}}
       @media (max-width:620px){.settings-aba-import-fields{grid-template-columns:1fr 1fr}.settings-aba-import-fields label:last-child{grid-column:1/-1}.settings-competitor-fields{grid-template-columns:1fr 1fr}.settings-competitor-fields label:first-child{grid-column:1/-1}}
       @media (max-width:520px){.settings-asin-editor-row{align-items:stretch;flex-direction:column}.settings-asin-save{width:100%}.settings-aba-import-fields{grid-template-columns:1fr}}
@@ -617,6 +621,10 @@
   }
 
   function matrixCellDate(table, cell, model) {
+    // Current MatrixView stamps the full ISO date on every rank cell. Keep the
+    // header scan only as a compatibility fallback for older bundles.
+    const stampedDate = cell?.getAttribute?.('data-matrix-date');
+    if (stampedDate) return stampedDate;
     const row = cell?.closest('tr');
     if (!(row instanceof HTMLTableRowElement)) return '';
     const rankCells = [...row.querySelectorAll('td.matrix-annotation-cell')];
@@ -625,9 +633,48 @@
     return matrixVisibleDates(table, model)[rankIndex] || '';
   }
 
-  function matrixRankAt(model, keyword, date, metric) {
-    const row = (model?.matrixRows || []).find((item) => keywordKey(item.keyword) === keywordKey(keyword));
-    const index = (model?.dates || []).indexOf(date);
+  function buildMatrixLookup(data) {
+    if (matrixLookupCache?.data === data) return matrixLookupCache;
+    const modelByAsin = new Map();
+    const modelLookups = new Map();
+    const competitorsByOwner = new Map();
+    const models = Array.isArray(data?.models) ? data.models : [];
+    models.forEach((model) => {
+      const asin = normalizedAsin(model?.parentAsin);
+      if (asin) modelByAsin.set(asin, model);
+      (model?.legacyParentAsins || []).forEach((legacy) => {
+        const normalized = normalizedAsin(legacy);
+        if (normalized) modelByAsin.set(normalized, model);
+      });
+      const rowsByKeyword = new Map((model?.matrixRows || []).map((row) => [keywordKey(row.keyword), row]));
+      const datesByValue = new Map((model?.dates || []).map((date, index) => [date, index]));
+      const historyByKeywordDate = new Map();
+      (model?.historyRecords || []).forEach((record) => {
+        const itemKey = keywordKey(record.keyword);
+        let dateMap = historyByKeywordDate.get(itemKey);
+        if (!dateMap) { dateMap = new Map(); historyByKeywordDate.set(itemKey, dateMap); }
+        // Preserve the first record for duplicate keyword/date entries, which
+        // matches the old find() behaviour used by the comparison bubble.
+        if (!dateMap.has(record.snapshotDate)) dateMap.set(record.snapshotDate, record);
+      });
+      modelLookups.set(model, { rowsByKeyword, datesByValue, historyByKeywordDate });
+      if (model?.kind === 'competitor') {
+        const owner = normalizedAsin(model.ownerParentAsin);
+        const bucket = competitorsByOwner.get(owner) || [];
+        bucket.push(model);
+        competitorsByOwner.set(owner, bucket);
+      }
+    });
+    competitorsByOwner.forEach((list) => list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+    matrixLookupCache = { data, modelByAsin, modelLookups, competitorsByOwner };
+    return matrixLookupCache;
+  }
+
+  function matrixRankAt(model, keyword, date, metric, lookup = buildMatrixLookup({ models: [model] })) {
+    const modelLookup = lookup.modelLookups.get(model);
+    const row = modelLookup?.rowsByKeyword.get(keywordKey(keyword))
+      || (model?.matrixRows || []).find((item) => keywordKey(item.keyword) === keywordKey(keyword));
+    const index = modelLookup?.datesByValue.get(date) ?? (model?.dates || []).indexOf(date);
     if (!row || index < 0) return { rank: null, annotation: '' };
     const values = metric === 'sp' ? row.spValues : row.naturalValues;
     const annotations = metric === 'sp' ? row.spAnnotations : row.naturalAnnotations;
@@ -636,9 +683,10 @@
     return { rank, annotation: annotations?.[index] || '' };
   }
 
-  function matrixHistoryRank(model, keyword, date, metric) {
-    const record = (model?.historyRecords || []).find((item) =>
-      keywordKey(item.keyword) === keywordKey(keyword) && item.snapshotDate === date);
+  function matrixHistoryRank(model, keyword, date, metric, lookup = buildMatrixLookup({ models: [model] })) {
+    const modelLookup = lookup.modelLookups.get(model);
+    const record = modelLookup?.historyByKeywordDate.get(keywordKey(keyword))?.get(date)
+      || (model?.historyRecords || []).find((item) => keywordKey(item.keyword) === keywordKey(keyword) && item.snapshotDate === date);
     const rawRank = metric === 'sp' ? record?.spRank : record?.naturalRank;
     return rawRank == null || Number(rawRank) <= 0 ? null : Number(rawRank);
   }
@@ -664,9 +712,9 @@
     bubble.hidden = false;
     bubble.classList.remove('is-left', 'is-above', 'is-below');
     const rect = cell.getBoundingClientRect();
-    const width = Math.min(430, Math.max(220, bubble.offsetWidth || 430));
-    const height = Math.min(window.innerHeight - 20, Math.max(130, bubble.offsetHeight || 260));
-    const gap = 12;
+    const width = Math.min(340, Math.max(220, bubble.offsetWidth || 320));
+    const height = Math.min(window.innerHeight - 20, Math.max(110, bubble.offsetHeight || 220));
+    const gap = 10;
     let left;
     let top;
     if (rect.right + gap + width <= window.innerWidth - 8) {
@@ -674,18 +722,28 @@
     } else if (rect.left - gap - width >= 8) {
       left = rect.left - gap - width;
       bubble.classList.add('is-left');
+    } else if (rect.bottom + gap + height <= window.innerHeight - 8) {
+      left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+      top = rect.bottom + gap;
+      bubble.classList.add('is-below');
+    } else if (rect.top - gap - height >= 8) {
+      left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+      top = rect.top - gap - height;
+      bubble.classList.add('is-above');
     } else {
       left = Math.max(8, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 8));
     }
-    top = rect.top + rect.height / 2 - height / 2;
-    if (top < 8) {
-      top = rect.bottom + gap;
-      bubble.classList.add('is-below');
-    }
-    if (top + height > window.innerHeight - 8) {
-      top = rect.top - gap - height;
-      bubble.classList.remove('is-below');
-      bubble.classList.add('is-above');
+    if (top == null) {
+      top = rect.top + rect.height / 2 - height / 2;
+      if (top < 8) {
+        top = rect.bottom + gap;
+        bubble.classList.add('is-below');
+      }
+      if (top + height > window.innerHeight - 8) {
+        top = rect.top - gap - height;
+        bubble.classList.remove('is-below');
+        bubble.classList.add('is-above');
+      }
     }
     top = Math.max(8, Math.min(top, window.innerHeight - height - 8));
     left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
@@ -699,7 +757,14 @@
     matrixBubbleHideTimer = null;
   }
 
+  function cancelMatrixBubbleShow() {
+    if (matrixBubbleShowTimer == null) return;
+    window.clearTimeout(matrixBubbleShowTimer);
+    matrixBubbleShowTimer = null;
+  }
+
   function hideMatrixBubble() {
+    cancelMatrixBubbleShow();
     cancelMatrixBubbleHide();
     matrixBubbleToken += 1;
     const bubble = document.getElementById(MATRIX_BUBBLE_ID);
@@ -717,6 +782,17 @@
     }, MATRIX_BUBBLE_HIDE_DELAY);
   }
 
+  function scheduleMatrixBubbleShow(table, cell) {
+    cancelMatrixBubbleShow();
+    cancelMatrixBubbleHide();
+    const rank = Number(cell?.getAttribute('data-rank'));
+    if (!Number.isFinite(rank) || rank <= 0) { hideMatrixBubble(); return; }
+    matrixBubbleShowTimer = window.setTimeout(() => {
+      matrixBubbleShowTimer = null;
+      showMatrixBubble(table, cell);
+    }, MATRIX_BUBBLE_SHOW_DELAY);
+  }
+
   async function showMatrixBubble(table, cell) {
     cancelMatrixBubbleHide();
     const currentRank = Number(cell?.getAttribute('data-rank'));
@@ -726,20 +802,23 @@
     }
     const bubble = ensureMatrixBubble();
     const token = ++matrixBubbleToken;
-    const modelData = await matrixDataForEnhancements(true);
+    const modelData = await matrixDataForEnhancements(false);
     if (token !== matrixBubbleToken || !cell.isConnected || !modelData) return;
-    const active = modelForAsin(modelData, getCurrentAsin()) || activeModel(modelData);
-    const owner = ownerModelForAsin(modelData, active?.parentAsin || getCurrentAsin());
+    const lookup = buildMatrixLookup(modelData);
+    const currentAsin = getCurrentAsin();
+    const active = lookup.modelByAsin.get(currentAsin) || activeModel(modelData);
+    const ownerAsin = active?.kind === 'competitor' ? active.ownerParentAsin : (active?.parentAsin || currentAsin);
+    const owner = lookup.modelByAsin.get(normalizedAsin(ownerAsin)) || ownerModelForAsin(modelData, ownerAsin);
     if (!owner) return;
     const keyword = cell.closest('tr')?.querySelector('.keyword-col')?.getAttribute('title')
       || cell.closest('tr')?.querySelector('.keyword-col')?.textContent?.trim() || '';
     const metric = cell.classList.contains('sp-annotation-cell') ? 'sp' : 'natural';
     const date = matrixCellDate(table, cell, active || owner);
     if (!keyword || !date) return;
-    const ownerRank = matrixRankAt(owner, keyword, date, metric);
-    const competitors = ownerCompetitors(modelData, owner);
+    const ownerRank = matrixRankAt(owner, keyword, date, metric, lookup);
+    const competitors = lookup.competitorsByOwner.get(normalizedAsin(owner.parentAsin)) || ownerCompetitors(modelData, owner);
     const rows = competitors.map((competitor) => {
-      const rank = matrixHistoryRank(competitor, keyword, date, metric);
+      const rank = matrixHistoryRank(competitor, keyword, date, metric, lookup);
       return `<div class="matrix-competitor-bubble-row"><span title="${escapeHtml(competitor.competitorName || competitor.modelName || '')}">${escapeHtml(competitor.competitorName || competitor.modelName || '竞品')}</span><b>${matrixRankLabel(rank)}</b></div>`;
     }).join('');
     const competitorContent = rows || '<div class="matrix-competitor-bubble-empty">暂无已关联竞品</div>';
@@ -755,18 +834,36 @@
   function installMatrixHover(table) {
     if (!(table instanceof HTMLTableElement)) return;
     table.setAttribute('data-competitor-matrix-hover-installed', '');
+    if (table.hasAttribute(MATRIX_HOVER_DELEGATED_ATTR)) return;
+    table.setAttribute(MATRIX_HOVER_DELEGATED_ATTR, '');
     table.querySelectorAll('tbody td.matrix-annotation-cell').forEach((cell) => {
       if (!(cell instanceof HTMLElement) || cell.hasAttribute(MATRIX_HOVER_ATTR)) return;
       cell.setAttribute(MATRIX_HOVER_ATTR, '');
       cell.tabIndex = 0;
-      cell.addEventListener('mouseenter', () => { showMatrixBubble(table, cell); });
-      cell.addEventListener('mousemove', () => {
-        const bubble = document.getElementById(MATRIX_BUBBLE_ID);
-        if (bubble && !bubble.hidden && bubble.dataset.anchor) positionMatrixBubble(bubble, cell);
-      });
-      cell.addEventListener('mouseleave', scheduleMatrixBubbleHide);
-      cell.addEventListener('focus', () => { showMatrixBubble(table, cell); });
-      cell.addEventListener('blur', scheduleMatrixBubbleHide);
+    });
+    const cellFromTarget = (target) => target?.closest?.('td.matrix-annotation-cell');
+    table.addEventListener('pointerover', (event) => {
+      const cell = cellFromTarget(event.target);
+      if (!cell || !table.contains(cell) || cellFromTarget(event.relatedTarget) === cell) return;
+      scheduleMatrixBubbleShow(table, cell);
+    });
+    table.addEventListener('pointermove', (event) => {
+      const cell = cellFromTarget(event.target);
+      const bubble = document.getElementById(MATRIX_BUBBLE_ID);
+      if (cell && bubble && !bubble.hidden && bubble.dataset.anchor) positionMatrixBubble(bubble, cell);
+    });
+    table.addEventListener('pointerout', (event) => {
+      const cell = cellFromTarget(event.target);
+      if (!cell || cellFromTarget(event.relatedTarget) === cell) return;
+      scheduleMatrixBubbleHide();
+    });
+    table.addEventListener('focusin', (event) => {
+      const cell = cellFromTarget(event.target);
+      if (cell) scheduleMatrixBubbleShow(table, cell);
+    });
+    table.addEventListener('focusout', (event) => {
+      const cell = cellFromTarget(event.target);
+      if (cell && cellFromTarget(event.relatedTarget) !== cell) scheduleMatrixBubbleHide();
     });
   }
 
@@ -1460,6 +1557,7 @@
     sidebarDataPromise = null;
     matrixDataCache = null;
     matrixDataPromise = null;
+    matrixLookupCache = null;
     scheduleScan();
     document.querySelectorAll(`[${COMPETITOR_SETTINGS_ATTR}]`).forEach((section) => {
       section._refreshCompetitorSettings?.();
@@ -1473,6 +1571,7 @@
   window.addEventListener('keyword-tracker-aba-imported', () => {
     matrixDataCache = null;
     matrixDataPromise = null;
+    matrixLookupCache = null;
     document.querySelectorAll('table.aba-table').forEach((table) => {
       delete table.dataset.abaComparisonColumns;
       enhanceAbaTable(table);
@@ -1487,6 +1586,7 @@
   // React render" behaviour.
   let scanScheduled = false;
   let scanRunning = false;
+  const SCAN_DELAY_MS = 64;
   const scheduleScan = () => {
     if (scanScheduled) return;
     scanScheduled = true;
@@ -1498,7 +1598,7 @@
       }
       scanRunning = true;
       try { scan(); } finally { scanRunning = false; }
-    }, 0);
+    }, SCAN_DELAY_MS);
   };
   const observer = new MutationObserver(() => { scheduleScan(); });
   observer.observe(document.documentElement, { childList: true, subtree: true });
