@@ -46,7 +46,7 @@ export function trendPopoverStyle(event, anchor) {
   return { left, top };
 }
 
-export default function AbaTrendPopover({ keyword, trend, previousTrend, year, previousYear, sourceLabelText = 'ABA CSV', fitToData = false, style }) {
+export default function AbaTrendPopover({ keyword, trend, previousTrend, year, previousYear, sourceLabelText = 'ABA CSV', fitToData = false, showPointLabels = true, style }) {
   const current = validPoints(trend);
   const previous = validPoints(previousTrend);
   const all = [...current, ...previous];
@@ -112,8 +112,8 @@ export default function AbaTrendPopover({ keyword, trend, previousTrend, year, p
         <line x1={pad.left} y1={chartBottom} x2={chartRight} y2={chartBottom} stroke="#b9c7d2" />
         {current.length > 1 && <polyline points={currentPoints} fill="none" stroke={CURRENT_COLOR} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
         {previous.length > 1 && <polyline points={previousPoints} fill="none" stroke={PREVIOUS_COLOR} strokeWidth="2.5" strokeDasharray="5 4" strokeLinecap="round" strokeLinejoin="round" />}
-        {current.map((point, index) => { const x = xFor(point, index, current.length); const y = yFor(point.value); return <g key={`current-${point.date}-${index}`}><circle cx={x} cy={y} r="3.2" fill="#0d6974" aria-label={`${shortDate(point.date)}：${integer(point.value)}（${sourceLabel(point, sourceLabelText)}）`} /><text x={x} y={labelY(point.value, -9)} textAnchor="middle" className="aba-trend-value-label current">{rankLabel(point.value)}</text></g>; })}
-        {previous.map((point, index) => { const x = xFor(point, index, previous.length); const y = yFor(point.value); return <g key={`previous-${point.date}-${index}`}><circle cx={x} cy={y} r="3.2" fill="#a83f4a" aria-label={`${shortDate(point.date)}：${integer(point.value)}（${sourceLabel(point, sourceLabelText)}）`} /><text x={x} y={labelY(point.value, 14)} textAnchor="middle" className="aba-trend-value-label previous">{rankLabel(point.value)}</text></g>; })}
+        {current.map((point, index) => { const x = xFor(point, index, current.length); const y = yFor(point.value); return <g key={`current-${point.date}-${index}`}><circle cx={x} cy={y} r="3.2" fill="#0d6974" aria-label={`${shortDate(point.date)}：${integer(point.value)}（${sourceLabel(point, sourceLabelText)}）`} />{showPointLabels && <text x={x} y={labelY(point.value, -9)} textAnchor="middle" className="aba-trend-value-label current">{rankLabel(point.value)}</text>}</g>; })}
+        {previous.map((point, index) => { const x = xFor(point, index, previous.length); const y = yFor(point.value); return <g key={`previous-${point.date}-${index}`}><circle cx={x} cy={y} r="3.2" fill="#a83f4a" aria-label={`${shortDate(point.date)}：${integer(point.value)}（${sourceLabel(point, sourceLabelText)}）`} />{showPointLabels && <text x={x} y={labelY(point.value, 14)} textAnchor="middle" className="aba-trend-value-label previous">{rankLabel(point.value)}</text>}</g>; })}
         <text x="3" y={pad.top + 4} className="aba-axis-label">{integer(min)}</text>
         <text x="3" y={chartBottom + 4} className="aba-axis-label">{integer(max)}</text>
         {fitToData
