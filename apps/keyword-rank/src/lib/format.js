@@ -30,6 +30,67 @@ export function rankClass(current, previous) {
   return 'rank-neutral';
 }
 
+function trendKeywordKey(value) {
+  return String(value || '').trim().toLocaleLowerCase('en-US');
+}
+
+function trendRank(value) {
+  if (value == null || String(value).trim() === '') return null;
+  const parsed = Number(String(value).replace(/,/g, ''));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
+ * Build the natural-matrix ABA overlay from the daily SIF snapshots only.
+ *
+ * This intentionally does not read `abaRows` or the monthly ABA CSV store:
+ * the matrix overlay represents the `周ABA排名` found in each day's source
+ * report.  A keyword/date pair is reduced to the latest imported record so
+ * legacy workbook histories containing duplicate imports still produce one
+ * point per source-file day.
+ */
+export function buildSifAbaTrendMap(model) {
+  const selectedYear = Number(model?.selectedYear);
+  if (!Number.isFinite(selectedYear)) return new Map();
+  const previousYear = selectedYear - 1;
+  const years = new Set([String(selectedYear), String(previousYear)]);
+  const pointsByKeyword = new Map();
+
+  for (const item of model?.historyRecords || []) {
+    const key = trendKeywordKey(item?.keyword);
+    const date = String(item?.snapshotDate || '');
+    if (!key || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !years.has(date.slice(0, 4))) continue;
+    const value = trendRank(item?.weeklyAbaRank);
+    if (value == null) continue;
+    let pointsByDate = pointsByKeyword.get(key);
+    if (!pointsByDate) {
+      pointsByDate = new Map();
+      pointsByKeyword.set(key, pointsByDate);
+    }
+    const previous = pointsByDate.get(date);
+    if (!previous || String(item?.importTime || '') >= String(previous.importTime || '')) {
+      pointsByDate.set(date, {
+        date,
+        value,
+        source: 'sif',
+        sourceFile: String(item?.sourceFile || ''),
+        importTime: String(item?.importTime || ''),
+      });
+    }
+  }
+
+  return new Map([...pointsByKeyword.entries()].map(([key, pointsByDate]) => {
+    const points = [...pointsByDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+    const trend = points.filter((point) => point.date.startsWith(`${selectedYear}-`));
+    const previousTrend = points.filter((point) => point.date.startsWith(`${previousYear}-`));
+    return [key, {
+      trend,
+      previousTrend,
+      previousYear: previousTrend.length ? previousYear : null,
+    }];
+  }));
+}
+
 // The date view is a projection of one immutable model plus the selected date.
 // Product/tab interactions often revisit the same model/date pair; retaining
 // both the immutable indexes and the final projection avoids rescanning and

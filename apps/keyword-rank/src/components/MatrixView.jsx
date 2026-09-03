@@ -1,7 +1,13 @@
+import { createPortal } from 'react-dom';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, Star } from 'lucide-react';
-import { rankClass, shortDate } from '../lib/format.js';
+import { buildSifAbaTrendMap, rankClass, shortDate } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
+import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
+
+function keywordKey(value) {
+  return String(value || '').trim().toLocaleLowerCase('en-US');
+}
 
 function monthLabel(monthKey) { return `${Number(monthKey.slice(5, 7))}月`; }
 
@@ -45,7 +51,13 @@ const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueFie
   return (
     <tr data-matrix-keyword={row.keyword} className={row.watched ? 'watched-row' : ''}>
       <td className="sticky-col star-col"><button type="button" className={`star-button ${row.watched ? 'watched' : ''}`} title={row.watched ? '取消关注' : '设为关注'} onClick={() => onToggleWatch(row.keyword, !row.watched, row.note)}><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button></td>
-      <td className="sticky-col keyword-col" title={row.keyword}>{row.keyword}</td><td className="sticky-col translation-col" title={row.translation}>{row.translation || '—'}</td>
+      <td
+        className={`sticky-col keyword-col ${metric === 'natural' ? 'matrix-keyword-aba-cell' : ''}`}
+        title={row.keyword}
+        data-matrix-keyword={row.keyword}
+        aria-label={metric === 'natural' ? `${row.keyword}，悬停查看 ABA 对照` : undefined}
+        tabIndex={metric === 'natural' ? 0 : undefined}
+      >{row.keyword}</td><td className="sticky-col translation-col" title={row.translation}>{row.translation || '—'}</td>
       {columns.map((column) => {
         if (column.type !== 'date') return <td key={`${row.keyword}-${column.key}`} className="matrix-placeholder" aria-label="折叠分组" />;
         const index = dateIndexMap.get(column.date);
@@ -86,6 +98,7 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
   const annotationField = metric === 'natural' ? 'naturalAnnotations' : 'spAnnotations';
   const rowCount = model.matrixRows?.length || 0;
   const [editing, setEditing] = useState(null);
+  const [hovered, setHovered] = useState(null);
   const tableRef = useRef(null);
   const scrollRef = useRef(null);
   const columnOverlayRef = useRef(null);
@@ -96,6 +109,10 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
   const [collapsedYears, setCollapsedYears] = useState(() => new Set());
   const [collapsedMonths, setCollapsedMonths] = useState(() => new Set());
   const [layoutAnimating, setLayoutAnimating] = useState(false);
+  const sifAbaTrendByKeyword = useMemo(
+    () => metric === 'natural' ? buildSifAbaTrendMap(model) : new Map(),
+    [model, metric],
+  );
   const animateLayout = () => {
     setLayoutAnimating(false);
     requestAnimationFrame(() => {
@@ -172,6 +189,67 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
       if (frame) window.cancelAnimationFrame(frame);
     };
   }, [rowCount, model.parentAsin, metric]);
+
+  // The natural-matrix keyword uses the shared chart shell with a trend built
+  // from each day's SIF snapshot.  Delegate the listeners from the table so
+  // virtualized rows do not receive new callback props on every hover.
+  useEffect(() => {
+    const table = tableRef.current;
+    if (!table || metric !== 'natural') return undefined;
+    const scroll = scrollRef.current;
+    const getKeywordCell = (target) => target?.closest?.('td.matrix-keyword-aba-cell');
+    const showTrend = (event, cell) => {
+      if (!cell || !table.contains(cell)) return;
+      const keyword = cell.dataset.matrixKeyword || '';
+      const row = sifAbaTrendByKeyword.get(keywordKey(keyword)) || { keyword };
+      setHovered({ keyword, row, style: trendPopoverStyle(event, cell) });
+    };
+    const updateTrend = (event) => {
+      const cell = getKeywordCell(event.target);
+      if (!cell || !table.contains(cell)) return;
+      const keyword = cell.dataset.matrixKeyword || '';
+      setHovered((current) => current?.keyword === keyword
+        ? { ...current, style: trendPopoverStyle(event, cell) }
+        : current);
+    };
+    const handlePointerOver = (event) => {
+      const cell = getKeywordCell(event.target);
+      if (!cell || !table.contains(cell)) return;
+      if (getKeywordCell(event.relatedTarget) === cell) return;
+      showTrend(event, cell);
+    };
+    const handlePointerOut = (event) => {
+      const cell = getKeywordCell(event.target);
+      if (!cell || !table.contains(cell)) return;
+      if (getKeywordCell(event.relatedTarget) === cell) return;
+      setHovered(null);
+    };
+    const handleFocusIn = (event) => {
+      const cell = getKeywordCell(event.target);
+      if (cell) showTrend(event, cell);
+    };
+    const handleFocusOut = (event) => {
+      const cell = getKeywordCell(event.target);
+      if (!cell || getKeywordCell(event.relatedTarget) === cell) return;
+      setHovered(null);
+    };
+    const handleScroll = () => setHovered(null);
+    table.addEventListener('pointerover', handlePointerOver);
+    table.addEventListener('pointermove', updateTrend);
+    table.addEventListener('pointerout', handlePointerOut);
+    table.addEventListener('focusin', handleFocusIn);
+    table.addEventListener('focusout', handleFocusOut);
+    scroll?.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      table.removeEventListener('pointerover', handlePointerOver);
+      table.removeEventListener('pointermove', updateTrend);
+      table.removeEventListener('pointerout', handlePointerOut);
+      table.removeEventListener('focusin', handleFocusIn);
+      table.removeEventListener('focusout', handleFocusOut);
+      scroll?.removeEventListener('scroll', handleScroll);
+      setHovered(null);
+    };
+  }, [sifAbaTrendByKeyword, metric]);
 
   useEffect(() => {
     const table = tableRef.current;
@@ -288,6 +366,18 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
           />)}{renderSpacer(bottomSpacerHeight, 'matrix-virtual-bottom')}</tbody>
         </table>
       </div>
+      {hovered && createPortal(
+        <AbaTrendPopover
+          keyword={hovered.keyword}
+          trend={hovered.row?.trend}
+          previousTrend={hovered.row?.previousTrend}
+          year={model?.selectedYear}
+          previousYear={hovered.row?.previousYear}
+          sourceLabelText="SIF源文件"
+          style={hovered.style}
+        />,
+        document.body,
+      )}
     </section>
   );
 }

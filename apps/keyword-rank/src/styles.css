@@ -194,6 +194,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .matrix-table .star-col { left: 0; width: 54px; min-width: 54px; }
 .matrix-table .keyword-col { left: var(--sticky-keyword-left, 54px); width: 250px; min-width: 250px; text-align: left; }
 .matrix-table .translation-col { left: var(--sticky-translation-left, 304px); width: 180px; min-width: 180px; text-align: left; box-shadow: 3px 0 0 rgba(23,59,100,.13); }
+.matrix-table .matrix-keyword-aba-cell { cursor: help; text-decoration-line: underline; text-decoration-style: dashed; text-decoration-color: rgba(23,59,100,.35); text-underline-offset: 3px; }
+.matrix-table .matrix-keyword-aba-cell:focus-visible { position: relative; z-index: 13; outline: 2px solid var(--navy); outline-offset: -2px; }
 .matrix-table tbody tr:hover > td { background-image: linear-gradient(rgba(39,199,217,.025), rgba(39,199,217,.025)) !important; }
 .matrix-table tbody tr.matrix-virtual-spacer > td { height: 0 !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; line-height: 0 !important; font-size: 0 !important; }
 .matrix-table tbody tr.matrix-virtual-spacer > td > div { display: block; width: 1px; min-height: 0; pointer-events: none; }
