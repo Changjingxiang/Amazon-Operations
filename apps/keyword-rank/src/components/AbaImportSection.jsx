@@ -61,7 +61,7 @@ export default function AbaImportSection({ imports = [], defaultCountry = 'CA', 
   return (
     <section className="settings-aba-import" data-aba-monthly-import>
       <div className="settings-aba-import-title"><span>月 ABA CSV 导入</span><small>今年/去年均可 · 搜索词 = 关键词</small></div>
-      <p className="settings-aba-import-help">按国家、年份、月份导入月度 ABA CSV。看板和 ABA 月榜会优先使用自己记录的数据，仅在对应月份缺少记录时使用 CSV 补缺；原始 CSV 不会被修改。</p>
+      <p className="settings-aba-import-help">按国家、年份、月份导入月度 ABA CSV。看板和 ABA 月榜的月度排名、对照折线都以 CSV 为准；原始 CSV 不会被修改。</p>
       <div className="settings-aba-import-fields">
         <label>国家<select value={countryCode} onChange={(event) => setCountryCode(event.target.value)}>{SIF_COUNTRIES.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}</select></label>
         <label>年份<input type="number" min="2000" max="2100" step="1" value={year} onChange={(event) => setYear(event.target.value)} /></label>

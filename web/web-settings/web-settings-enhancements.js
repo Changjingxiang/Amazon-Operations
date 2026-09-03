@@ -394,7 +394,7 @@
     const month = new Date().getMonth() + 1;
     section.innerHTML = `
       <div class="settings-aba-import-title"><span>月 ABA CSV 导入</span><small>今年/去年均可 · 搜索词 = 关键词</small></div>
-      <p class="settings-aba-import-help">按国家、年份、月份导入月度 ABA CSV。看板和 ABA 月榜会优先使用自己记录的数据，仅在对应月份缺少记录时使用 CSV 补缺；同一国家和月份再次导入会覆盖旧文件。</p>
+      <p class="settings-aba-import-help">按国家、年份、月份导入月度 ABA CSV。看板和 ABA 月榜的月度排名、对照折线都以 CSV 为准；同一国家和月份再次导入会覆盖旧文件。</p>
       <div class="settings-aba-import-fields">
         <label>国家<select data-aba-country>${ABA_COUNTRIES.map((item) => `<option value="${item.code}">${item.label}</option>`).join('')}</select></label>
         <label>年份<input data-aba-year type="number" min="2000" max="2100" step="1" value="${year}" /></label>

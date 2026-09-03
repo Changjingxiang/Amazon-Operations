@@ -22,13 +22,22 @@ function dayFraction(dateValue) {
   return (date - start) / (end - start);
 }
 
-function sourceLabel(point) {
-  return point?.source === 'csv' ? 'CSV补缺' : '自有记录';
+function sourceLabel() {
+  return 'ABA CSV';
+}
+
+function monthLabel(dateValue) {
+  const match = String(dateValue || '').match(/^\d{4}-(\d{2})-/);
+  return match ? `${Number(match[1])}月` : '';
+}
+
+function rankLabel(value) {
+  return `#${integer(value)}`;
 }
 
 export function trendPopoverStyle(event, anchor) {
-  const width = 340;
-  const height = 236;
+  const width = 500;
+  const height = 330;
   const rect = anchor?.getBoundingClientRect?.();
   const x = Number(event?.clientX) || (rect ? rect.right : Math.round(window.innerWidth / 2));
   const y = Number(event?.clientY) || (rect ? rect.top : Math.round(window.innerHeight / 2));
@@ -46,9 +55,9 @@ export default function AbaTrendPopover({ keyword, trend, previousTrend, year, p
     return <div className="aba-trend-popover" style={style} role="status"><div className="aba-trend-title"><strong>{title}</strong><span>{year} vs {previousYear || '去年'}</span></div><span className="aba-trend-empty">暂无可用的今年或去年 ABA 数据。</span></div>;
   }
 
-  const width = 316;
-  const height = 164;
-  const pad = { top: 26, right: 12, bottom: 25, left: 34 };
+  const width = 470;
+  const height = 238;
+  const pad = { top: 34, right: 18, bottom: 39, left: 48 };
   const chartRight = width - pad.right;
   const chartBottom = height - pad.bottom;
   const values = all.map((point) => point.value);
@@ -61,36 +70,34 @@ export default function AbaTrendPopover({ keyword, trend, previousTrend, year, p
     return pad.left + (Number.isFinite(fraction) ? fraction : fallback) * (chartRight - pad.left);
   };
   const yFor = (value) => pad.top + ((value - min) / range) * (chartBottom - pad.top);
+  const labelY = (value, offset) => Math.max(pad.top + 10, Math.min(chartBottom - 3, yFor(value) + offset));
   const currentPoints = current.map((point, index) => `${xFor(point, index, current.length)},${yFor(point.value)}`).join(' ');
   const previousPoints = previous.map((point, index) => `${xFor(point, index, previous.length)},${yFor(point.value)}`).join(' ');
   const latestCurrent = current.at(-1);
   const latestPrevious = previous.at(-1);
-  const firstDate = all[0].date;
-  const lastDate = all.at(-1).date;
   const aria = `${year || '今年'}与${previousYear || '去年'} ABA 排名对照折线图${keyword ? `，关键词 ${keyword}` : ''}`;
 
   return (
     <div className="aba-trend-popover" style={style} role="status">
       <div className="aba-trend-title"><strong>{title}</strong><span>{year || '今年'} vs {previousYear || '去年'}</span></div>
       <div className="aba-trend-legend" aria-hidden="true">
-        {current.length > 0 && <span className="aba-trend-legend-item current"><i />{year || '今年'}（自有优先）</span>}
-        {previous.length > 0 && <span className="aba-trend-legend-item previous"><i />{previousYear || '去年'}</span>}
+        {current.length > 0 && <span className="aba-trend-legend-item current"><i />{year || '今年'}（ABA CSV）</span>}
+        {previous.length > 0 && <span className="aba-trend-legend-item previous"><i />{previousYear || '去年'}（ABA CSV）</span>}
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={aria}>
         <line x1={pad.left} y1={pad.top} x2={pad.left} y2={chartBottom} stroke="#b9c7d2" />
         <line x1={pad.left} y1={chartBottom} x2={chartRight} y2={chartBottom} stroke="#b9c7d2" />
         {current.length > 1 && <polyline points={currentPoints} fill="none" stroke={CURRENT_COLOR} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
         {previous.length > 1 && <polyline points={previousPoints} fill="none" stroke={PREVIOUS_COLOR} strokeWidth="2.5" strokeDasharray="5 4" strokeLinecap="round" strokeLinejoin="round" />}
-        {current.map((point, index) => <circle key={`current-${point.date}-${index}`} cx={xFor(point, index, current.length)} cy={yFor(point.value)} r="2.8" fill="#0d6974" aria-label={`${shortDate(point.date)}：${integer(point.value)}（${sourceLabel(point)}）`} />)}
-        {previous.map((point, index) => <circle key={`previous-${point.date}-${index}`} cx={xFor(point, index, previous.length)} cy={yFor(point.value)} r="2.8" fill="#a83f4a" aria-label={`${shortDate(point.date)}：${integer(point.value)}（${sourceLabel(point)}）`} />)}
+        {current.map((point, index) => { const x = xFor(point, index, current.length); const y = yFor(point.value); return <g key={`current-${point.date}-${index}`}><circle cx={x} cy={y} r="3.2" fill="#0d6974" aria-label={`${shortDate(point.date)}：${integer(point.value)}（${sourceLabel(point)}）`} /><text x={x} y={labelY(point.value, -9)} textAnchor="middle" className="aba-trend-value-label current">{rankLabel(point.value)}</text></g>; })}
+        {previous.map((point, index) => { const x = xFor(point, index, previous.length); const y = yFor(point.value); return <g key={`previous-${point.date}-${index}`}><circle cx={x} cy={y} r="3.2" fill="#a83f4a" aria-label={`${shortDate(point.date)}：${integer(point.value)}（${sourceLabel(point)}）`} /><text x={x} y={labelY(point.value, 14)} textAnchor="middle" className="aba-trend-value-label previous">{rankLabel(point.value)}</text></g>; })}
         <text x="3" y={pad.top + 4} className="aba-axis-label">{integer(min)}</text>
         <text x="3" y={chartBottom + 4} className="aba-axis-label">{integer(max)}</text>
-        <text x={pad.left} y={height - 7} className="aba-axis-label">{shortDate(firstDate)}</text>
-        <text x={chartRight} y={height - 7} textAnchor="end" className="aba-axis-label">{shortDate(lastDate)}</text>
+        {(current.length ? current : previous).map((point, index, points) => <text key={`month-${point.date}-${index}`} x={xFor(point, index, points.length)} y={height - 8} textAnchor="middle" className="aba-axis-label">{monthLabel(point.date)}</text>)}
       </svg>
       <div className="aba-trend-latest">
-        {latestCurrent && <span className="aba-trend-current-latest">今年 {shortDate(latestCurrent.date)}：{integer(latestCurrent.value)}（{sourceLabel(latestCurrent)}）</span>}
-        {latestPrevious && <span className="aba-trend-previous-latest">去年 {shortDate(latestPrevious.date)}：{integer(latestPrevious.value)}（{sourceLabel(latestPrevious)}）</span>}
+        {latestCurrent && <span className="aba-trend-current-latest">今年 {shortDate(latestCurrent.date)}：{rankLabel(latestCurrent.value)}（{sourceLabel(latestCurrent)}）</span>}
+        {latestPrevious && <span className="aba-trend-previous-latest">去年 {shortDate(latestPrevious.date)}：{rankLabel(latestPrevious.value)}（{sourceLabel(latestPrevious)}）</span>}
       </div>
     </div>
   );

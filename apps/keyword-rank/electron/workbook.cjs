@@ -52,17 +52,6 @@ function watchKey(keyword) {
   return text(keyword).toLocaleLowerCase('en-US');
 }
 
-function shiftCalendarMonths(dateValue, offset) {
-  const raw = text(dateValue);
-  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return '';
-  const year = Number(match[1]); const month = Number(match[2]) - 1; const day = Number(match[3]);
-  const absoluteMonth = year * 12 + month + Number(offset || 0);
-  const targetYear = Math.floor(absoluteMonth / 12); const targetMonth = ((absoluteMonth % 12) + 12) % 12;
-  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
-  return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`;
-}
-
 function shiftMonthKey(value, offset) {
   const match = text(value).match(/^(\d{4})-(\d{2})$/);
   if (!match) return '';
@@ -113,51 +102,18 @@ function getAbaMonthlyEntry(allAbaMonthly, countryCode, month) {
     && normalizeCountryCode(entry.countryCode || entry.site || code) === code) || null;
 }
 
-function median(values) {
-  const sorted = values.map((value) => Number(value))
-    .filter((value) => Number.isFinite(value) && value > 0)
-    .sort((a, b) => a - b);
-  if (!sorted.length) return null;
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
-}
-
-function buildAbaSeries(records, allAbaMonthly, countryCode, targetYear, itemKey, cutoffMonthNumber = 12) {
-  const pointsByDate = new Map();
-  const ownMonths = new Set();
-  const prefix = `${targetYear}-`;
-  for (const item of records) {
-    if (!item.snapshotDate?.startsWith(prefix) || nullableNumber(item.weeklyAbaRank) == null) continue;
-    const value = nullableNumber(item.weeklyAbaRank);
-    if (value == null || value <= 0) continue;
-    const month = item.snapshotDate.slice(0, 7);
-    const existing = pointsByDate.get(item.snapshotDate);
-    if (!existing || String(item.importTime || '') >= String(existing.importTime || '')) {
-      pointsByDate.set(item.snapshotDate, { date: item.snapshotDate, value, source: 'record', importTime: item.importTime });
-    }
-    ownMonths.add(month);
-  }
+function buildAbaSeries(allAbaMonthly, countryCode, targetYear, itemKey, cutoffMonthNumber = 12) {
+  const points = [];
   const maxMonth = Math.max(1, Math.min(12, Number(cutoffMonthNumber) || 12));
   for (let monthIndex = 1; monthIndex <= maxMonth; monthIndex += 1) {
     const month = `${targetYear}-${String(monthIndex).padStart(2, '0')}`;
-    if (ownMonths.has(month)) continue;
     const entry = getAbaMonthlyEntry(allAbaMonthly, countryCode, month);
     const rank = nullableNumber(abaEntryRows(entry)?.[itemKey]);
     const date = monthEndDate(month);
-    if (rank == null || rank <= 0 || !date || pointsByDate.has(date)) continue;
-    pointsByDate.set(date, { date, value: rank, source: 'csv' });
+    if (rank == null || rank <= 0 || !date) continue;
+    points.push({ date, value: rank, source: 'csv' });
   }
-  return [...pointsByDate.values()]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map(({ date, value, source }) => ({ date, value, source }));
-}
-
-function latestAbaRecordByMonth(records, year, month) {
-  if (!month) return null;
-  const candidates = records
-    .filter((item) => item.snapshotDate?.startsWith(`${year}-${month}-`) && nullableNumber(item.weeklyAbaRank) != null)
-    .sort((a, b) => String(a.snapshotDate).localeCompare(String(b.snapshotDate)) || String(a.importTime || '').localeCompare(String(b.importTime || '')));
-  return candidates.at(-1) || null;
+  return points;
 }
 
 function buildModel(config, records, allWatches, allAnnotations = [], allAbaMonthly = {}) {
@@ -299,45 +255,25 @@ function buildModel(config, records, allWatches, allAnnotations = [], allAbaMont
     const yearRecords = keywordRecords.filter((item) => item.snapshotDate.startsWith(`${selectedYear}-`));
     const maxSearch = yearRecords.reduce((max, item) => Math.max(max, item.weeklySearchVolume ?? 0), 0) || null;
     const maxConversion = yearRecords.reduce((max, item) => Math.max(max, item.conversionRate ?? 0), 0) || null;
-    const latestByMonth = new Map();
-    for (const item of yearRecords) {
-      if (nullableNumber(item.weeklyAbaRank) == null || nullableNumber(item.weeklyAbaRank) <= 0) continue;
-      const month = item.snapshotDate.slice(0, 7);
-      const existing = latestByMonth.get(month);
-      if (!existing || item.snapshotDate > existing.snapshotDate) latestByMonth.set(month, item);
-    }
-    // Imported months are explicit user input, so include them even when the
-    // latest daily snapshot is from an earlier month (for example, a current
-    // month's ABA CSV imported before today's SIF report).
+    // Monthly ABA CSV files are the sole source for this comparison.  Daily
+    // SIF snapshots may contain a weekly ABA rank, but they must not override
+    // or fill a CSV month.
     const currentMonthNumber = 12;
-    const abaTrend = buildAbaSeries(records, allAbaMonthly, countryCode, selectedYear, key, currentMonthNumber);
+    const abaTrend = buildAbaSeries(allAbaMonthly, countryCode, selectedYear, key, currentMonthNumber);
     const months = Array.from({ length: 12 }, (_unused, monthIndex) => {
       const month = `${selectedYear}-${String(monthIndex + 1).padStart(2, '0')}`;
-      const own = latestByMonth.get(month);
-      if (own) return nullableNumber(own.weeklyAbaRank);
       const imported = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, countryCode, month))?.[key]);
       return imported != null && imported > 0 ? imported : null;
     });
 
     const previousYear = selectedYear - 1;
-    const previousYearRecords = keywordRecords
-      .filter((item) => item.snapshotDate.startsWith(`${previousYear}-`) && nullableNumber(item.weeklyAbaRank) != null && nullableNumber(item.weeklyAbaRank) > 0);
-    const abaPreviousTrend = buildAbaSeries(records, allAbaMonthly, countryCode, previousYear, key, currentMonthNumber);
+    const abaPreviousTrend = buildAbaSeries(allAbaMonthly, countryCode, previousYear, key, currentMonthNumber);
     const currentMonth = latestDate ? latestDate.slice(0, 7) : '';
     const previousYearMonth = currentMonth ? shiftMonthKey(currentMonth, -12) : '';
     const previousYearNextMonth = previousYearMonth ? shiftMonthKey(previousYearMonth, 1) : '';
-    const previousMonthOwn = latestAbaRecordByMonth(previousYearRecords, previousYear, previousYearMonth.slice(5, 7));
-    const previousNextOwn = latestAbaRecordByMonth(previousYearRecords, previousYear, previousYearNextMonth.slice(5, 7));
-    const previousYearRank = nullableNumber(previousMonthOwn?.weeklyAbaRank)
-      ?? nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, countryCode, previousYearMonth))?.[key]);
-    const previousYearNextRank = nullableNumber(previousNextOwn?.weeklyAbaRank)
-      ?? nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, countryCode, previousYearNextMonth))?.[key]);
-    const currentOwnRanks = yearRecords
-      .filter((item) => currentMonth && item.snapshotDate.startsWith(`${currentMonth}-`))
-      .map((item) => nullableNumber(item.weeklyAbaRank))
-      .filter((value) => value != null && value > 0);
-    const currentCsvRank = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, countryCode, currentMonth))?.[key]);
-    const abaCurrentMedian = median(currentOwnRanks.length ? currentOwnRanks : (currentCsvRank == null ? [] : [currentCsvRank]));
+    const previousYearRank = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, countryCode, previousYearMonth))?.[key]);
+    const previousYearNextRank = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, countryCode, previousYearNextMonth))?.[key]);
+    const abaCurrentMedian = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, countryCode, currentMonth))?.[key]);
     return {
       keyword: base?.keyword || watch?.keyword || key,
       translation: base?.translation || '',
