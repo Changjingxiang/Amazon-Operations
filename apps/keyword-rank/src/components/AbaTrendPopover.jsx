@@ -46,7 +46,7 @@ export function trendPopoverStyle(event, anchor) {
   return { left, top };
 }
 
-export default function AbaTrendPopover({ keyword, trend, previousTrend, year, previousYear, sourceLabelText = 'ABA CSV', style }) {
+export default function AbaTrendPopover({ keyword, trend, previousTrend, year, previousYear, sourceLabelText = 'ABA CSV', fitToData = false, style }) {
   const current = validPoints(trend);
   const previous = validPoints(previousTrend);
   const all = [...current, ...previous];
@@ -64,10 +64,27 @@ export default function AbaTrendPopover({ keyword, trend, previousTrend, year, p
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = Math.max(1, max - min);
+  const calendarFractions = fitToData
+    ? all.map((point) => dayFraction(point.date)).filter(Number.isFinite)
+    : [];
+  const calendarMin = calendarFractions.length ? Math.min(...calendarFractions) : 0;
+  const calendarMax = calendarFractions.length ? Math.max(...calendarFractions) : 1;
+  const calendarRange = calendarMax - calendarMin;
+  // Keep a small visual breathing room around the first/last source-file day
+  // while still fitting the plotted interval instead of reserving the full
+  // January–December axis used by the monthly CSV comparison.
+  const calendarPadding = fitToData && calendarRange > 0 ? Math.min(0.04, calendarRange * 0.12) : 0;
+  const fittedMin = Math.max(0, calendarMin - calendarPadding);
+  const fittedMax = Math.min(1, calendarMax + calendarPadding);
+  const fittedRange = fittedMax - fittedMin;
   const xFor = (point, index, length) => {
     const fraction = dayFraction(point.date);
     const fallback = index / Math.max(1, length - 1);
-    return pad.left + (Number.isFinite(fraction) ? fraction : fallback) * (chartRight - pad.left);
+    if (fitToData && Number.isFinite(fraction)) {
+      if (fittedRange > 0) return pad.left + ((fraction - fittedMin) / fittedRange) * (chartRight - pad.left);
+      return pad.left + (chartRight - pad.left) / 2;
+    }
+    return pad.left + (Number.isFinite(fraction) && !fitToData ? fraction : fallback) * (chartRight - pad.left);
   };
   const yFor = (value) => pad.top + ((value - min) / range) * (chartBottom - pad.top);
   const labelY = (value, offset) => Math.max(pad.top + 10, Math.min(chartBottom - 3, yFor(value) + offset));
@@ -75,6 +92,12 @@ export default function AbaTrendPopover({ keyword, trend, previousTrend, year, p
   const previousPoints = previous.map((point, index) => `${xFor(point, index, previous.length)},${yFor(point.value)}`).join(' ');
   const latestCurrent = current.at(-1);
   const latestPrevious = previous.at(-1);
+  const fittedAxisPoints = fitToData && calendarFractions.length
+    ? [
+      all.find((point) => dayFraction(point.date) === calendarMin),
+      [...all].reverse().find((point) => dayFraction(point.date) === calendarMax),
+    ].filter((point, index, points) => point && (index === 0 || dayFraction(point.date) !== dayFraction(points[0]?.date)))
+    : [];
   const aria = `${year || '今年'}与${previousYear || '去年'} ABA 排名对照折线图${keyword ? `，关键词 ${keyword}` : ''}`;
 
   return (
@@ -93,7 +116,9 @@ export default function AbaTrendPopover({ keyword, trend, previousTrend, year, p
         {previous.map((point, index) => { const x = xFor(point, index, previous.length); const y = yFor(point.value); return <g key={`previous-${point.date}-${index}`}><circle cx={x} cy={y} r="3.2" fill="#a83f4a" aria-label={`${shortDate(point.date)}：${integer(point.value)}（${sourceLabel(point, sourceLabelText)}）`} /><text x={x} y={labelY(point.value, 14)} textAnchor="middle" className="aba-trend-value-label previous">{rankLabel(point.value)}</text></g>; })}
         <text x="3" y={pad.top + 4} className="aba-axis-label">{integer(min)}</text>
         <text x="3" y={chartBottom + 4} className="aba-axis-label">{integer(max)}</text>
-        {(current.length ? current : previous).map((point, index, points) => <text key={`month-${point.date}-${index}`} x={xFor(point, index, points.length)} y={height - 8} textAnchor="middle" className="aba-axis-label">{monthLabel(point.date)}</text>)}
+        {fitToData
+          ? fittedAxisPoints.map((point, index, points) => <text key={`date-${point.date}-${index}`} x={xFor(point, index, points.length)} y={height - 8} textAnchor={index === 0 ? 'start' : 'end'} className="aba-axis-label">{shortDate(point.date)}</text>)
+          : (current.length ? current : previous).map((point, index, points) => <text key={`month-${point.date}-${index}`} x={xFor(point, index, points.length)} y={height - 8} textAnchor="middle" className="aba-axis-label">{monthLabel(point.date)}</text>)}
       </svg>
       <div className="aba-trend-latest">
         {latestCurrent && <span className="aba-trend-current-latest">今年 {shortDate(latestCurrent.date)}：{rankLabel(latestCurrent.value)}（{sourceLabel(latestCurrent, sourceLabelText)}）</span>}

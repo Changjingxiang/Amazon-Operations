@@ -374,6 +374,7 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
           year={model?.selectedYear}
           previousYear={hovered.row?.previousYear}
           sourceLabelText="SIF源文件"
+          fitToData
           style={hovered.style}
         />,
         document.body,
