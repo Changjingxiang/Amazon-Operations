@@ -123,7 +123,15 @@ export default function App() {
     });
   }, [model?.parentAsin, model?.dates, model?.latestDate]);
 
-  const dateView = useMemo(() => buildDateView(model, selectedDate), [model, selectedDate]);
+  // ABA and history render their own model projections.  Do not rebuild the
+  // date-scoped dashboard projection while those tabs are active; on a large
+  // history this otherwise turns every product/tab click into a full scan of
+  // all snapshot records even though the result is not consumed.
+  const needsDateView = activeTab !== 'aba' && activeTab !== 'history';
+  const dateView = useMemo(() => {
+    if (!needsDateView) return { rows: model.dashboardRows || [], metrics: model.metrics || {} };
+    return buildDateView(model, selectedDate);
+  }, [model, selectedDate, needsDateView]);
 
   useEffect(() => { syncWebBridgeData(data); }, [data]);
 
@@ -171,6 +179,21 @@ export default function App() {
     resetAllColumnWidths();
     setSettingsOpen(false);
     setToast({ type: 'success', title: '列宽已还原', message: '所有表格已恢复原表宽度。' });
+  };
+
+  const selectModel = (index) => {
+    setActiveIndex(index);
+    const nextModel = data?.models?.[index];
+    if (nextModel) {
+      // Resolve the date in the same event as the product change.  The old
+      // effect-based correction rendered the new Matrix once with a stale
+      // date and then a second time after nearestDate() ran.
+      setSelectedDate((currentDate) => {
+        const dates = nextModel.dates || [];
+        return dates.includes(currentDate) ? currentDate : nearestDate(currentDate, dates);
+      });
+    }
+    if (nextModel && (!supportsTab(nextModel, activeTab) || !KNOWN_TABS.has(activeTab))) setActiveTab('natural');
   };
 
   const addModel = async (payload) => {
@@ -229,11 +252,7 @@ export default function App() {
         <Sidebar
           models={data.models}
           activeIndex={activeIndex}
-          onSelect={(index) => {
-            setActiveIndex(index);
-            const nextModel = data.models[index];
-            if (!supportsTab(nextModel, activeTab) || !KNOWN_TABS.has(activeTab)) setActiveTab('natural');
-          }}
+          onSelect={selectModel}
           onChooseIcon={setIconModel}
           onAddModel={() => setAddModelOpen(true)}
           onHistory={() => setActiveTab('history')}
@@ -263,7 +282,7 @@ export default function App() {
               mode={activeTab}
             />
           )}
-          <div className="content-area view-transition" key={`${model.parentAsin}-${activeTab}-${selectedDate}`}>
+          <div className="content-area view-transition">
             {activeTab === 'dashboard' && <DashboardView rows={dateView.rows} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} />}
             {activeTab === 'natural' && <MatrixView model={model} metric="natural" selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
             {activeTab === 'sp' && <MatrixView model={model} metric="sp" selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}

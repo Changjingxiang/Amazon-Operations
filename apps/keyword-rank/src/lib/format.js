@@ -30,21 +30,23 @@ export function rankClass(current, previous) {
   return 'rank-neutral';
 }
 
-export function buildDateView(model, selectedDate) {
-  if (!model?.historyRecords?.length || !selectedDate) {
-    return { rows: model?.dashboardRows || [], metrics: model?.metrics || {} };
-  }
+// The date view is a projection of one immutable model plus the selected date.
+// Product/tab interactions often revisit the same model/date pair; retaining
+// both the immutable indexes and the final projection avoids rescanning and
+// resorting the full history on every return visit. A new model object (after
+// an import or edit) naturally creates new cache entries, so no stale-data
+// invalidation is required here.
+const dateViewCache = new WeakMap();
+const dateViewIndexCache = new WeakMap();
+
+function buildDateViewIndexes(model) {
+  const cached = dateViewIndexCache.get(model);
+  if (cached) return cached;
   const watchMap = new Map((model.watches || []).map((watch, index) => [watch.keyword.toLowerCase(), { ...watch, order: index }]));
-  const records = model.historyRecords;
-  // Build the indexes once per date view.  The previous implementation
-  // repeatedly filtered/sorted the complete history for every watched row and
-  // every trend point, which made a 500-keyword/365-day model needlessly scan
-  // hundreds of millions of records.  Map insertion order preserves the
-  // existing "first matching record" behavior for duplicate dates.
   const recordsByDate = new Map();
   const recordsByKeyword = new Map();
   const recordsByKeywordDate = new Map();
-  records.forEach((item) => {
+  (model.historyRecords || []).forEach((item) => {
     const keywordKey = item.keyword.toLowerCase();
     const dateList = recordsByDate.get(item.snapshotDate) || [];
     dateList.push(item);
@@ -67,6 +69,20 @@ export function buildDateView(model, selectedDate) {
       [...list].sort((a, b) => b.snapshotDate.localeCompare(a.snapshotDate)),
     ]),
   );
+  const indexes = { watchMap, recordsByDate, recordsByKeywordDate, sortedRecordsByKeyword };
+  dateViewIndexCache.set(model, indexes);
+  return indexes;
+}
+
+export function buildDateView(model, selectedDate) {
+  if (!model?.historyRecords?.length || !selectedDate) {
+    return { rows: model?.dashboardRows || [], metrics: model?.metrics || {} };
+  }
+  if (model && typeof model === 'object') {
+    const cached = dateViewCache.get(model);
+    if (cached?.has(selectedDate)) return cached.get(selectedDate);
+  }
+  const { watchMap, recordsByDate, recordsByKeywordDate, sortedRecordsByKeyword } = buildDateViewIndexes(model);
   const latestRecord = (keywordKey, inclusive) => {
     const list = sortedRecordsByKeyword.get(keywordKey) || [];
     return list.find((item) => inclusive ? item.snapshotDate <= selectedDate : item.snapshotDate < selectedDate);
@@ -129,7 +145,7 @@ export function buildDateView(model, selectedDate) {
     if (bw) return 1;
     return (a.trafficRank ?? 999999) - (b.trafficRank ?? 999999);
   });
-  return {
+  const result = {
     rows,
     metrics: {
       keywordCount: rows.length,
@@ -139,4 +155,11 @@ export function buildDateView(model, selectedDate) {
       unrankedNatural: rows.filter((item) => item.naturalRank == null).length,
     },
   };
+  let modelCache = dateViewCache.get(model);
+  if (!modelCache) {
+    modelCache = new Map();
+    dateViewCache.set(model, modelCache);
+  }
+  modelCache.set(selectedDate, result);
+  return result;
 }

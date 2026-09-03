@@ -13,8 +13,10 @@ const { normalizeCountryCode, countryLabel } = require('./countries.cjs');
 
 const STORE_NAME = '关键词排名每日跟进数据.json';
 const WORKBOOK_NAME = '关键词排名每日跟进表.xlsx';
+const ICON_CONFIG_NAME = '产品图标配置.json';
 const SOURCE_DIR_NAME = '每日源文件';
 const SCHEMA_VERSION = 2;
+let readDataCache = null;
 
 function storePath(toolRoot) { return path.join(toolRoot, STORE_NAME); }
 function text(value) { return value == null ? '' : String(value).trim(); }
@@ -159,6 +161,10 @@ function writeStore(toolRoot, store) {
   const payload = { ...normalizeStore(store), updatedAt: new Date().toISOString() };
   fs.writeFileSync(temp, `${JSON.stringify(payload)}\n`, 'utf8');
   fs.renameSync(temp, target);
+  // Any persisted edit changes the model projection.  Drop the in-process
+  // snapshot before the next IPC response; the following readData() rebuilds
+  // exactly once for the new store version.
+  readDataCache = null;
   return payload;
 }
 
@@ -186,21 +192,42 @@ function ensureStore(toolRoot, exporterPath, cachePath) {
 
 function readData(toolRoot, exporterPath, cachePath) {
   const store = ensureStore(toolRoot, exporterPath, cachePath);
+  const workbookPath = path.join(toolRoot, WORKBOOK_NAME);
+  const sourceFolder = path.join(toolRoot, SOURCE_DIR_NAME);
+  let workbookStat = null;
+  try { workbookStat = fs.statSync(workbookPath); } catch {}
+  let sourceCount = 0;
+  let sourceFolderMtime = '';
+  try {
+    const sourceStat = fs.statSync(sourceFolder);
+    sourceFolderMtime = `${sourceStat.mtimeMs}:${sourceStat.ctimeMs}`;
+    sourceCount = fs.readdirSync(sourceFolder).filter((name) => /\.(xlsx|xls)$/i.test(name)).length;
+  } catch {}
+  const storeStat = fs.statSync(storePath(toolRoot));
+  const iconPath = path.join(toolRoot, ICON_CONFIG_NAME);
+  let iconSignature = '';
+  try { const iconStat = fs.statSync(iconPath); iconSignature = `${iconStat.mtimeMs}:${iconStat.size}`; } catch {}
+  const signature = [
+    storeStat.mtimeMs, storeStat.size, store.updatedAt || '',
+    iconSignature, workbookStat ? `${workbookStat.mtimeMs}:${workbookStat.size}` : '',
+    sourceFolderMtime, sourceCount,
+  ].join('|');
+  if (readDataCache?.toolRoot === toolRoot && readDataCache.signature === signature) return readDataCache.data;
   const iconSelections = readIconSelections(toolRoot);
   const models = store.configs.map((config) => ({
     ...buildModel(config, store.histories[config.historySheet] || [], store.watches, store.annotations),
     iconKey: iconSelections[config.parentAsin] || defaultIconKey(config.modelName),
   }));
-  const workbookPath = path.join(toolRoot, WORKBOOK_NAME);
-  const sourceFolder = path.join(toolRoot, SOURCE_DIR_NAME);
   let workbookModifiedAt = '';
-  try { workbookModifiedAt = fs.statSync(workbookPath).mtime.toISOString(); } catch {}
-  return {
+  try { workbookModifiedAt = workbookStat?.mtime.toISOString() || ''; } catch {}
+  const result = {
     toolRoot, workbookPath, workbookModifiedAt,
     workbookOpen: fs.existsSync(path.join(toolRoot, `~$${WORKBOOK_NAME}`)),
-    sourceCount: fs.existsSync(sourceFolder) ? fs.readdirSync(sourceFolder).filter((name) => /\.(xlsx|xls)$/i.test(name)).length : 0,
+    sourceCount,
     models, loadedAt: new Date().toISOString(), storage: 'local-json',
   };
+  readDataCache = { toolRoot, signature, data: result };
+  return result;
 }
 
 function mutateWatch(toolRoot, exporterPath, cachePath, payload) {
