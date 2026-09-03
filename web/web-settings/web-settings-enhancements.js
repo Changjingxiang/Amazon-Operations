@@ -3,7 +3,8 @@
 
   // The production bundle is intentionally kept untouched here.  This small
   // enhancement is loaded after it and adds the ASIN editor, monthly ABA CSV
-  // import controls, ABA comparison columns, competitor settings/drawers, and
+  // import controls, the ABA prior-year month-over-month column,
+  // competitor settings/drawers, and
   // the one-click SIF batch-import control to the existing web UI.
   const ASIN_PATTERN = /^B0[A-Z0-9]{8}$/;
   const STYLE_ID = 'keyword-tracker-asin-editor-style';
@@ -474,24 +475,19 @@
     return ({ up: '上升', down: '下降', same: '持平', none: '—' })[direction] || '—';
   }
 
-  function comparisonTitle(row, kind) {
-    if (kind === 'yoy') {
-      const median = row.abaCurrentMedian == null ? '—' : Number(row.abaCurrentMedian).toLocaleString('zh-CN');
-      const previous = row.abaPreviousYearRank == null ? '—' : Number(row.abaPreviousYearRank).toLocaleString('zh-CN');
-      return `${row.abaCurrentMonth || '本月'}周ABA中位数：${median}；${row.abaPreviousYearMonth || '去年同月'}：${previous}。数字越小越好。`;
-    }
+  function comparisonTitle(row) {
     const previous = row.abaPreviousYearRank == null ? '—' : Number(row.abaPreviousYearRank).toLocaleString('zh-CN');
     const next = row.abaPreviousYearNextRank == null ? '—' : Number(row.abaPreviousYearNextRank).toLocaleString('zh-CN');
     return `${row.abaPreviousYearMonth || '去年同月'}：${previous}；下一个月：${next}。数字越小越好。`;
   }
 
-  function applyComparisonCell(cell, row, kind) {
-    const direction = kind === 'yoy' ? row?.abaYoYTrend : row?.abaPreviousYearMoMTrend;
+  function applyComparisonCell(cell, row) {
+    const direction = row?.abaPreviousYearMoMTrend;
     const label = comparisonLabel(direction);
     cell.className = `aba-comparison-cell aba-trend-${direction || 'none'}`;
     cell.textContent = label;
-    cell.title = comparisonTitle(row || {}, kind);
-    cell.setAttribute('aria-label', `${kind === 'yoy' ? 'ABA排名同比趋势' : '去年ABA排名环比趋势'}：${label}`);
+    cell.title = comparisonTitle(row || {});
+    cell.setAttribute('aria-label', `去年ABA排名环比趋势：${label}`);
   }
 
   async function enhanceAbaTable(table) {
@@ -499,9 +495,9 @@
     if (table.dataset.abaComparisonColumns === 'pending') return;
     if (table.dataset.abaComparisonColumns === 'ready') {
       const needsRows = [...table.querySelectorAll('tbody tr')].some((row) =>
-        !row.querySelector('[data-aba-comparison-cell="yoy"]')
-        || !row.querySelector('[data-aba-comparison-cell="previous-year-mom"]'));
-      if (!needsRows) return;
+        !row.querySelector('[data-aba-comparison-cell="previous-year-mom"]'));
+      const hasStaleYoY = Boolean(table.querySelector('[data-aba-comparison-col="yoy"], [data-aba-comparison-head="yoy"], [data-aba-comparison-cell="yoy"]'));
+      if (!needsRows && !hasStaleYoY) return;
       delete table.dataset.abaComparisonColumns;
     }
     table.dataset.abaComparisonColumns = 'pending';
@@ -512,8 +508,12 @@
     const model = activeModel(data);
     const rowsByKeyword = new Map((model?.abaRows || []).map((row) => [keywordKey(row.keyword), row]));
     const colgroup = table.querySelector('colgroup');
+    // Remove the old同比 column when this enhancer is applied to a table that
+    // was already enhanced by an earlier release or a hot reload.
+    colgroup?.querySelectorAll('[data-aba-comparison-col="yoy"]').forEach((column) => column.remove());
+    table.querySelectorAll('[data-aba-comparison-head="yoy"], [data-aba-comparison-cell="yoy"]').forEach((cell) => cell.remove());
     if (colgroup) {
-      ['yoy', 'previous-year-mom'].forEach((key) => {
+      ['previous-year-mom'].forEach((key) => {
         if (colgroup.querySelector(`[data-aba-comparison-col="${key}"]`)) return;
         const col = document.createElement('col');
         col.dataset.abaComparisonCol = key;
@@ -527,10 +527,7 @@
     const firstHeader = table.querySelector('thead tr.matrix-year-row');
     if (firstHeader) {
       const spacer = firstHeader.querySelector('.aba-meta-spacer');
-      [
-        ['yoy', 'ABA排名同比趋势'],
-        ['previous-year-mom', '去年ABA排名环比趋势'],
-      ].forEach(([key, label]) => {
+      [['previous-year-mom', '去年ABA排名环比趋势']].forEach(([key, label]) => {
         let head = firstHeader.querySelector(`[data-aba-comparison-head="${key}"]`);
         if (!head) {
           head = document.createElement('th');
@@ -546,7 +543,7 @@
     table.querySelectorAll('tbody tr').forEach((bodyRow) => {
       const keyword = bodyRow.querySelector('.aba-keyword-cell')?.textContent || '';
       const row = rowsByKeyword.get(keywordKey(keyword));
-      [['yoy', 'yoy'], ['previous-year-mom', 'mom']].forEach(([key, kind]) => {
+      [['previous-year-mom']].forEach(([key]) => {
         let cell = bodyRow.querySelector(`[data-aba-comparison-cell="${key}"]`);
         if (!cell) {
           cell = document.createElement('td');
@@ -555,7 +552,7 @@
         const searchCell = [...bodyRow.children].find((candidate, index) =>
           index >= 3 && !candidate.hasAttribute('data-aba-comparison-cell'));
         if (searchCell && searchCell !== cell) searchCell.before(cell); else bodyRow.appendChild(cell);
-        applyComparisonCell(cell, row, kind);
+        applyComparisonCell(cell, row);
       });
     });
     table.dataset.abaComparisonColumns = 'ready';

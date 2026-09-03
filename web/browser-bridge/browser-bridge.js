@@ -710,7 +710,6 @@
       const previousYearNextMonth = previousYearMonth ? shiftMonthKey(previousYearMonth, 1) : '';
       const previousYearRank = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, config.countryCode || config.site, previousYearMonth))?.[itemKey]);
       const previousYearNextRank = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, config.countryCode || config.site, previousYearNextMonth))?.[itemKey]);
-      const currentMonthMedian = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, config.countryCode || config.site, currentMonth))?.[itemKey]);
       return {
         keyword: base?.keyword || watch?.keyword || itemKey,
         translation: base?.translation || '',
@@ -721,12 +720,9 @@
         abaTrend,
         abaPreviousTrend,
         previousYear: abaPreviousTrend.length ? previousYear : null,
-        abaCurrentMonth: currentMonth,
-        abaCurrentMedian: currentMonthMedian,
         abaPreviousYearMonth: previousYearMonth,
         abaPreviousYearRank: previousYearRank,
         abaPreviousYearNextRank: previousYearNextRank,
-        abaYoYTrend: direction(currentMonthMedian, previousYearRank),
         abaPreviousYearMoMTrend: direction(previousYearNextRank, previousYearRank),
       };
     });

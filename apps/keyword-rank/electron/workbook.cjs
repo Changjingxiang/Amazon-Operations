@@ -273,7 +273,6 @@ function buildModel(config, records, allWatches, allAnnotations = [], allAbaMont
     const previousYearNextMonth = previousYearMonth ? shiftMonthKey(previousYearMonth, 1) : '';
     const previousYearRank = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, countryCode, previousYearMonth))?.[key]);
     const previousYearNextRank = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, countryCode, previousYearNextMonth))?.[key]);
-    const abaCurrentMedian = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, countryCode, currentMonth))?.[key]);
     return {
       keyword: base?.keyword || watch?.keyword || key,
       translation: base?.translation || '',
@@ -284,12 +283,9 @@ function buildModel(config, records, allWatches, allAnnotations = [], allAbaMont
       abaTrend,
       abaPreviousTrend,
       previousYear: abaPreviousTrend.length ? previousYear : null,
-      abaCurrentMonth: currentMonth,
-      abaCurrentMedian,
       abaPreviousYearMonth: previousYearMonth,
       abaPreviousYearRank: previousYearRank,
       abaPreviousYearNextRank: previousYearNextRank,
-      abaYoYTrend: direction(abaCurrentMedian, previousYearRank),
       abaPreviousYearMoMTrend: direction(previousYearNextRank, previousYearRank),
     };
   });
