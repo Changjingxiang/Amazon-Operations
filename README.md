@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero.svg" alt="Amazon Operations 关键词排名每日跟进工作台" width="100%" />
+  <img src="./assets/readme/hero.png" alt="Amazon Operations 关键词排名每日跟进工作台" width="100%" />
 </p>
 
 # Amazon Operations
@@ -117,7 +117,8 @@ npm run release:web -- --force
 │  ├─ extensions/                     # SIF Manifest V3 扩展
 │  └─ docs/                            # 面向使用者的说明与 SOP
 ├─ tools/                             # release:web / verify:web
-├─ assets/readme/hero.svg             # README 项目原生 Hero
+├─ assets/readme/hero.png             # README 主 Hero（用户提供）
+├─ assets/readme/hero.svg             # 可编辑 SVG 备用稿
 └─ package.json
 ```
 
