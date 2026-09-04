@@ -2,14 +2,17 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Star } from 'lucide-react';
 import { integer, rankClass, shortDate } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
+import FilterCascade, {
+  COMPARISON_FILTER_OPTIONS,
+  EMPTY_FILTER,
+  filterDates,
+  filterRows,
+  WATCH_FILTER_OPTIONS,
+} from './FilterCascade.jsx';
 
 function rankNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function keywordKey(value) {
-  return String(value || '').trim().toLocaleLowerCase('en-US');
 }
 
 function pageMarker(value) {
@@ -37,22 +40,53 @@ function movementText(value, previous) {
   return '较前一天持平';
 }
 
-function leadingRows(model, selectedDate, lead, visibleRows) {
+const CATEGORY_META = {
+  natural: {
+    title: '自然领先',
+    subtitle: '当前日期自然排名优于 SP 排名',
+    empty: '当前日期没有自然领先的关键词。',
+  },
+  sp: {
+    title: 'SP领先',
+    subtitle: '当前日期 SP 排名优于自然排名',
+    empty: '当前日期没有 SP 领先的关键词。',
+  },
+  'only-natural': {
+    title: '仅自然上榜',
+    subtitle: '当前日期有自然排名，SP 未上榜',
+    empty: '当前日期没有仅自然上榜的关键词。',
+  },
+  'only-sp': {
+    title: '仅SP上榜',
+    subtitle: '当前日期有 SP 排名，自然未上榜',
+    empty: '当前日期没有仅 SP 上榜的关键词。',
+  },
+  common: {
+    title: '共同上榜',
+    subtitle: '当前日期自然和 SP 均有排名（包含自然/SP领先）',
+    empty: '当前日期没有共同上榜的关键词。',
+  },
+};
+
+function inCategory(natural, sp, category) {
+  if (category === 'natural') return natural != null && sp != null && natural < sp;
+  if (category === 'sp') return natural != null && sp != null && sp < natural;
+  if (category === 'only-natural') return natural != null && sp == null;
+  if (category === 'only-sp') return natural == null && sp != null;
+  if (category === 'common') return natural != null && sp != null;
+  return false;
+}
+
+function categoryRows(model, comparisonDate, category, sourceRows) {
   const dates = model?.dates || [];
-  if (!dates.length) return { rows: [], selectedIndex: -1 };
-  const selectedIndex = Math.max(0, dates.indexOf(selectedDate) >= 0 ? dates.indexOf(selectedDate) : dates.length - 1);
-  const visibleKeys = Array.isArray(visibleRows) ? new Set(visibleRows.map((row) => keywordKey(row?.keyword))) : null;
-  const rows = (model.matrixRows || []).reduce((result, row, order) => {
-    if (visibleKeys && !visibleKeys.has(keywordKey(row?.keyword))) return result;
+  const selectedIndex = dates.indexOf(comparisonDate);
+  if (selectedIndex < 0) return [];
+  return (Array.isArray(sourceRows) ? sourceRows : []).reduce((result, row, order) => {
     const natural = rankNumber(row?.naturalValues?.[selectedIndex]);
     const sp = rankNumber(row?.spValues?.[selectedIndex]);
-    if (natural == null || sp == null) return result;
-    const difference = lead === 'natural' ? sp - natural : natural - sp;
-    if (difference <= 0) return result;
-    result.push({ row, order, difference });
+    if (inCategory(natural, sp, category)) result.push({ row, order });
     return result;
   }, []);
-  return { rows, selectedIndex };
 }
 
 function RankCell({ value, previous, metric, date, selected }) {
@@ -73,19 +107,18 @@ function RankCell({ value, previous, metric, date, selected }) {
   );
 }
 
-function ComparisonSection({ lead, rows, dates, selectedDate, onToggleWatch, widths, resizeHandle, sectionRef }) {
-  const title = lead === 'natural' ? '自然领先' : 'SP领先';
-  const subtitle = lead === 'natural' ? '当前日期自然排名优于 SP 排名' : '当前日期 SP 排名优于自然排名';
+function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate, onToggleWatch, widths, resizeHandle, sectionRef }) {
+  const meta = CATEGORY_META[category] || CATEGORY_META.common;
   return (
-    <section ref={sectionRef} className={`comparison-section comparison-section-${lead}`} data-comparison-section={lead} aria-labelledby={`comparison-${lead}-title`}>
+    <section ref={sectionRef} className={`comparison-section comparison-section-${category}`} data-comparison-section={category} aria-labelledby={`comparison-${category}-title`}>
       <div className="comparison-section-header">
         <div>
-          <h2 id={`comparison-${lead}-title`}>{title}</h2>
-          <span>{subtitle} · {selectedDate || '当前日期'} · 共 {rows.length} 个关键词</span>
+          <h2 id={`comparison-${category}-title`}>{meta.title}</h2>
+          <span>{meta.subtitle} · {comparisonDate || '当前日期'} · 共 {rows.length} 个关键词</span>
         </div>
         <div className="comparison-section-legend"><span className="legend-up">红色＝排名上升</span><span className="legend-down">绿色＝排名下降</span></div>
       </div>
-      {rows.length ? (
+      {rows.length && dates.length ? (
         <div className="comparison-table-scroll">
           <table className="comparison-table" style={{ '--comparison-keyword-left': `${widths.star}px`, '--comparison-translation-left': `${widths.star + widths.keyword}px` }}>
             <colgroup>
@@ -102,18 +135,18 @@ function ComparisonSection({ lead, rows, dates, selectedDate, onToggleWatch, wid
                 <th className="comparison-fixed-head comparison-star-head" rowSpan="2" style={{ width: widths.star, minWidth: widths.star }}>关注{resizeHandle('star', '关注')}</th>
                 <th className="comparison-fixed-head comparison-keyword-head" rowSpan="2" style={{ width: widths.keyword, minWidth: widths.keyword }}>关键词{resizeHandle('keyword', '关键词')}</th>
                 <th className="comparison-fixed-head comparison-translation-head" rowSpan="2" style={{ width: widths.translation, minWidth: widths.translation }}>翻译{resizeHandle('translation', '翻译')}</th>
-                {dates.map((date) => <th key={date} colSpan="2" className={date === selectedDate ? 'selected-date' : ''}>{shortDate(date)}</th>)}
+                {dates.map((date) => <th key={date} colSpan="2" className={date === comparisonDate ? 'selected-date' : ''}>{shortDate(date)}</th>)}
               </tr>
               <tr className="comparison-metric-row">
                 {dates.flatMap((date) => [
-                  <th key={`${date}-natural`} className={date === selectedDate ? 'selected-date' : ''}>自然{resizeHandle('rank', '自然排名')}</th>,
-                  <th key={`${date}-sp`} className={date === selectedDate ? 'selected-date' : ''}>SP{resizeHandle('rank', 'SP排名')}</th>,
+                  <th key={`${date}-natural`} className={date === comparisonDate ? 'selected-date' : ''}>自然{resizeHandle('rank', '自然排名')}</th>,
+                  <th key={`${date}-sp`} className={date === comparisonDate ? 'selected-date' : ''}>SP{resizeHandle('rank', 'SP排名')}</th>,
                 ])}
               </tr>
             </thead>
             <tbody>
               {rows.map(({ row, order }) => (
-                <tr key={`${lead}-${row.keyword}-${order}`} className={row.watched ? 'watched-row' : ''}>
+                <tr key={`${category}-${row.keyword}-${order}`} className={row.watched ? 'watched-row' : ''}>
                   <td className="comparison-star-cell">
                     <button
                       type="button"
@@ -125,36 +158,50 @@ function ComparisonSection({ lead, rows, dates, selectedDate, onToggleWatch, wid
                   </td>
                   <td className="comparison-keyword-cell" title={row.keyword}>{row.keyword}</td>
                   <td className="comparison-translation-cell" title={row.translation}>{row.translation || '—'}</td>
-                  {dates.flatMap((date, index) => [
-                    <RankCell key={`${date}-natural`} value={row.naturalValues?.[index]} previous={index ? row.naturalValues?.[index - 1] : null} metric="natural" date={date} selected={date === selectedDate} />,
-                    <RankCell key={`${date}-sp`} value={row.spValues?.[index]} previous={index ? row.spValues?.[index - 1] : null} metric="sp" date={date} selected={date === selectedDate} />,
-                  ])}
+                  {dates.flatMap((date) => {
+                    const index = dateIndexMap.get(date);
+                    const naturalValues = row.naturalValues || [];
+                    const spValues = row.spValues || [];
+                    const previousNatural = index > 0 ? naturalValues[index - 1] : null;
+                    const previousSp = index > 0 ? spValues[index - 1] : null;
+                    return [
+                      <RankCell key={`${date}-natural`} value={naturalValues[index]} previous={previousNatural} metric="natural" date={date} selected={date === comparisonDate} />,
+                      <RankCell key={`${date}-sp`} value={spValues[index]} previous={previousSp} metric="sp" date={date} selected={date === comparisonDate} />,
+                    ];
+                  })}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      ) : <div className="comparison-empty">当前日期没有符合条件的关键词。</div>}
+      ) : <div className="comparison-empty">{dates.length ? meta.empty : '当前筛选范围没有可显示的日期。'}</div>}
     </section>
   );
 }
 
-export default function ComparisonMatrixView({ model, rows: visibleRows, selectedDate, focusSection, onFocusHandled, onToggleWatch }) {
-  const naturalSectionRef = useRef(null);
-  const spSectionRef = useRef(null);
+export default function ComparisonMatrixView({ model, rows: visibleRows, filters, onFiltersChange, selectedDate, focusSection, onFocusHandled, onToggleWatch }) {
   const comparisonScrollRef = useRef(null);
+  const sectionRefs = useRef({});
   const defaults = useMemo(() => ({ star: 54, keyword: 250, translation: 180, rank: 82 }), []);
   const { widths, nudgeWidth, startResize } = useColumnWidths('keyword-tracker:columns:comparison', defaults);
-  const natural = useMemo(() => leadingRows(model, selectedDate, 'natural', visibleRows), [model, selectedDate, visibleRows]);
-  const sp = useMemo(() => leadingRows(model, selectedDate, 'sp', visibleRows), [model, selectedDate, visibleRows]);
-  const dates = model?.dates || [];
+  const currentFilter = { ...EMPTY_FILTER, ...(filters || {}) };
+  const sourceRows = useMemo(
+    () => filterRows(Array.isArray(visibleRows) ? visibleRows : (model?.matrixRows || []), currentFilter),
+    [visibleRows, model?.matrixRows, currentFilter.query, currentFilter.watch, currentFilter.keywords],
+  );
+  const allDates = model?.dates || [];
+  const dates = useMemo(() => filterDates(allDates, currentFilter), [allDates, currentFilter.dateMode, currentFilter.dateStart, currentFilter.dateEnd]);
+  const comparisonDate = dates.includes(selectedDate) ? selectedDate : dates.at(-1) || selectedDate || allDates.at(-1) || '';
+  const dateIndexMap = useMemo(() => new Map(allDates.map((date, index) => [date, index])), [allDates]);
+  const activeCategories = useMemo(() => {
+    const requested = new Set(currentFilter.relations || []);
+    const categoryOrder = ['natural', 'sp', ...COMPARISON_FILTER_OPTIONS.map((option) => option.value).filter((value) => value !== 'natural' && value !== 'sp')];
+    return categoryOrder.filter((value) => requested.size ? requested.has(value) : value === 'natural' || value === 'sp');
+  }, [currentFilter.relations]);
+  const rowsByCategory = useMemo(() => Object.fromEntries(activeCategories.map((category) => [category, categoryRows(model, comparisonDate, category, sourceRows)])), [activeCategories, model, comparisonDate, sourceRows]);
   const dateAxisKey = dates.join('|');
   const resizeHandle = (column, label) => <ResizeHandle columnKey={column} onResize={startResize} onNudge={nudgeWidth} label={label} />;
 
-  // Match the natural/SP matrix opening behavior: keep the fixed identity
-  // columns pinned on the left while the newest date is immediately visible
-  // at the right edge of the horizontal scroller.  The retry frames wait for
-  // table layout to settle after React mounts the two sections.
   useEffect(() => {
     const scroll = comparisonScrollRef.current;
     if (!(scroll instanceof HTMLElement)) return undefined;
@@ -163,37 +210,64 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, selecte
     const align = () => {
       frame = 0;
       if (!scroll.isConnected) return;
-      const table = scroll.querySelector('.comparison-table');
-      if ((!table || !scroll.clientWidth || !scroll.clientHeight) && attempts++ < 18) {
+      const tableScrolls = [...scroll.querySelectorAll('.comparison-table-scroll')];
+      if ((!tableScrolls.length || !scroll.clientWidth || !scroll.clientHeight) && attempts++ < 18) {
         frame = window.requestAnimationFrame(align);
         return;
       }
-      scroll.scrollLeft = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
+      tableScrolls.forEach((tableScroll) => {
+        tableScroll.scrollLeft = Math.max(0, tableScroll.scrollWidth - tableScroll.clientWidth);
+      });
     };
     frame = window.requestAnimationFrame(() => { frame = window.requestAnimationFrame(align); });
     return () => { if (frame) window.cancelAnimationFrame(frame); };
-  }, [model?.parentAsin, model?.latestDate, dateAxisKey]);
+  }, [model?.parentAsin, model?.latestDate, dateAxisKey, activeCategories.join('|')]);
 
   useEffect(() => {
     if (!focusSection) return undefined;
-    const target = focusSection === 'sp' ? spSectionRef.current : naturalSectionRef.current;
+    const target = sectionRefs.current[focusSection];
     if (!target) return undefined;
     const frame = window.requestAnimationFrame(() => {
       target.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
       onFocusHandled?.();
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [focusSection, model?.parentAsin, selectedDate, onFocusHandled]);
+  }, [focusSection, model?.parentAsin, comparisonDate, activeCategories.join('|'), onFocusHandled]);
 
   return (
     <section className="comparison-panel" data-comparison-matrix aria-labelledby="comparison-matrix-title">
       <div className="comparison-note">
-        <div><strong id="comparison-matrix-title">对比矩阵</strong><span>按当前日期筛选自然领先和 SP 领先关键词；每个日期下分别显示自然、SP排名。</span></div>
-        <div><span>排名数字越小越好</span><span>①/②/③＝第1/2/3页，④+＝第4页及以后</span></div>
+        <div className="comparison-note-copy"><strong id="comparison-matrix-title">对比矩阵</strong><span>按当前日期筛选分类；每个日期下分别显示自然、SP排名。五类筛选同级，可多选。</span></div>
+        <FilterCascade
+          rows={model?.matrixRows || []}
+          filter={currentFilter}
+          onChange={onFiltersChange}
+          groups={[
+            { key: 'watch', label: '关注状态', options: WATCH_FILTER_OPTIONS },
+            { key: 'relations', label: '对比关系', options: COMPARISON_FILTER_OPTIONS },
+          ]}
+          dates={allDates}
+          showDate
+          label="筛选"
+          placeholder="搜索对比关键词…"
+        />
+        <div className="comparison-note-legend"><span>排名数字越小越好</span><span>①/②/③＝第1/2/3页，④+＝第4页及以后</span></div>
       </div>
       <div ref={comparisonScrollRef} className="comparison-scroll">
-        <ComparisonSection lead="natural" rows={natural.rows} dates={dates} selectedDate={selectedDate} onToggleWatch={onToggleWatch} widths={widths} resizeHandle={resizeHandle} sectionRef={naturalSectionRef} />
-        <ComparisonSection lead="sp" rows={sp.rows} dates={dates} selectedDate={selectedDate} onToggleWatch={onToggleWatch} widths={widths} resizeHandle={resizeHandle} sectionRef={spSectionRef} />
+        {activeCategories.map((category) => (
+          <ComparisonSection
+            key={category}
+            category={category}
+            rows={rowsByCategory[category] || []}
+            dates={dates}
+            dateIndexMap={dateIndexMap}
+            comparisonDate={comparisonDate}
+            onToggleWatch={onToggleWatch}
+            widths={widths}
+            resizeHandle={resizeHandle}
+            sectionRef={(node) => { sectionRefs.current[category] = node; }}
+          />
+        ))}
       </div>
     </section>
   );

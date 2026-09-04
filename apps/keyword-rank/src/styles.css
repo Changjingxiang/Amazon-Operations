@@ -224,10 +224,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .comparison-note > div:last-child { flex: 0 0 auto; justify-content: flex-end; gap: 12px; color: #7c8794; font-size: 10px; }
 .comparison-note strong { flex: 0 0 auto; color: var(--navy); font-size: 16px; line-height: 1.2; }
 .comparison-note span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.comparison-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-color: #8b929b #e4e7ea; scrollbar-width: thin; }
-.comparison-section { min-width: max-content; background: #fff; }
+.comparison-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-color: #8b929b #e4e7ea; scrollbar-width: thin; }
+.comparison-section { width: 100%; min-width: 0; background: #fff; }
 .comparison-section + .comparison-section { margin-top: 14px; border-top: 1px solid #ccd7df; }
-.comparison-section-header { min-height: 50px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 13px; border-bottom: 1px solid #d8dee6; background: #f7fbfc; }
+.comparison-section-header { position: sticky; left: 0; z-index: 6; min-height: 50px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 13px; border-bottom: 1px solid #d8dee6; background: #f7fbfc; }
 .comparison-section-header > div:first-child { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
 .comparison-section-header h2 { margin: 0; color: #25354d; font-size: 15px; line-height: 1.2; }
 .comparison-section-natural .comparison-section-header h2 { color: #1688a8; }
@@ -235,7 +235,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .comparison-section-header span { color: #7c8996; font-size: 10px; white-space: nowrap; }
 .comparison-section-legend { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
 .comparison-section-legend .legend-up, .comparison-section-legend .legend-down { font-size: 10px; font-weight: 700; }
-.comparison-table-scroll { min-width: max-content; }
+.comparison-table-scroll { width: 100%; min-width: 0; overflow-x: auto; scrollbar-color: #a3adb7 #edf0f2; scrollbar-width: thin; }
 .comparison-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; table-layout: fixed; font-size: 12px; }
 .comparison-table th, .comparison-table td { border-right: 1px solid #d8dee6; border-bottom: 1px solid #d8dee6; height: 42px; padding: 4px 7px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .comparison-table thead th { position: sticky; z-index: 5; color: white; font-weight: 800; }
@@ -255,6 +255,67 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .comparison-page-marker { display: block; min-height: 11px; margin-top: 2px; color: currentColor; font-size: 9px; font-weight: 800; line-height: 1; opacity: .72; }
 .comparison-table .star-button { margin: auto; }
 .comparison-empty { min-height: 80px; display: grid; place-items: center; color: #8995a1; font-size: 12px; }
+.matrix-group-note { min-height: 58px; flex-basis: auto; align-items: center; gap: 12px; }
+.matrix-note-copy { min-width: 0; flex: 1 1 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 5px 13px; line-height: 1.45; }
+.matrix-note-copy > span { min-width: 0; }
+.matrix-note-copy > span:first-child { color: var(--navy); font-weight: 800; }
+.matrix-group-note > .cascade-filter { flex: 0 0 auto; }
+.comparison-note { min-height: 72px; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.comparison-note-copy { min-width: 260px; flex: 1 1 330px; display: flex; align-items: baseline; gap: 10px; }
+.comparison-note-copy span { flex: 1 1 auto; }
+.comparison-note-legend { min-width: 0; flex: 0 1 auto; display: flex; align-items: center; justify-content: flex-end; gap: 10px; color: #7c8794; font-size: 10px; }
+.comparison-note-legend span { white-space: nowrap; }
+.comparison-note > .cascade-filter { flex: 0 1 auto; }
+.comparison-note .cascade-filter span { min-width: initial; overflow: visible; text-overflow: clip; white-space: normal; }
+.comparison-section-only-natural .comparison-section-header h2 { color: #208d7b; }
+.comparison-section-only-sp .comparison-section-header h2 { color: #b8781b; }
+.comparison-section-common .comparison-section-header h2 { color: #697686; }
+.cascade-filter { position: relative; min-width: 0; z-index: 25; }
+.cascade-filter-bar { min-width: 0; display: flex; align-items: center; gap: 7px; }
+.cascade-search { width: clamp(150px, 17vw, 230px); height: 31px; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0 8px; border: 1px solid #c1ccd6; border-radius: 8px; background: #fff; color: #748193; }
+.cascade-search:focus-within { border-color: var(--cyan); box-shadow: var(--focus-ring); }
+.cascade-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #25354d; font-size: 11px; font-weight: 600; }
+.cascade-search input::placeholder { color: #97a1ad; font-weight: 500; }
+.cascade-search-clear { width: 19px; height: 19px; flex: 0 0 19px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: #7b8795; padding: 0; }
+.cascade-search-clear:hover { background: #edf2f5; color: var(--navy); }
+.cascade-trigger { height: 31px; min-width: 67px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 9px; border: 1px solid #9aa7b6; border-radius: 8px; background: #fff; color: #536174; font-size: 11px; font-weight: 800; }
+.cascade-trigger:hover, .cascade-trigger.is-open { border-color: var(--cyan); background: #f0fdff; color: #0b91a2; }
+.cascade-trigger b { min-width: 17px; height: 17px; display: inline-grid; place-items: center; padding: 0 4px; border-radius: 9px; background: var(--navy); color: #fff; font-size: 9px; line-height: 1; }
+.cascade-clear { height: 28px; border: 0; border-radius: 7px; background: transparent; color: #b24e4e; padding: 0 5px; font-size: 10px; font-weight: 800; }
+.cascade-clear:hover { background: #fff0ee; color: #963535; }
+.cascade-popover { position: absolute; top: calc(100% + 7px); right: 0; width: min(360px, calc(100vw - 26px)); max-height: min(560px, calc(100vh - 30px)); overflow: auto; border: 1px solid #9eabb9; border-radius: 11px; background: rgba(255,255,255,.99); box-shadow: 0 15px 34px rgba(23,59,100,.22), 0 2px 7px rgba(23,59,100,.1); color: #334052; }
+.cascade-popover-head { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 11px; border-bottom: 1px solid #e1e6eb; background: #f8fbfc; }
+.cascade-popover-head strong { color: var(--navy); font-size: 12px; }
+.cascade-popover-head button { width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: #718092; padding: 0; }
+.cascade-popover-head button:hover { background: #e9f0f3; color: var(--navy); }
+.cascade-group-list { display: grid; gap: 0; padding: 3px 10px 6px; }
+.cascade-group { padding: 9px 0 8px; border-bottom: 1px solid #edf0f2; }
+.cascade-group:last-child { border-bottom: 0; }
+.cascade-group-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; color: #52617b; }
+.cascade-group-title strong { font-size: 11px; }
+.cascade-group-title small { color: #8b97a4; font-size: 9px; }
+.cascade-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 6px; max-height: 166px; overflow: auto; }
+.cascade-keyword-options { grid-template-columns: 1fr; max-height: 194px; }
+.cascade-option { min-width: 0; min-height: 28px; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 3px 5px; border: 1px solid transparent; border-radius: 6px; cursor: pointer; color: #566477; font-size: 10px; }
+.cascade-option:hover { border-color: #c6e9ee; background: #f2fcfd; }
+.cascade-option.is-selected { border-color: #a7dfe6; background: #eafcff; color: #0b7483; }
+.cascade-option input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.cascade-checkbox { width: 15px; height: 15px; display: inline-grid; place-items: center; border: 1px solid #aebbc7; border-radius: 4px; background: #fff; color: #fff; }
+.cascade-option.is-selected .cascade-checkbox { border-color: #0b9eaf; background: #0b9eaf; }
+.cascade-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important; }
+.cascade-option small { color: #8b97a4; font-size: 9px; }
+.cascade-empty { display: block; padding: 8px 5px; color: #98a2ad; font-size: 10px; }
+.cascade-date-modes { display: flex; flex-wrap: wrap; gap: 5px; }
+.cascade-date-modes button { height: 26px; padding: 0 7px; border: 1px solid #c2ccd5; border-radius: 6px; background: #fff; color: #667385; font-size: 10px; font-weight: 700; }
+.cascade-date-modes button:hover, .cascade-date-modes button.is-selected { border-color: #50bfc9; background: #eafcff; color: #0b7483; }
+.cascade-date-field { min-width: 0; display: flex; flex: 1 1 0; flex-direction: column; gap: 3px; color: #738092; font-size: 9px; font-weight: 700; }
+.cascade-date-field input { width: 100%; min-width: 0; height: 29px; border: 1px solid #c2ccd5; border-radius: 6px; background: #fff; color: #334052; padding: 0 6px; font-size: 10px; font-weight: 700; }
+.cascade-date-field input:focus { border-color: var(--cyan); outline: 0; box-shadow: var(--focus-ring); }
+.cascade-date-range { display: flex; align-items: flex-end; gap: 6px; margin-top: 7px; }
+.cascade-date-separator { padding-bottom: 7px; color: #8b97a4; font-size: 10px; }
+.cascade-popover-foot { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 11px; border-top: 1px solid #e1e6eb; background: #fbfcfd; color: #8b97a4; font-size: 9px; }
+.cascade-popover-foot button { height: 25px; padding: 0 11px; border: 1px solid #168da0; border-radius: 6px; background: #0b9eaf; color: #fff; font-size: 10px; font-weight: 800; }
+.cascade-popover-foot button:hover { background: #087f8d; }
 .star-button { width: 29px; height: 29px; border: 0; background: transparent; color: #6f7b88; display: inline-grid; place-items: center; border-radius: 8px; padding: 0; }
 .star-button:hover { background: #fff2b8; color: #d49700; }
 .star-button.watched { color: #e0a000; }

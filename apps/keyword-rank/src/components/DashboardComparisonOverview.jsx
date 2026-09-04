@@ -180,11 +180,11 @@ export default function DashboardComparisonOverview({ rows, selectedDate, onDeta
       <div className="dashboard-overview-layout">
         <div className="dashboard-overview-main">
           <div className="dashboard-overview-primary-grid">
-            <OverviewMetric label="共同上榜" value={overview.common} total={overview.total} detail="自然 & SP 均有排名" tone="common" />
+            <OverviewMetric label="共同上榜" value={overview.common} total={overview.total} detail="自然 & SP 均有排名" tone="common" onDetails={onDetails ? () => onDetails('common') : undefined} />
             <OverviewMetric label="自然领先" value={overview.naturalLeading} total={overview.total} detail="自然排名更好" tone="natural" onDetails={onDetails ? () => onDetails('natural') : undefined} />
             <OverviewMetric label="SP领先" value={overview.spLeading} total={overview.total} detail="SP排名更好" tone="sp" onDetails={onDetails ? () => onDetails('sp') : undefined} />
-            <OverviewMetric label="仅自然上榜" value={overview.onlyNatural} total={overview.total} detail="SP未上榜" tone="natural-only" />
-            <OverviewMetric label="仅SP上榜" value={overview.onlySp} total={overview.total} detail="自然未上榜" tone="sp-only" />
+            <OverviewMetric label="仅自然上榜" value={overview.onlyNatural} total={overview.total} detail="SP未上榜" tone="natural-only" onDetails={onDetails ? () => onDetails('only-natural') : undefined} />
+            <OverviewMetric label="仅SP上榜" value={overview.onlySp} total={overview.total} detail="自然未上榜" tone="sp-only" onDetails={onDetails ? () => onDetails('only-sp') : undefined} />
           </div>
           <RankDistributionPanel overview={overview} />
         </div>

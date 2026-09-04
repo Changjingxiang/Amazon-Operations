@@ -4,17 +4,19 @@ import { ChevronDown, ChevronRight, Star } from 'lucide-react';
 import { integer, percent } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
+import FilterCascade, { WATCH_FILTER_OPTIONS } from './FilterCascade.jsx';
 
 const ABA_ROW_HEIGHT = 38;
 const ABA_ROW_OVERSCAN = 8;
 const ABA_INITIAL_ROWS = 48;
 
-export default function ABAView({ model, onToggleWatch }) {
+export default function ABAView({ model, rows: filteredRows, filters, onFiltersChange, onToggleWatch }) {
   const [collapsedYears, setCollapsedYears] = useState(() => new Set());
   const [collapsedMonths, setCollapsedMonths] = useState(() => new Set());
   const [layoutAnimating, setLayoutAnimating] = useState(false);
   const [hovered, setHovered] = useState(null);
-  const rowCount = model.abaRows?.length || 0;
+  const rows = Array.isArray(filteredRows) ? filteredRows : (model.abaRows || []);
+  const rowCount = rows.length;
   const scrollRef = useRef(null);
   const [virtualRange, setVirtualRange] = useState(() => ({ start: 0, end: Math.min(rowCount, ABA_INITIAL_ROWS) }));
   const virtualRangeRef = useRef(virtualRange);
@@ -29,7 +31,8 @@ export default function ABAView({ model, onToggleWatch }) {
     virtualRangeRef.current = next;
     setVirtualRange(next);
     setHovered(null);
-  }, [model.parentAsin, model.selectedYear, rowCount]);
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [model.parentAsin, model.selectedYear, rowCount, rows]);
   useEffect(() => {
     const scroll = scrollRef.current;
     if (!scroll) return undefined;
@@ -65,7 +68,7 @@ export default function ABAView({ model, onToggleWatch }) {
     '--sticky-keyword-left': `${widths.star}px`,
     '--sticky-translation-left': `${widths.star + widths.keyword}px`,
   };
-  const visibleRows = (model.abaRows || []).slice(virtualRange.start, virtualRange.end);
+  const visibleRows = rows.slice(virtualRange.start, virtualRange.end);
   const topSpacerHeight = virtualRange.start * ABA_ROW_HEIGHT;
   const bottomSpacerHeight = Math.max(0, rowCount - virtualRange.end) * ABA_ROW_HEIGHT;
   const renderSpacer = (height, key) => height > 0 ? (
@@ -74,7 +77,7 @@ export default function ABAView({ model, onToggleWatch }) {
     </tr>
   ) : null;
   const popup = hovered ? createPortal(<AbaTrendPopover keyword={hovered.keyword} trend={hovered.row.abaTrend} previousTrend={hovered.row.abaPreviousTrend} year={model.selectedYear} previousYear={hovered.row.previousYear} style={hovered.style} />, document.body) : null;
-  return <section className="matrix-panel aba-panel"><div className="matrix-note"><span>{model.selectedYear} 年 ABA 月度排名：可按年份、月份收放</span><span>每月排名和对照折线均以已导入的 ABA CSV 为准；悬停关键词可查看今年与去年两种颜色的 ABA 对照趋势，各月点位会标出具体排名。</span></div><div ref={scrollRef} className="matrix-scroll"><table style={stickyLayoutStyle} className={`matrix-table aba-table aba-group-table matrix-layout-transition ${layoutAnimating ? 'is-animating' : ''}`}><colgroup><col style={widthStyle('star')} /><col style={widthStyle('keyword')} /><col style={widthStyle('translation')} /><col style={widthStyle('search')} /><col style={widthStyle('conversion')} />{columns.map((column) => <col key={`width-${column.key}`} style={widthStyle('month')} />)}</colgroup><thead>
+  return <section className="matrix-panel aba-panel"><div className="matrix-note matrix-group-note"><div className="matrix-note-copy"><span>{model.selectedYear} 年 ABA 月度排名：可按年份、月份收放</span><span>每月排名和对照折线均以已导入的 ABA CSV 为准；悬停关键词可查看今年与去年两种颜色的 ABA 对照趋势，各月点位会标出具体排名。</span></div><FilterCascade rows={model.abaRows || []} filter={filters} onChange={onFiltersChange} groups={[{ key: 'watch', label: '关注状态', options: WATCH_FILTER_OPTIONS }]} label="筛选" placeholder="搜索 ABA 关键词…" /></div><div ref={scrollRef} className="matrix-scroll"><table style={stickyLayoutStyle} className={`matrix-table aba-table aba-group-table matrix-layout-transition ${layoutAnimating ? 'is-animating' : ''}`}><colgroup><col style={widthStyle('star')} /><col style={widthStyle('keyword')} /><col style={widthStyle('translation')} /><col style={widthStyle('search')} /><col style={widthStyle('conversion')} />{columns.map((column) => <col key={`width-${column.key}`} style={widthStyle('month')} />)}</colgroup><thead>
     <tr className="matrix-year-row"><th className="sticky-col aba-fixed-head" colSpan="3">年份</th><th colSpan="2" className="aba-meta-spacer" aria-hidden="true" /><th colSpan={columns.length} className="matrix-group-cell"><button type="button" onClick={toggleYear} aria-expanded={!yearClosed}><span className="group-chevron">{yearClosed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}</span>{year}年</button></th></tr>
     <tr className="matrix-month-row"><th className="sticky-col aba-fixed-head" colSpan="3">月份</th><th colSpan="2" className="aba-meta-spacer" aria-hidden="true" />{yearClosed ? <th className="matrix-group-cell matrix-collapsed-label" aria-label="年份分组" /> : monthKeys.map((month) => { const closed = collapsedMonths.has(month); return <th key={month} className="matrix-group-cell"><button type="button" onClick={() => toggleMonth(month)} aria-expanded={!closed}><span className="group-chevron">{closed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}</span>{Number(month.slice(5, 7))}月</button></th>; })}</tr>
     <tr><th className="sticky-col star-col" style={widthStyle('star')}>关注{resizeHandle('star', '关注')}</th><th className="sticky-col keyword-col" style={widthStyle('keyword')}>关键词{resizeHandle('keyword', '关键词')}</th><th className="sticky-col translation-col" style={widthStyle('translation')}>翻译{resizeHandle('translation', '翻译')}</th><th style={widthStyle('search')}>搜索量<br />年内最高{resizeHandle('search', '搜索量')}</th><th style={widthStyle('conversion')}>点击转化率<br />年内最高{resizeHandle('conversion', '点击转化率')}</th>{columns.map((column) => <th key={column.key} style={widthStyle('month')} className={column.expanded ? '' : 'matrix-placeholder-head'}>{resizeHandle('month', '月份')}</th>)}</tr>

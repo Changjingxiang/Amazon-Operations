@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Star } from 'lucide-react';
 import { buildSifAbaTrendMap, rankClass, shortDate } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
+import FilterCascade, { WATCH_FILTER_OPTIONS } from './FilterCascade.jsx';
 
 function keywordKey(value) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
@@ -93,10 +94,11 @@ const MATRIX_RANGE_MARGIN = 8;
 const MATRIX_RANGE_CHUNK = 48;
 const MATRIX_INITIAL_ROWS = 48;
 
-export default function MatrixView({ model, metric, selectedDate, onToggleWatch, onSetAnnotation }) {
+export default function MatrixView({ model, metric, rows: filteredRows, filters, onFiltersChange, selectedDate, onToggleWatch, onSetAnnotation }) {
   const valueField = metric === 'natural' ? 'naturalValues' : 'spValues';
   const annotationField = metric === 'natural' ? 'naturalAnnotations' : 'spAnnotations';
-  const rowCount = model.matrixRows?.length || 0;
+  const rows = Array.isArray(filteredRows) ? filteredRows : (model.matrixRows || []);
+  const rowCount = rows.length;
   const [editing, setEditing] = useState(null);
   const [hovered, setHovered] = useState(null);
   const tableRef = useRef(null);
@@ -324,7 +326,7 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
     '--sticky-keyword-left': `${widths.star}px`,
     '--sticky-translation-left': `${widths.star + widths.keyword}px`,
   };
-  const visibleRows = (model.matrixRows || []).slice(virtualRange.start, virtualRange.end);
+  const visibleRows = rows.slice(virtualRange.start, virtualRange.end);
   const topSpacerHeight = virtualRange.start * MATRIX_ROW_HEIGHT;
   const bottomSpacerHeight = Math.max(0, rowCount - virtualRange.end) * MATRIX_ROW_HEIGHT;
   const renderSpacer = (height, key) => height > 0 ? (
@@ -335,7 +337,17 @@ export default function MatrixView({ model, metric, selectedDate, onToggleWatch,
 
   return (
     <section className="matrix-panel">
-      <div className="matrix-note matrix-group-note"><span>{metric === 'natural' ? '自然矩阵' : 'SP矩阵'}：可按年份、月份收放</span><span>关键词为行、日期为列；0 表示未上榜。点击{metric === 'natural' ? '自然' : 'SP'}排名单元格添加标注，黑底白字表示已标注。</span><span><b className="legend-up">红色</b>=排名上升　<b className="legend-down">绿色</b>=排名下降　<b className="legend-none">灰色</b>=未上榜</span></div>
+      <div className="matrix-note matrix-group-note">
+        <div className="matrix-note-copy"><span>{metric === 'natural' ? '自然矩阵' : 'SP矩阵'}：可按年份、月份收放</span><span>关键词为行、日期为列；0 表示未上榜。点击{metric === 'natural' ? '自然' : 'SP'}排名单元格添加标注，黑底白字表示已标注。</span><span><b className="legend-up">红色</b>=排名上升　<b className="legend-down">绿色</b>=排名下降　<b className="legend-none">灰色</b>=未上榜</span></div>
+        <FilterCascade
+          rows={model.matrixRows || []}
+          filter={filters}
+          onChange={onFiltersChange}
+          groups={[{ key: 'watch', label: '关注状态', options: WATCH_FILTER_OPTIONS }]}
+          label="筛选"
+          placeholder="搜索矩阵关键词…"
+        />
+      </div>
       <div ref={scrollRef} className="matrix-scroll">
         <div ref={columnOverlayRef} className="matrix-column-hover-overlay" hidden aria-hidden="true" />
         <table ref={tableRef} style={stickyLayoutStyle} className={`matrix-table matrix-group-table matrix-layout-transition ${layoutAnimating ? 'is-animating' : ''}`}>

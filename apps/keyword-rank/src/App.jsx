@@ -13,6 +13,7 @@ import HistoryView from './components/HistoryView.jsx';
 import AddModelModal from './components/AddModelModal.jsx';
 import IconPickerModal from './components/IconPickerModal.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
+import { EMPTY_FILTER, filterRows } from './components/FilterCascade.jsx';
 import { BusyOverlay, Toast } from './components/Feedback.jsx';
 import WindowTitlebar from './components/WindowTitlebar.jsx';
 import { api } from './lib/api.js';
@@ -20,6 +21,16 @@ import { buildDateView } from './lib/format.js';
 import { resetAllColumnWidths } from './lib/columnWidths.jsx';
 
 const KNOWN_TABS = new Set(['dashboard', 'natural', 'sp', 'comparison', 'aba', 'history']);
+
+function initialViewFilters() {
+  return {
+    dashboard: { ...EMPTY_FILTER },
+    natural: { ...EMPTY_FILTER },
+    sp: { ...EMPTY_FILTER },
+    comparison: { ...EMPTY_FILTER },
+    aba: { ...EMPTY_FILTER },
+  };
+}
 
 function isoTime(value) {
   const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -91,6 +102,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('natural');
   const [comparisonFocus, setComparisonFocus] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
+  const [viewFilters, setViewFilters] = useState(() => initialViewFilters());
   const [watchOpen, setWatchOpen] = useState(false);
   const [addModelOpen, setAddModelOpen] = useState(false);
   const [iconModel, setIconModel] = useState(null);
@@ -135,6 +147,39 @@ export default function App() {
     if (!needsDateView) return { rows: model.dashboardRows || [], metrics: model.metrics || {} };
     return buildDateView(model, selectedDate);
   }, [model, selectedDate, needsDateView]);
+
+  const dashboardRows = useMemo(() => filterRows(dateView.rows, viewFilters.dashboard), [dateView.rows, viewFilters.dashboard]);
+  const naturalRows = useMemo(() => filterRows(model?.matrixRows, viewFilters.natural), [model?.matrixRows, viewFilters.natural]);
+  const spRows = useMemo(() => filterRows(model?.matrixRows, viewFilters.sp), [model?.matrixRows, viewFilters.sp]);
+  const abaRows = useMemo(() => filterRows(model?.abaRows, viewFilters.aba), [model?.abaRows, viewFilters.aba]);
+  const comparisonRows = useMemo(() => filterRows(model?.matrixRows, viewFilters.comparison), [model?.matrixRows, viewFilters.comparison]);
+  const filteredMetrics = useMemo(() => ({
+    ...dateView.metrics,
+    keywordCount: dashboardRows.length,
+    watchedCount: dashboardRows.filter((row) => row.watched).length,
+    naturalUp: dashboardRows.filter((row) => row.naturalDirection === 'up').length,
+    spUp: dashboardRows.filter((row) => row.spDirection === 'up').length,
+    unrankedNatural: dashboardRows.filter((row) => row.naturalRank == null).length,
+  }), [dateView.metrics, dashboardRows]);
+  const activeViewCount = activeTab === 'dashboard' ? dashboardRows.length
+    : activeTab === 'natural' ? naturalRows.length
+      : activeTab === 'sp' ? spRows.length
+        : activeTab === 'aba' ? abaRows.length
+          : activeTab === 'comparison' ? comparisonRows.length
+            : dateView.rows.length;
+
+  const updateViewFilter = (view, next) => {
+    setViewFilters((current) => ({ ...current, [view]: { ...EMPTY_FILTER, ...(next || {}) } }));
+  };
+
+  useEffect(() => {
+    // Keyword selections belong to the active product.  Clear stale choices
+    // when switching products so a keyword from the previous model cannot
+    // silently make the new view appear empty.
+    if (!model?.parentAsin) return;
+    setViewFilters(initialViewFilters());
+    setComparisonFocus(null);
+  }, [model?.parentAsin]);
 
   useEffect(() => { syncWebBridgeData(data); }, [data]);
 
@@ -200,6 +245,15 @@ export default function App() {
   };
 
   const openComparison = (section) => {
+    setViewFilters((current) => ({
+      ...current,
+      comparison: {
+        ...current.comparison,
+        query: '',
+        keywords: [],
+        relations: section ? [section] : [],
+      },
+    }));
     setComparisonFocus(section);
     setActiveTab('comparison');
   };
@@ -291,24 +345,24 @@ export default function App() {
           {activeTab !== 'history' && activeTab !== 'aba' && (
             <>
               <SummaryBand
-                metrics={dateView.metrics}
+                metrics={activeTab === 'dashboard' ? filteredMetrics : dateView.metrics}
                 latestDate={selectedDate || model.latestDate}
                 loadedAt={data.loadedAt}
                 mode={activeTab}
               />
-              {activeTab === 'dashboard' && <DashboardComparisonOverview rows={dateView.rows} selectedDate={selectedDate || model.latestDate} onDetails={openComparison} />}
+              {activeTab === 'dashboard' && <DashboardComparisonOverview rows={dashboardRows} selectedDate={selectedDate || model.latestDate} onDetails={openComparison} />}
             </>
           )}
           <div className="content-area view-transition">
-            {activeTab === 'dashboard' && <DashboardView rows={dateView.rows} model={model} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} />}
-            {activeTab === 'natural' && <MatrixView model={model} metric="natural" selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
-            {activeTab === 'sp' && <MatrixView model={model} metric="sp" selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
-            {activeTab === 'comparison' && <ComparisonMatrixView model={model} rows={dateView.rows} selectedDate={selectedDate} focusSection={comparisonFocus} onFocusHandled={() => setComparisonFocus(null)} onToggleWatch={toggleWatch} />}
-            {activeTab === 'aba' && <ABAView model={model} onToggleWatch={toggleWatch} />}
+            {activeTab === 'dashboard' && <DashboardView rows={dashboardRows} model={model} filters={viewFilters.dashboard} onFiltersChange={(next) => updateViewFilter('dashboard', next)} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} />}
+            {activeTab === 'natural' && <MatrixView model={model} metric="natural" rows={naturalRows} filters={viewFilters.natural} onFiltersChange={(next) => updateViewFilter('natural', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
+            {activeTab === 'sp' && <MatrixView model={model} metric="sp" rows={spRows} filters={viewFilters.sp} onFiltersChange={(next) => updateViewFilter('sp', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
+            {activeTab === 'comparison' && <ComparisonMatrixView model={model} rows={model.matrixRows} filters={viewFilters.comparison} onFiltersChange={(next) => updateViewFilter('comparison', next)} selectedDate={selectedDate} focusSection={comparisonFocus} onFocusHandled={() => setComparisonFocus(null)} onToggleWatch={toggleWatch} />}
+            {activeTab === 'aba' && <ABAView model={model} rows={abaRows} filters={viewFilters.aba} onFiltersChange={(next) => updateViewFilter('aba', next)} onToggleWatch={toggleWatch} />}
             {activeTab === 'history' && <HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} />}
           </div>
           <footer className="statusbar">
-            <span>本地数据已同步 · {dateView.rows.length} 个关键词 · 源文件 {data.sourceCount} 个</span>
+            <span>本地数据已同步 · {activeViewCount} 个关键词 · 源文件 {data.sourceCount} 个</span>
             <span><b className="legend-up">红色＝上升</b><b className="legend-down">绿色＝下降</b><b className="legend-none">灰色＝未上榜</b></span>
           </footer>
         </main>

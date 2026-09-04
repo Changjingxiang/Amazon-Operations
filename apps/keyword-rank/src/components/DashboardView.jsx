@@ -5,6 +5,7 @@ import Sparkline from './Sparkline.jsx';
 import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
 import { integer, percent } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
+import FilterCascade, { WATCH_FILTER_OPTIONS } from './FilterCascade.jsx';
 
 function RankCell({ value, direction }) {
   const className = value == null ? 'rank-unranked' : direction === 'up' ? 'rank-up' : direction === 'down' ? 'rank-down' : 'rank-neutral';
@@ -15,7 +16,7 @@ function keywordKey(value) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
 }
 
-export default function DashboardView({ rows, model, onToggleWatch, onManage }) {
+export default function DashboardView({ rows, model, filters, onFiltersChange, onToggleWatch, onManage }) {
   const [sort, setSort] = useState({ field: null, direction: 'asc' });
   const [hovered, setHovered] = useState(null);
   const defaults = useMemo(() => ({ star: 52, traffic: 72, keyword: 190, translation: 130, naturalTrend: 92, spTrend: 92, trafficShare: 105, naturalRank: 82, spRank: 82, weeklyAbaRank: 98, weeklySearchVolume: 98, status: 128 }), []);
@@ -75,6 +76,14 @@ export default function DashboardView({ rows, model, onToggleWatch, onManage }) 
     <section className="dashboard-panel">
       <div className="table-toolbar">
         <span>关注词置顶，其后保留完整流量前 100</span>
+        <FilterCascade
+          rows={rows}
+          filter={filters}
+          onChange={onFiltersChange}
+          groups={[{ key: 'watch', label: '关注状态', options: WATCH_FILTER_OPTIONS }]}
+          label="筛选"
+          placeholder="搜索看板关键词…"
+        />
         <div className="sort-controls" aria-label="看板排序">
           <span className="sort-label">排序</span>
           {sortButton('weeklyAbaRank', 'asc', '周ABA', ArrowUpAZ)}
