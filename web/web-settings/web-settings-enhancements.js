@@ -794,7 +794,9 @@
     cancelMatrixBubbleShow();
     cancelMatrixBubbleHide();
     const rank = Number(cell?.getAttribute('data-rank'));
-    if (!Number.isFinite(rank) || rank <= 0) { hideMatrixBubble(); return; }
+    // Zero is a real matrix value meaning "未上榜".  It still needs the same
+    // competitor/self-product hover bubble as a ranked cell.
+    if (!Number.isFinite(rank) || rank < 0) { hideMatrixBubble(); return; }
     matrixBubbleShowTimer = window.setTimeout(() => {
       matrixBubbleShowTimer = null;
       showMatrixBubble(table, cell);
@@ -804,7 +806,9 @@
   async function showMatrixBubble(table, cell) {
     cancelMatrixBubbleHide();
     const currentRank = Number(cell?.getAttribute('data-rank'));
-    if (!Number.isFinite(currentRank) || currentRank <= 0) {
+    // Keep rank 0 eligible: the bubble reports 未上榜 for the owner and any
+    // competitors while preserving the date/keyword context.
+    if (!Number.isFinite(currentRank) || currentRank < 0) {
       hideMatrixBubble();
       return;
     }
