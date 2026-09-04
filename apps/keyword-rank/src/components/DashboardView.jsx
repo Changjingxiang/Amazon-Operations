@@ -16,7 +16,7 @@ function keywordKey(value) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
 }
 
-export default function DashboardView({ rows, model, filters, onFiltersChange, onToggleWatch, onManage }) {
+export default function DashboardView({ rows, sourceRows, model, filters, onFiltersChange, onToggleWatch, onManage }) {
   const [sort, setSort] = useState({ field: null, direction: 'asc' });
   const [hovered, setHovered] = useState(null);
   const defaults = useMemo(() => ({ star: 52, traffic: 72, keyword: 190, translation: 130, naturalTrend: 92, spTrend: 92, trafficShare: 105, naturalRank: 82, spRank: 82, weeklyAbaRank: 98, weeklySearchVolume: 98, status: 128 }), []);
@@ -77,7 +77,7 @@ export default function DashboardView({ rows, model, filters, onFiltersChange, o
       <div className="table-toolbar">
         <span>关注词置顶，其后保留完整流量前 100</span>
         <FilterCascade
-          rows={rows}
+          rows={sourceRows || rows}
           filter={filters}
           onChange={onFiltersChange}
           groups={[{ key: 'watch', label: '关注状态', options: WATCH_FILTER_OPTIONS }]}

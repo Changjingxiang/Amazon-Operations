@@ -283,7 +283,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .cascade-trigger b { min-width: 17px; height: 17px; display: inline-grid; place-items: center; padding: 0 4px; border-radius: 9px; background: var(--navy); color: #fff; font-size: 9px; line-height: 1; }
 .cascade-clear { height: 28px; border: 0; border-radius: 7px; background: transparent; color: #b24e4e; padding: 0 5px; font-size: 10px; font-weight: 800; }
 .cascade-clear:hover { background: #fff0ee; color: #963535; }
-.cascade-popover { position: absolute; top: calc(100% + 7px); right: 0; width: min(360px, calc(100vw - 26px)); max-height: min(560px, calc(100vh - 30px)); overflow: auto; border: 1px solid #9eabb9; border-radius: 11px; background: rgba(255,255,255,.99); box-shadow: 0 15px 34px rgba(23,59,100,.22), 0 2px 7px rgba(23,59,100,.1); color: #334052; }
+.cascade-popover { position: absolute; z-index: 40; top: calc(100% + 7px); right: 0; width: min(410px, calc(100vw - 26px)); max-height: min(620px, calc(100vh - 30px)); overflow: auto; border: 1px solid #9eabb9; border-radius: 11px; background: rgba(255,255,255,.99); box-shadow: 0 15px 34px rgba(23,59,100,.22), 0 2px 7px rgba(23,59,100,.1); color: #334052; }
 .cascade-popover-head { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 11px; border-bottom: 1px solid #e1e6eb; background: #f8fbfc; }
 .cascade-popover-head strong { color: var(--navy); font-size: 12px; }
 .cascade-popover-head button { width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: #718092; padding: 0; }
@@ -294,6 +294,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .cascade-group-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; color: #52617b; }
 .cascade-group-title strong { font-size: 11px; }
 .cascade-group-title small { color: #8b97a4; font-size: 9px; }
+.cascade-group-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
+.cascade-group-actions button { border: 0; background: transparent; color: #0b8797; padding: 2px 0; font-size: 9px; font-weight: 800; cursor: pointer; }
+.cascade-group-actions button:hover { color: #075e69; text-decoration: underline; }
 .cascade-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 6px; max-height: 166px; overflow: auto; }
 .cascade-keyword-options { grid-template-columns: 1fr; max-height: 194px; }
 .cascade-option { min-width: 0; min-height: 28px; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 3px 5px; border: 1px solid transparent; border-radius: 6px; cursor: pointer; color: #566477; font-size: 10px; }
@@ -305,6 +308,24 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .cascade-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important; }
 .cascade-option small { color: #8b97a4; font-size: 9px; }
 .cascade-empty { display: block; padding: 8px 5px; color: #98a2ad; font-size: 10px; }
+.cascade-combination-editor { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.cascade-combination-editor input { min-width: 0; height: 29px; border: 1px solid #c2ccd5; border-radius: 6px; padding: 0 8px; color: #334052; font-size: 10px; font-weight: 700; outline: 0; }
+.cascade-combination-editor input:focus { border-color: var(--cyan); box-shadow: var(--focus-ring); }
+.cascade-combination-save { height: 29px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #168da0; border-radius: 6px; background: #0b9eaf; color: #fff; padding: 0 8px; font-size: 9px; font-weight: 800; white-space: nowrap; }
+.cascade-combination-save:hover:not(:disabled) { background: #087f8d; }
+.cascade-combination-save:disabled { border-color: #c6ced5; background: #e6eaed; color: #929ca6; cursor: not-allowed; }
+.cascade-combination-message { margin-top: 5px; color: #5d6d7e; font-size: 9px; line-height: 1.4; }
+.cascade-combination-list { display: grid; gap: 4px; margin-top: 7px; max-height: 132px; overflow: auto; }
+.cascade-combination-item { display: grid; grid-template-columns: minmax(0, 1fr) 27px 27px; align-items: stretch; gap: 3px; border: 1px solid #e0e6ea; border-radius: 7px; background: #fbfcfd; padding: 3px; }
+.cascade-combination-item.is-editing { border-color: #70cbd4; background: #effcfd; }
+.cascade-combination-apply { min-width: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 7px; border: 0; border-radius: 5px; background: transparent; padding: 4px 5px; color: #405168; text-align: left; }
+.cascade-combination-apply:hover:not(:disabled) { background: #eaf8fa; color: #0b7483; }
+.cascade-combination-apply:disabled { color: #9ba4ad; cursor: not-allowed; }
+.cascade-combination-apply strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.cascade-combination-apply small { flex: 0 0 auto; color: #8995a2; font-size: 8px; }
+.cascade-combination-icon { display: grid; place-items: center; border: 0; border-radius: 5px; background: transparent; color: #6e7d8e; padding: 0; }
+.cascade-combination-icon:hover { background: #e9f1f4; color: #0b7483; }
+.cascade-combination-icon.is-delete:hover { background: #fff0ee; color: #b33f3f; }
 .cascade-date-modes { display: flex; flex-wrap: wrap; gap: 5px; }
 .cascade-date-modes button { height: 26px; padding: 0 7px; border: 1px solid #c2ccd5; border-radius: 6px; background: #fff; color: #667385; font-size: 10px; font-weight: 700; }
 .cascade-date-modes button:hover, .cascade-date-modes button.is-selected { border-color: #50bfc9; background: #eafcff; color: #0b7483; }
