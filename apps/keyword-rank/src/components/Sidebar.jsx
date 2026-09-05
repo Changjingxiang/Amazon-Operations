@@ -45,11 +45,11 @@ export default function Sidebar({ models, activeIndex, onSelect, onChooseIcon, o
           <span>新增型号</span>
         </button>
       </nav>
-      <div className="sidebar-footer">
+      {!window.keywordTracker?.isWeb && <div className="sidebar-footer">
         <button type="button" onClick={onHistory}><Download size={22} />导入日志</button>
         <button type="button" onClick={onOpenFolder}><FolderOpen size={22} />工具文件夹</button>
         <button type="button" onClick={onSettings}><Settings size={22} />设置</button>
-      </div>
+      </div>}
     </aside>
   );
 }

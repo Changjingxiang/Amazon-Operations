@@ -399,17 +399,47 @@
     }
   }
 
-  async function writeIndexedStore(store) {
+  function localBackupDate(date = new Date()) {
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+  }
+
+  async function writeIndexedStore(store, recovery = null) {
     const db = await openDatabase();
     try {
       await new Promise((resolve, reject) => {
-        const request = db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).put(store, STATE_KEY);
-        request.onsuccess = () => resolve();
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        const records = transaction.objectStore(STORE_NAME);
+        const request = records.get('daily-backups');
+        request.onsuccess = () => {
+          const date = localBackupDate();
+          const backups = (request.result || []).filter((item) => item.date !== date);
+          backups.push({ date, savedAt: new Date().toISOString(), store: clone(store) });
+          records.put(backups.sort((a, b) => a.date.localeCompare(b.date)).slice(-21), 'daily-backups');
+          if (recovery) records.put({ savedAt: new Date().toISOString(), store: recovery }, 'before-weekly-restore');
+          records.put(store, STATE_KEY);
+        };
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error || new Error('保存未完成，请重试。'));
+      });
+    } finally { db.close(); }
+  }
+
+  async function previousWeekBackup() {
+    const db = await openDatabase();
+    try {
+      const backups = await new Promise((resolve, reject) => {
+        const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get('daily-backups');
+        request.onsuccess = () => resolve(request.result || []);
         request.onerror = () => reject(request.error);
       });
-    } finally {
-      db.close();
-    }
+      const monday = new Date(); monday.setHours(0, 0, 0, 0);
+      monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
+      const end = localBackupDate(monday);
+      monday.setDate(monday.getDate() - 7);
+      const start = localBackupDate(monday);
+      return backups.filter((item) => item.date >= start && item.date < end).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+    } finally { db.close(); }
   }
 
   async function ensureStore() {
@@ -422,7 +452,7 @@
       console.warn('浏览器数据库不可用，本次改动仅在当前页面保留。', error);
     }
     memoryStore = normalizeStore(saved || clone(ORIGINAL_SEED));
-    if (!saved && indexedDbAvailable) {
+    if (indexedDbAvailable) {
       try { await writeIndexedStore(memoryStore); } catch (error) { indexedDbAvailable = false; }
     }
     return memoryStore;
@@ -1747,7 +1777,12 @@
     location.reload();
   }
 
-  function dataManager() {
+  let dataManagerGeneration = 0;
+  window.addEventListener('close-web-data-manager', () => { dataManagerGeneration += 1; });
+  async function dataManager() {
+    const generation = ++dataManagerGeneration;
+    await ensureStore();
+    if (generation !== dataManagerGeneration) return;
     const old = document.getElementById('browser-data-manager');
     if (old) old.remove();
     const overlay = document.createElement('div');
@@ -1755,14 +1790,19 @@
     overlay.innerHTML = `
       <div class="browser-manager-card" role="dialog" aria-modal="true" aria-labelledby="browser-manager-title">
         <button class="browser-manager-close" aria-label="关闭">×</button>
-        <h2 id="browser-manager-title">网页版数据管理</h2>
+        <h2 id="browser-manager-title">工具文件夹</h2>
         <p>数据保存在此浏览器的 IndexedDB 中。建议定期导出 JSON 备份。</p>
         <div class="browser-manager-actions">
           <button data-action="export">导出数据备份</button>
           <button data-action="import">导入数据备份</button>
           <a href="./data/关键词排名每日跟进表.xlsx" download>下载原始 Excel</a>
-          <button class="danger" data-action="reset">恢复 v2.0 初始数据</button>
+          <button class="danger" data-action="reset">恢复上周的数据</button>
         </div>
+        <div class="weekly-restore" hidden>
+          <p class="weekly-status" role="status"></p>
+          <div class="weekly-confirm" hidden><p>将替换全部产品、竞品、排名历史、关注词、标注及 ABA 数据。恢复前会自动保存当前数据。布局和关键词组合不变。</p><label>请输入「恢复上周」确认<input class="weekly-confirm-input" aria-label="恢复确认文字" autocomplete="off" /></label><button class="weekly-confirm-button" disabled>确认恢复</button></div>
+        </div>
+        <small>打开网页及保存数据时自动备份，保留最近 21 个有记录的日期。上周按本地周一至周日计算。</small>
         <small>${indexedDbAvailable ? '当前：浏览器持久化存储' : '当前：仅本次页面会话存储'}</small>
       </div>`;
     const style = document.createElement('style');
@@ -1774,21 +1814,62 @@
       .browser-manager-actions button:first-child{background:#27c7d9;color:#173b64}.browser-manager-actions .danger{border-color:#ff6b6b;color:#b93535}
       .browser-manager-close{position:absolute;top:12px;right:14px;border:0;background:transparent;color:#25354d;font-size:28px;cursor:pointer}.browser-manager-card small{display:block;margin-top:16px;color:#78869a}
     `;
+    style.textContent += `
+      #browser-data-manager{inset:42px 0 0;background:transparent;display:block;z-index:1000}
+      .browser-manager-card{position:absolute;top:8px;right:12px;width:min(480px,calc(100vw - 24px));max-height:calc(100dvh - 66px);overflow:auto;padding:20px;border:1px solid #b6c9d8;border-radius:10px;box-shadow:0 12px 32px #173b6430;animation:web-tool-enter 180ms ease-out}
+      .browser-manager-card h2{font-size:18px;color:#173b64}.browser-manager-card p{font-size:12px}
+      .browser-manager-actions button,.browser-manager-actions a{border-width:1px;border-radius:7px;padding:9px 12px;font-size:12px}
+      .weekly-restore{margin-top:16px;padding:12px;background:#fff8ed;border:1px solid #ead6b4;border-radius:7px}
+      .weekly-restore[hidden],.weekly-confirm[hidden]{display:none}.weekly-confirm label{display:grid;gap:7px;font-size:12px}.weekly-confirm input{padding:8px;border:1px solid #b6c9d8;border-radius:6px}
+      .weekly-confirm-button{margin-top:10px;padding:8px 12px;background:#173b64;color:white;border:0;border-radius:6px}.weekly-confirm-button:disabled{opacity:.4}
+      @media(prefers-reduced-motion:reduce){.browser-manager-card{animation:none}}
+    `;
     overlay.appendChild(style);
     overlay.querySelector('.browser-manager-close').onclick = () => overlay.remove();
     overlay.onclick = (event) => { if (event.target === overlay) overlay.remove(); };
     overlay.querySelector('[data-action="export"]').onclick = () => exportBackup().catch((error) => alert(error.message));
     overlay.querySelector('[data-action="import"]').onclick = () => importBackup().catch((error) => alert(error.message));
     overlay.querySelector('[data-action="reset"]').onclick = async () => {
-      if (!confirm('确定恢复为 v2.0 初始数据吗？当前浏览器中的改动会被覆盖。')) return;
-      memoryStore = normalizeStore(clone(ORIGINAL_SEED));
-      await writeStore(memoryStore);
-      location.reload();
+      const section = overlay.querySelector('.weekly-restore');
+      const status = overlay.querySelector('.weekly-status');
+      const confirmArea = overlay.querySelector('.weekly-confirm');
+      section.hidden = false;
+      confirmArea.hidden = true;
+      status.textContent = '正在查找上周备份…';
+      try {
+        const backup = await previousWeekBackup();
+        if (!backup) { status.textContent = '没有上周的可用备份。自动备份已从本次使用开始记录，当前数据不会改变。'; return; }
+        status.textContent = '将恢复上周最后一份备份：' + new Date(backup.savedAt).toLocaleString('zh-CN', { hour12: false });
+        confirmArea.hidden = false;
+        const input = overlay.querySelector('.weekly-confirm-input');
+        const button = overlay.querySelector('.weekly-confirm-button');
+        input.value = ''; button.disabled = true;
+        input.oninput = () => { button.disabled = input.value !== '恢复上周'; };
+        button.onclick = async () => {
+          if (input.value !== '恢复上周') return;
+          button.disabled = true;
+          try {
+            const current = clone(await ensureStore());
+            const restored = normalizeStore(clone(backup.store));
+            await writeIndexedStore(restored, current);
+            memoryStore = restored;
+            location.reload();
+          } catch (error) { status.textContent = '恢复失败：' + error.message; button.disabled = false; }
+        };
+        input.focus();
+      } catch (error) { status.textContent = '无法读取备份：' + error.message; }
     };
+    const controller = new AbortController();
+    const close = () => { controller.abort(); overlay.remove(); window.dispatchEvent(new Event('web-data-manager-closed')); };
+    window.addEventListener('close-web-data-manager', () => { controller.abort(); overlay.remove(); }, { signal: controller.signal });
+    window.addEventListener('keydown', (event) => { if (event.key === 'Escape') close(); }, { signal: controller.signal });
+    overlay.querySelector('.browser-manager-close').onclick = close;
+    overlay.onclick = (event) => { if (event.target === overlay) close(); };
     document.body.appendChild(overlay);
   }
 
   window.keywordTracker = {
+    isWeb: true,
     getData: readData,
     runImport: (mode = 'normal') => importReports(mode),
     importAbaMonthlyCsv,

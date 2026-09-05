@@ -657,3 +657,23 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Web tools stay under the title-bar entries; desktop window controls are unchanged. */
+.web-tools { display:flex; gap:4px; padding-right:12px; -webkit-app-region:no-drag; }
+.web-tools button { display:flex; align-items:center; gap:6px; height:30px; padding:0 10px; border:0; border-radius:6px; color:white; background:transparent; font-size:12px; }
+.web-tools button:hover,.web-tools button[aria-expanded="true"] { background:#ffffff20; color:#7ce9f1; }
+.web-tool-backdrop,.web-edition .modal-backdrop:has(.settings-modal) { position:fixed; inset:42px 0 0; z-index:1000; background:transparent; display:block; }
+.web-tool-panel,.web-edition .settings-modal { position:absolute; top:8px; right:12px; width:min(720px,calc(100vw - 24px)); max-height:calc(100dvh - 66px); overflow:auto; background:#fff; border:1px solid #b6c9d8; border-radius:10px; box-shadow:0 12px 32px #173b6430; animation:web-tool-enter 180ms ease-out; }
+.web-tool-panel .drawer-header,.web-edition .settings-modal-header { background:#f0f7fa; border-bottom:1px solid #d9e5ec; color:#173b64; padding:12px 16px; }
+.web-tool-panel .history-panel { padding:12px; }.web-tool-panel .history-actions { flex-wrap:wrap; }.web-tool-panel .history-table-wrap { overflow:auto; }
+@keyframes web-tool-enter { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+@media(prefers-reduced-motion:reduce) { .web-tool-panel,.web-edition .settings-modal { animation:none; } }
+
+.web-edition .modal-backdrop:has(.settings-modal) { backdrop-filter:none; }
+.web-edition .settings-aba-import { background:#f3fafc; border-color:#b8dbe4; }
+.web-edition .settings-aba-import-title,.web-edition .settings-aba-import-title small { color:#245b68; }
+.web-edition .settings-aba-import-fields input,.web-edition .settings-aba-import-fields select,.web-edition .settings-aba-file input { border-color:#a8cdd9; }
+.web-edition .settings-aba-import-fields input:focus,.web-edition .settings-aba-import-fields select:focus { border-color:#27c7d9; box-shadow:0 0 0 3px #27c7d921; }
+.web-edition .settings-aba-import-button { background:#27c7d9; border-color:#168da0; color:#173b64; }
+.web-edition .settings-aba-import-button:hover:not(:disabled) { background:#21b7c8; transform:none; }
+.web-edition .settings-aba-imported { border-color:#d4e5ea; }

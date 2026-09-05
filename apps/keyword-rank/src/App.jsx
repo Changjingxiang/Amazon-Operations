@@ -107,6 +107,22 @@ export default function App() {
   const [addModelOpen, setAddModelOpen] = useState(false);
   const [iconModel, setIconModel] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [webTool, setWebTool] = useState(null);
+  const closeWebTools = () => { setWebTool(null); setSettingsOpen(false); window.dispatchEvent(new Event('close-web-data-manager')); };
+  const toggleWebTool = (key) => {
+    closeWebTools();
+    if (webTool === key) return;
+    setWebTool(key);
+    if (key === 'settings') setSettingsOpen(true);
+    if (key === 'files') api.openToolFolder();
+  };
+  useEffect(() => {
+    const close = () => { setWebTool(null); setSettingsOpen(false); };
+    const key = (event) => { if (event.key === 'Escape') closeWebTools(); };
+    window.addEventListener('web-data-manager-closed', close);
+    window.addEventListener('keydown', key);
+    return () => { window.removeEventListener('web-data-manager-closed', close); window.removeEventListener('keydown', key); };
+  }, []);
   const [busyLabel, setBusyLabel] = useState('正在读取关键词数据…');
   const [toast, setToast] = useState(null);
 
@@ -309,8 +325,8 @@ export default function App() {
 
   if (!data || !model) {
     return (
-      <div className="app-root">
-        <WindowTitlebar />
+      <div className={`app-root ${window.keywordTracker?.isWeb ? 'web-edition' : ''}`}>
+        <WindowTitlebar onTool={toggleWebTool} activeTool={webTool} />
         <main className="empty-app">
           <BusyOverlay label={busyLabel} />
           <h1>关键词排名每日跟进</h1>
@@ -322,8 +338,8 @@ export default function App() {
   }
 
   return (
-    <div className="app-root">
-      <WindowTitlebar />
+    <div className={`app-root ${window.keywordTracker?.isWeb ? 'web-edition' : ''}`}>
+      <WindowTitlebar onTool={toggleWebTool} activeTool={webTool} />
       <div className="app-shell">
         <Sidebar
           models={data.models}
@@ -382,7 +398,8 @@ export default function App() {
         />
         <AddModelModal open={addModelOpen} onClose={() => setAddModelOpen(false)} onSubmit={addModel} />
         <IconPickerModal model={iconModel} onClose={() => setIconModel(null)} onSelect={saveModelIcon} />
-        <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} onResetWidths={resetWidths} models={data.models} activeModel={model} onDeleteModel={deleteModel} onAddModel={() => setAddModelOpen(true)} onSetCountry={setModelCountry} abaMonthlyImports={data.abaMonthlyImports} onImportAba={importAbaMonthlyCsv} />
+        {webTool === 'history' && <div className="web-tool-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeWebTools(); }}><section className="web-tool-panel" role="dialog" aria-label="导入日志"><div className="drawer-header"><h2>导入日志</h2><button onClick={closeWebTools} aria-label="关闭导入日志">×</button></div><HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} /></section></div>}
+        <SettingsModal open={settingsOpen} onClose={closeWebTools} onResetWidths={resetWidths} models={data.models} activeModel={model} onDeleteModel={deleteModel} onAddModel={() => setAddModelOpen(true)} onSetCountry={setModelCountry} abaMonthlyImports={data.abaMonthlyImports} onImportAba={importAbaMonthlyCsv} />
         <BusyOverlay label={busyLabel} />
         <Toast toast={toast} onClose={() => setToast(null)} />
       </div>
