@@ -22,10 +22,9 @@ function RunningK({ status, onDone }) {
   };
   const [videoFailed, setVideoFailed] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
-  const [reducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   useEffect(() => {
     if (status === 'loading') return undefined;
-    if (status === 'error' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (status === 'error') {
       onDone();
       return undefined;
     }
@@ -39,10 +38,7 @@ function RunningK({ status, onDone }) {
     <div className="k-loading-content">
       <div className="k-loading-media" aria-hidden="true">
         {(!videoReady || videoFailed) && <span className="k-video-fallback">K</span>}
-        {!videoFailed && <video ref={videoRef} className={videoReady ? 'k-loading-video is-ready' : 'k-loading-video'} src={runningKVideo} autoPlay={!reducedMotion} loop muted playsInline preload="auto" disablePictureInPicture onLoadedData={(event) => {
-          if (reducedMotion) { event.currentTarget.pause(); setVideoReady(true); }
-          else play();
-        }} onTimeUpdate={(event) => { if (event.currentTarget.currentTime >= 1.2) setPlayedEnough(true); }} onPlaying={() => { setVideoReady(true); setPlayBlocked(false); }} onError={() => setVideoFailed(true)} />}
+        {!videoFailed && <video ref={videoRef} className={videoReady ? 'k-loading-video is-ready' : 'k-loading-video'} src={runningKVideo} autoPlay loop muted playsInline preload="auto" disablePictureInPicture onLoadedData={play} onTimeUpdate={(event) => { if (event.currentTarget.currentTime >= 1.2) setPlayedEnough(true); }} onPlaying={() => { setVideoReady(true); setPlayBlocked(false); }} onError={() => setVideoFailed(true)} />}
       </div>
       {playBlocked && <button type="button" className="k-loading-play" onClick={play}>▶ 播放跑步动画</button>}
       {videoFailed && <span>当前浏览器无法播放动画</span>}
