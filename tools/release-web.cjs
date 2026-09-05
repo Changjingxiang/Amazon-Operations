@@ -121,7 +121,7 @@ function copyViteDist(distDir, targetDir) {
     if (basename === 'mock-data.json' || basename === 'tracker-data-cache.json') continue;
     if (basename === 'favicon.png') {
       copyFile(filePath, path.join(targetDir, 'favicon.png'));
-    } else if (/^index-[^/]+\.(?:js|css)$/.test(basename) || /\.(?:png|jpe?g|gif|svg|webp|ico|woff2?|ttf)$/.test(basename)) {
+    } else if (/^index-[^/]+\.(?:js|css)$/.test(basename) || /\.(?:png|jpe?g|gif|svg|webp|ico|woff2?|ttf|mp4|webm)$/.test(basename)) {
       copyFile(filePath, path.join(targetDir, 'assets', relative));
     } else {
       // Keep public fallback data at the same relative URL expected by src/lib/api.js.

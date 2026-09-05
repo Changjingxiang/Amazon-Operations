@@ -2,20 +2,10 @@
 .k-loading { position:fixed; inset:0; z-index:2000; display:grid; place-items:center; background:#fffdf7; color:#173b64; opacity:1; transition:opacity 240ms cubic-bezier(.23,1,.32,1); }
 .k-loading.is-leaving { opacity:0; }
 .k-loading-content { display:flex; flex-direction:column; align-items:center; padding-bottom:35px; }
-.k-loading-art { width:240px; height:200px; overflow:visible; }
+.k-loading-media { position:relative; width:min(300px,70vw); aspect-ratio:1; }
+.k-loading-video { display:block; width:100%; height:100%; object-fit:contain; opacity:0; transition:opacity 160ms ease; mask-image:radial-gradient(ellipse at center,#000 49%,transparent 72%); }
+.k-loading-video.is-ready { opacity:1; }
+.k-video-fallback { position:absolute; inset:0; display:grid; place-items:center; font:bold 110px Arial,sans-serif; color:#173b64; }
 .k-loading-content strong { margin-top:6px; font-size:14px; font-weight:700; }
 .k-loading-content > span { margin-top:9px; color:#8a98a3; font-size:11px; letter-spacing:1px; }
-.k-limb path { fill:none; stroke:#173b64; stroke-width:5; stroke-linecap:round; stroke-linejoin:round; }
-.k-run-body { animation:k-bob 380ms ease-in-out infinite; }
-.k-limb { transform-box:view-box; animation:k-limb-swing 760ms ease-in-out infinite; }
-.k-leg-back { transform-origin:111px 134px; }
-.k-leg-front { transform-origin:143px 134px; animation-delay:-380ms; }
-.k-arm-back { transform-origin:105px 110px; animation-delay:-380ms; }
-.k-arm-front { transform-origin:143px 104px; }
-.k-run-shadow { transform-origin:122px 166px; animation:k-shadow 380ms ease-in-out infinite; }
-.k-ground { animation:k-ground-run 760ms linear infinite; }
-@keyframes k-bob { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-5px); } }
-@keyframes k-limb-swing { 0%,100% { transform:rotate(-24deg); } 50% { transform:rotate(24deg); } }
-@keyframes k-shadow { 0%,100% { transform:scaleX(1); } 50% { transform:scaleX(.8); } }
-@keyframes k-ground-run { from { transform:translateX(12px); opacity:0; } 20%,80% { opacity:.65; } to { transform:translateX(-12px); opacity:0; } }
-@media(prefers-reduced-motion:reduce) { .k-loading { transition:none; }.k-loading-art * { animation:none; } }
+@media(prefers-reduced-motion:reduce) { .k-loading,.k-loading-video { transition:none; } }
