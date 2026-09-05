@@ -96,7 +96,7 @@ function syncWebBridgeData(data) {
   cache.value = data;
 }
 
-export default function App() {
+export default function App({ onStartupSettled }) {
   const [data, setData] = useState(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('natural');
@@ -131,8 +131,10 @@ export default function App() {
     try {
       const result = await api.getData();
       setData(result);
+      onStartupSettled?.('ready');
       setActiveIndex((index) => Math.min(index, Math.max(0, result.models.length - 1)));
     } catch (error) {
+      onStartupSettled?.('error');
       setToast({ type: 'error', title: '读取失败', message: error.message });
     } finally {
       setBusyLabel('');

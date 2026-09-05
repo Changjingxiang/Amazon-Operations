@@ -1,0 +1,27 @@
+.key-app-under-curtain { height:100%; pointer-events:none; }
+#root > div { height:100%; }
+.key-startup { position:fixed; inset:0; z-index:2000; overflow:hidden; color:#173b64; }
+.key-startup-stage { position:absolute; inset:0; width:100%; height:100%; }
+.key-startup-copy { position:absolute; left:7.5%; top:12%; pointer-events:none; transition:opacity 240ms ease; }
+.key-startup-brand { display:flex; align-items:center; gap:14px; font-size:24px; font-weight:900; letter-spacing:1px; }
+.key-startup-brand span { border-left:1px solid #aebfc8; padding-left:14px; font-size:12px; font-weight:600; letter-spacing:1px; }
+.key-startup-copy h1 { margin:35px 0 15px; font-size:clamp(28px,3.5vw,54px); line-height:1.3; letter-spacing:2px; }
+.key-startup-copy p { color:#7d8f9b; font-size:13px; letter-spacing:1px; }
+.key-startup-status { position:absolute; right:8%; bottom:14%; display:grid; grid-template-columns:8px auto; align-items:center; gap:10px; font-size:13px; font-weight:700; transition:opacity 240ms ease; }
+.key-startup-status small { grid-column:2; color:#8c9ba5; font-size:10px; font-weight:400; }
+.key-startup-dot { width:6px; height:6px; border-radius:50%; background:#1ab4c6; box-shadow:0 0 0 4px #27c7d915; }
+.key-startup-skip { position:absolute; right:24px; bottom:22px; border:0; background:transparent; padding:8px; color:#6c8593; font-size:11px; }
+.key-startup-skip:hover { color:#173b64; }
+.key-seam { fill:none; stroke:#b9cbd0; stroke-width:3; stroke-dasharray:2 7; opacity:0; }
+.key-journey { transition:opacity 200ms ease; }
+.key-leg { transform-box:fill-box; transform-origin:50% 0; animation:key-stride 340ms linear infinite; animation-delay:var(--stride-delay); }
+.key-leg path { fill:none; stroke:#173b64; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+.key-leg-back { animation-direction:reverse; }
+@keyframes key-stride { 0%,100% { transform:rotate(-24deg); } 50% { transform:rotate(24deg); } }
+.key-zipper { opacity:0; }
+.key-startup-opening .key-zipper { opacity:1; }
+.key-startup-opening .key-seam { opacity:1; }
+.key-startup-opening .key-journey,.key-startup-opening .key-startup-copy,.key-startup-opening .key-startup-status,.key-startup-opening .key-startup-skip { opacity:0; pointer-events:none; }
+.key-startup-arrived .key-leg,.key-startup-opening .key-leg { animation-play-state:paused; }
+@media(prefers-reduced-motion:reduce) { .key-leg { animation:none; }.key-startup * { transition:none; } }
+@media(max-width:700px) { .key-startup-brand span { font-size:9px; }.key-startup-copy { top:10%; }.key-startup-status { right:6%; bottom:12%; font-size:11px; } }
