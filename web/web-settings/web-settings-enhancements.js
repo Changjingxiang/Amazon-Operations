@@ -23,12 +23,7 @@
   const AUTO_BATCH_CAPTURE_ATTR = 'data-sif-auto-batch-capture';
   const MATRIX_HOVER_ATTR = 'data-competitor-matrix-hover';
   const MATRIX_BUBBLE_ID = 'keyword-tracker-matrix-competitor-bubble';
-  // The comparison bubble may survive a short pointer gap while the table's
-  // row/column highlight is cleared synchronously by MatrixView.  Keeping
-  // this timer local to the bubble prevents its grace period from leaking
-  // into the table hover lifecycle.
-  const MATRIX_BUBBLE_HIDE_DELAY = 240;
-  const MATRIX_BUBBLE_SHOW_DELAY = 210;
+  const MATRIX_BUBBLE_FADE_MS = 500;
   const MATRIX_HOVER_DELEGATED_ATTR = 'data-matrix-hover-delegated';
   let sidebarDataCache = null;
   let sidebarDataPromise = null;
@@ -38,6 +33,7 @@
   let matrixBubbleShowTimer = null;
   let matrixBubbleToken = 0;
   let matrixBubbleHideTimer = null;
+  let matrixBubbleAnimation = null;
   // Keep the actual cell reference, not only the keyword string stamped on
   // the bubble. React can remove a hovered matrix row without dispatching a
   // pointerout event (tab/product switches and virtualized rows do this), so
@@ -779,31 +775,34 @@
     matrixBubbleAnchorCell = null;
     matrixBubbleAnchorTable = null;
     const bubble = document.getElementById(MATRIX_BUBBLE_ID);
-    if (bubble) {
-      bubble.hidden = true;
-      delete bubble.dataset.anchor;
-    }
+    matrixBubbleAnimation?.cancel();
+    matrixBubbleAnimation = null;
+    if (bubble) bubble.remove();
   }
 
   function scheduleMatrixBubbleHide() {
+    cancelMatrixBubbleShow();
     cancelMatrixBubbleHide();
-    matrixBubbleHideTimer = window.setTimeout(() => {
-      matrixBubbleHideTimer = null;
-      hideMatrixBubble();
-    }, MATRIX_BUBBLE_HIDE_DELAY);
+    matrixBubbleToken += 1;
+    matrixBubbleAnchorCell = null;
+    matrixBubbleAnchorTable = null;
+    const bubble = document.getElementById(MATRIX_BUBBLE_ID);
+    if (!bubble || bubble.hidden) { hideMatrixBubble(); return; }
+    const opacity = getComputedStyle(bubble).opacity;
+    matrixBubbleAnimation?.cancel();
+    delete bubble.dataset.anchor;
+    const animation = bubble.animate([{ opacity }, { opacity: 0 }], { duration: MATRIX_BUBBLE_FADE_MS, easing: 'ease', fill: 'forwards' });
+    matrixBubbleAnimation = animation;
+    animation.onfinish = () => { if (matrixBubbleAnimation === animation) { matrixBubbleAnimation = null; bubble.remove(); } };
   }
 
   function scheduleMatrixBubbleShow(table, cell) {
-    cancelMatrixBubbleShow();
-    cancelMatrixBubbleHide();
+    hideMatrixBubble();
     const rank = Number(cell?.getAttribute('data-rank'));
-    // Zero is a real matrix value meaning "未上榜".  It still needs the same
-    // competitor/self-product hover bubble as a ranked cell.
-    if (!Number.isFinite(rank) || rank < 0) { hideMatrixBubble(); return; }
-    matrixBubbleShowTimer = window.setTimeout(() => {
-      matrixBubbleShowTimer = null;
-      showMatrixBubble(table, cell);
-    }, MATRIX_BUBBLE_SHOW_DELAY);
+    if (!Number.isFinite(rank) || rank < 0) return;
+    matrixBubbleAnchorCell = cell;
+    matrixBubbleAnchorTable = table;
+    showMatrixBubble(table, cell);
   }
 
   async function showMatrixBubble(table, cell) {
@@ -818,7 +817,7 @@
     const bubble = ensureMatrixBubble();
     const token = ++matrixBubbleToken;
     const modelData = await matrixDataForEnhancements(false);
-    if (token !== matrixBubbleToken || !cell.isConnected || !modelData) return;
+    if (token !== matrixBubbleToken || matrixBubbleAnchorCell !== cell || !cell.isConnected || !modelData) return;
     const lookup = buildMatrixLookup(modelData);
     const currentAsin = getCurrentAsin();
     const active = lookup.modelByAsin.get(currentAsin) || activeModel(modelData);
@@ -846,6 +845,7 @@
     matrixBubbleAnchorTable = table;
     bubble.dataset.anchor = keyword;
     positionMatrixBubble(bubble, cell);
+    matrixBubbleAnimation = bubble.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MATRIX_BUBBLE_FADE_MS, easing: 'ease', fill: 'forwards' });
   }
 
   function installMatrixHover(table) {
@@ -863,11 +863,6 @@
       const cell = cellFromTarget(event.target);
       if (!cell || !table.contains(cell) || cellFromTarget(event.relatedTarget) === cell) return;
       scheduleMatrixBubbleShow(table, cell);
-    });
-    table.addEventListener('pointermove', (event) => {
-      const cell = cellFromTarget(event.target);
-      const bubble = document.getElementById(MATRIX_BUBBLE_ID);
-      if (cell && bubble && !bubble.hidden && bubble.dataset.anchor) positionMatrixBubble(bubble, cell);
     });
     table.addEventListener('pointerout', (event) => {
       const cell = cellFromTarget(event.target);
@@ -887,7 +882,7 @@
       // A scroll can move the anchored cell away without generating a pointer
       // transition. Hide immediately; the next pointerover can open a fresh
       // bubble at the cell's new viewport position.
-      if (matrixBubbleAnchorTable === table) hideMatrixBubble();
+      hideMatrixBubble();
     }, { passive: true });
   }
 
