@@ -133,14 +133,17 @@
       .settings-competitor-remove{flex:0 0 auto;height:25px;border:1px solid #d47b7b;border-radius:6px;background:#fff7f5;color:#b43b3b;padding:0 7px;font:800 10px Inter,"Microsoft YaHei",sans-serif;cursor:pointer}.settings-competitor-remove:hover{background:#ffe8e3}
       /* The product-row toggle owns a real 28x28 flex slot.  It never sits on
          top of the name/ASIN copy, even when the copy is long. */
-      .dropdown-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:0;border-radius:50%;background:transparent;flex:0 0 28px;margin:0 0 0 2px;padding:0;color:inherit;font:900 17px/1 Inter,"Microsoft YaHei",sans-serif;cursor:pointer;transition:background .16s ease,transform .16s ease}
+      .dropdown-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:0;border-radius:7px;background:transparent;flex:0 0 28px;margin:0 0 0 2px;padding:0;color:inherit;font:900 17px/1 Inter,"Microsoft YaHei",sans-serif;cursor:pointer;transition:background .16s ease,transform .16s ease}
       .dropdown-btn:hover{background:rgba(255,255,255,.10)}
-      .dropdown-btn[aria-expanded="true"]{transform:rotate(180deg)}
+      .dropdown-btn svg{transition:transform 180ms ease}.dropdown-btn[aria-expanded="true"]{transform:none}.dropdown-btn[aria-expanded="true"] svg{transform:rotate(90deg)}
+      .model-item:has(.dropdown-btn[aria-expanded="true"]):not(.active){background:rgba(255,255,255,.06)}
+      .model-item:hover,.sidebar-action:hover{transform:none}
       .dropdown-btn:focus-visible,.competitor-keyword-button:focus-visible{outline:3px solid #27c7d966;outline-offset:1px}
       .model-item{position:relative;display:flex;align-items:center;min-width:0}.model-item .model-copy{min-width:0;flex:1;overflow:hidden}.model-item .model-copy strong,.model-item .model-copy small{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .model-item[${COMPETITOR_TOP_LEVEL_ATTR}="true"]{display:none!important}
-      .competitor-sidebar-list{display:flex;flex-direction:column;gap:3px;margin:-3px 0 1px;padding:0 0 1px 20px;border-left:1px solid rgba(255,255,255,.20)}
-      .competitor-sidebar-list[hidden]{display:none}
+      .competitor-sidebar-list{display:flex;flex-direction:column;flex-shrink:0;gap:3px;margin:-3px 0 1px;padding:0 0 1px 20px;border-left:1px solid rgba(255,255,255,.12);height:auto;min-height:0;overflow:hidden;interpolate-size:allow-keywords;opacity:1;visibility:visible;transition:height 220ms ease,opacity 180ms ease,margin 220ms ease,padding 220ms ease,visibility 220ms}
+      .competitor-sidebar-list[hidden]{display:flex;height:0;opacity:0;visibility:hidden;margin:-4px 0;padding-top:0;padding-bottom:0;pointer-events:none}
+      @media(prefers-reduced-motion:reduce){.dropdown-btn svg,.model-dropdown svg,.competitor-sidebar-list{transition:none}}
       .competitor-sidebar-item{display:flex;align-items:center;min-width:0;min-height:43px;gap:6px;padding:6px 7px 6px 9px;border-radius:9px;color:rgba(255,255,255,.84);background:rgba(255,255,255,.035)}
       .competitor-sidebar-item:hover{background:rgba(255,255,255,.10)}
       .competitor-sidebar-item.is-selected{background:var(--cyan);color:#133149;box-shadow:inset 0 0 0 2px #ffffff29}
@@ -1318,7 +1321,7 @@
         toggle.setAttribute(COMPETITOR_SIDEBAR_ATTR, '');
         toggle.setAttribute('aria-controls', `${COMPETITOR_DRAWER_ID}-${asin}`);
         toggle.setAttribute('aria-expanded', 'false');
-        toggle.innerHTML = '<span aria-hidden="true">⌄</span>';
+        toggle.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
         toggle.addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -1332,7 +1335,7 @@
         toggle.classList.add('dropdown-btn');
         toggle.classList.add('competitor-sidebar-toggle');
         toggle.setAttribute('aria-controls', `${COMPETITOR_DRAWER_ID}-${asin}`);
-        if (!toggle.querySelector('span')) toggle.innerHTML = '<span aria-hidden="true">⌄</span>';
+        if (!toggle.querySelector('svg')) toggle.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
       }
       const copy = node.querySelector('.model-copy');
       if (copy && !copy.hasAttribute('data-competitor-selection-sync')) {

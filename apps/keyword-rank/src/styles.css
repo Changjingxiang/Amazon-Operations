@@ -55,7 +55,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .model-dropdown { width: 28px; height: 28px; flex: 0 0 28px; margin: 0 0 0 2px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; display: inline-flex; align-items: center; justify-content: center; }
 .model-dropdown:hover { background: rgba(255,255,255,.10); }
 .model-dropdown:focus-visible { outline: 2px solid rgba(255,255,255,.78); outline-offset: 1px; }
-.model-dropdown[aria-expanded="true"] { transform: rotate(180deg); }
+.model-dropdown { border-radius: 7px; }
+.model-dropdown svg { transition: transform 180ms ease; }
+.model-dropdown[aria-expanded="true"] { transform: none; }
+.model-dropdown[aria-expanded="true"] svg { transform: rotate(90deg); }
 .model-item.active .model-dropdown:focus-visible { outline-color: rgba(19,49,73,.78); }
 .sidebar-action { font-size: 14px; font-weight: 700; min-height: 46px; }
 .sidebar-footer { margin-top: auto; display: flex; flex-direction: column; gap: 4px; padding-top: 14px; }

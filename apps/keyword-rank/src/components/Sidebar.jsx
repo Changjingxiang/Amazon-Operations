@@ -1,4 +1,4 @@
-import { ChevronDown, Download, FolderOpen, Plus, Settings } from 'lucide-react';
+import { ChevronRight, Download, FolderOpen, Plus, Settings } from 'lucide-react';
 import { getApparelIcon } from '../lib/apparelIcons.js';
 
 export default function Sidebar({ models, activeIndex, onSelect, onChooseIcon, onAddModel, onHistory, onOpenFolder, onSettings }) {
@@ -36,7 +36,7 @@ export default function Sidebar({ models, activeIndex, onSelect, onChooseIcon, o
                 if (list?.matches?.('[data-competitor-sidebar-list]')) list.hidden = expanded;
               }}
             >
-              <ChevronDown size={16} aria-hidden="true" />
+              <ChevronRight size={16} aria-hidden="true" />
             </button>
           </div>
         ))}
