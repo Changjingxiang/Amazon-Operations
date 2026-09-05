@@ -9,3 +9,5 @@
 .k-loading-content strong { margin-top:6px; font-size:14px; font-weight:700; }
 .k-loading-content > span { margin-top:9px; color:#8a98a3; font-size:11px; letter-spacing:1px; }
 @media(prefers-reduced-motion:reduce) { .k-loading,.k-loading-video { transition:none; } }
+
+.k-loading-play { border:1px solid #168da0; border-radius:7px; padding:8px 12px; background:#effbfc; color:#173b64; font-size:12px; margin-bottom:8px; }
