@@ -1,10 +1,27 @@
+import { useRef, useState } from 'react';
+import runningKVideo from '../assets/running-k.mp4';
 import { AlertTriangle, CheckCircle2, LoaderCircle, X } from 'lucide-react';
+
+function BusyVideo() {
+  const ref = useRef(null);
+  const [failed, setFailed] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const play = () => {
+    const video = ref.current;
+    if (!video) return;
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playbackRate = 1.5;
+    video.play().then(() => setBlocked(false)).catch(() => setBlocked(true));
+  };
+  return <>{failed ? <LoaderCircle className="spin" size={34} /> : <video ref={ref} className="busy-k-video" src={runningKVideo} autoPlay muted loop playsInline preload="auto" disablePictureInPicture onLoadedData={play} onError={() => setFailed(true)} aria-hidden="true" />}{blocked && <button type="button" className="busy-video-play" onClick={play}>播放动画</button>}</>;
+}
 
 export function BusyOverlay({ label }) {
   if (!label) return null;
   return (
-    <div className="busy-overlay" role="status">
-      <div><LoaderCircle className="spin" size={34} /><strong>{label}</strong><span>请不要关闭软件窗口</span></div>
+    <div className={`busy-overlay ${window.keywordTracker?.isWeb ? 'busy-overlay-video' : ''}`} role="status" aria-live="polite">
+      <div>{window.keywordTracker?.isWeb ? <BusyVideo /> : <LoaderCircle className="spin" size={34} />}<strong>{label}</strong><span>请不要关闭软件窗口</span></div>
     </div>
   );
 }
