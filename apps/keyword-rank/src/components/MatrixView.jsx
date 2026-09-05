@@ -1,6 +1,7 @@
+import MatrixPeriodSelect, { filterPeriodDates } from './MatrixPeriodSelect.jsx';
 import { createPortal } from 'react-dom';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
 import { buildSifAbaTrendMap, rankClass, shortDate } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
@@ -108,41 +109,21 @@ export default function MatrixView({ model, metric, rows: filteredRows, filters,
   const virtualRangeRef = useRef(virtualRange);
   const defaults = useMemo(() => ({ star: 54, keyword: 250, translation: 180, date: 82 }), []);
   const { widths, nudgeWidth, startResize } = useColumnWidths(`keyword-tracker:columns:${metric}`, defaults);
-  const [collapsedYears, setCollapsedYears] = useState(() => new Set());
-  const [collapsedMonths, setCollapsedMonths] = useState(() => new Set());
-  const [layoutAnimating, setLayoutAnimating] = useState(false);
   const sifAbaTrendByKeyword = useMemo(
     () => metric === 'natural' ? buildSifAbaTrendMap(model) : new Map(),
     [model, metric],
   );
-  const animateLayout = () => {
-    setLayoutAnimating(false);
-    requestAnimationFrame(() => {
-      setLayoutAnimating(true);
-      window.setTimeout(() => setLayoutAnimating(false), 300);
-    });
-  };
   const groups = useMemo(() => {
     const byYear = new Map();
-    filterDates(model.dates, filters).forEach((date) => {
+    filterDates(filterPeriodDates(model.dates, filters), filters).forEach((date) => {
       const year = date.slice(0, 4); const month = date.slice(0, 7);
       if (!byYear.has(year)) byYear.set(year, new Map());
       if (!byYear.get(year).has(month)) byYear.get(year).set(month, []);
       byYear.get(year).get(month).push(date);
     });
     return [...byYear.entries()].map(([year, months]) => ({ year, months: [...months.entries()] }));
-  }, [model.dates, filters?.dateMode, filters?.dateStart, filters?.dateEnd]);
-  const columns = useMemo(() => {
-    const next = [];
-    groups.forEach(({ year, months }) => {
-      if (collapsedYears.has(year)) { next.push({ type: 'year', key: year, year }); return; }
-      months.forEach(([month, dates]) => {
-        if (collapsedMonths.has(month)) next.push({ type: 'month', key: month, year, month });
-        else dates.forEach((date) => next.push({ type: 'date', key: date, year, month, date }));
-      });
-    });
-    return next;
-  }, [groups, collapsedYears, collapsedMonths]);
+  }, [model.dates, filters?.dateMode, filters?.dateStart, filters?.dateEnd, filters?.matrixYear, filters?.matrixMonths]);
+  const columns = useMemo(() => groups.flatMap(({ year, months }) => months.flatMap(([month, dates]) => dates.map(date => ({ type: 'date', key: date, year, month, date })))), [groups]);
   const dateIndexMap = useMemo(() => new Map((model.dates || []).map((date, index) => [date, index])), [model.dates]);
   const today = useMemo(() => localToday(), []);
 
@@ -162,7 +143,7 @@ export default function MatrixView({ model, metric, rows: filteredRows, filters,
     let frame = 0;
     const updateRange = () => {
       frame = 0;
-      const firstVisible = Math.floor(Math.max(0, scroll.scrollTop - 102) / MATRIX_ROW_HEIGHT);
+      const firstVisible = Math.floor(Math.max(0, scroll.scrollTop - 68) / MATRIX_ROW_HEIGHT);
       const viewportCount = Math.ceil(scroll.clientHeight / MATRIX_ROW_HEIGHT) + 4;
       const current = virtualRangeRef.current;
       const viewportEnd = Math.min(rowCount, firstVisible + viewportCount);
@@ -307,9 +288,6 @@ export default function MatrixView({ model, metric, rows: filteredRows, filters,
       clearHover();
     };
   }, []);
-  const columnCount = (year, month) => columns.filter((column) => column.year === year && (!month || column.month === month)).length || 1;
-  const toggleYear = (year) => { animateLayout(); setCollapsedYears((current) => { const next = new Set(current); next.has(year) ? next.delete(year) : next.add(year); return next; }); };
-  const toggleMonth = (month) => { animateLayout(); setCollapsedMonths((current) => { const next = new Set(current); next.has(month) ? next.delete(month) : next.add(month); return next; }); };
   const beginAnnotation = (row, date, existing = '') => {
     if (!date) return;
     setEditing({ keyword: row.keyword, date, draft: existing });
@@ -338,7 +316,7 @@ export default function MatrixView({ model, metric, rows: filteredRows, filters,
   return (
     <section className="matrix-panel">
       <div className="matrix-note matrix-group-note">
-        <div className="matrix-note-copy"><span>{metric === 'natural' ? '自然矩阵' : 'SP矩阵'}：可按年份、月份收放</span><span>关键词为行、日期为列；0 表示未上榜。点击{metric === 'natural' ? '自然' : 'SP'}排名单元格添加标注，黑底白字表示已标注。</span><span><b className="legend-up">红色</b>=排名上升　<b className="legend-down">绿色</b>=排名下降　<b className="legend-none">灰色</b>=未上榜</span></div>
+        <div className="matrix-note-copy"><span>{metric === 'natural' ? '自然矩阵' : 'SP矩阵'}</span><span>关键词为行、日期为列；0 表示未上榜。点击{metric === 'natural' ? '自然' : 'SP'}排名单元格添加标注，黑底白字表示已标注。</span><span><b className="legend-up">红色</b>=排名上升　<b className="legend-down">绿色</b>=排名下降　<b className="legend-none">灰色</b>=未上榜</span></div>
         <FilterCascade
           rows={model.matrixRows || []}
           filter={filters}
@@ -350,17 +328,22 @@ export default function MatrixView({ model, metric, rows: filteredRows, filters,
           placeholder="搜索矩阵关键词…"
         />
       </div>
+      <MatrixPeriodSelect dates={model.dates || []} filter={filters} onChange={onFiltersChange} />
       <div ref={scrollRef} className="matrix-scroll">
         <div ref={columnOverlayRef} className="matrix-column-hover-overlay" hidden aria-hidden="true" />
-        <table ref={tableRef} style={stickyLayoutStyle} className={`matrix-table matrix-group-table matrix-layout-transition ${layoutAnimating ? 'is-animating' : ''}`}>
+        <table ref={tableRef} style={stickyLayoutStyle} className="matrix-table matrix-group-table matrix-clean-table">
           <colgroup>
             <col style={widthStyle('star')} /><col style={widthStyle('keyword')} /><col style={widthStyle('translation')} />
             {columns.map((column) => <col key={`width-${column.key}`} style={widthStyle('date')} />)}
           </colgroup>
           <thead>
-            <tr className="matrix-year-row"><th className="sticky-col matrix-fixed-head" colSpan="3">年份</th>{groups.map(({ year }) => { const closed = collapsedYears.has(year); return <th key={year} colSpan={columnCount(year)} className="matrix-group-cell"><button type="button" onClick={() => toggleYear(year)} aria-expanded={!closed}><span className="group-chevron">{closed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}</span>{year}年</button></th>; })}</tr>
-            <tr className="matrix-month-row"><th className="sticky-col matrix-fixed-head" colSpan="3">月份</th>{groups.flatMap(({ year, months }) => collapsedYears.has(year) ? [<th key={`${year}-closed`} className="matrix-group-cell matrix-collapsed-label" aria-label="月份分组" />] : months.map(([month]) => { const closed = collapsedMonths.has(month); return <th key={month} colSpan={columnCount(year, month)} className="matrix-group-cell"><button type="button" onClick={() => toggleMonth(month)} aria-expanded={!closed}><span className="group-chevron">{closed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}</span>{monthLabel(month)}</button></th>; }))}</tr>
-            <tr><th className="sticky-col star-col" style={widthStyle('star')}>关注{resizeHandle('star', '关注')}</th><th className="sticky-col keyword-col" style={widthStyle('keyword')}>关键词{resizeHandle('keyword', '关键词')}</th><th className="sticky-col translation-col" style={widthStyle('translation')}>翻译{resizeHandle('translation', '翻译')}</th>{columns.map((column) => { const isDate = column.type === 'date'; const className = [!isDate ? 'matrix-placeholder-head' : '', column.date === selectedDate ? 'selected-date' : '', column.date === today ? 'is-today' : ''].filter(Boolean).join(' '); return <th key={column.key} style={widthStyle('date')} className={className} data-matrix-date={isDate ? column.date : undefined} aria-label={isDate ? `${column.date}${column.date === today ? '，今天' : ''}` : '折叠分组'}>{isDate ? <><span className="matrix-date-label">{shortDate(column.date)}</span>{column.date === today && <span className="matrix-today-dot" title="今天" aria-label="今天" />}</> : ''}{resizeHandle('date', '日期')}</th>; })}</tr>
+            <tr className="matrix-month-row">
+              <th rowSpan="2" className="sticky-col star-col">关注{resizeHandle('star', '关注')}</th>
+              <th rowSpan="2" className="sticky-col keyword-col">关键词{resizeHandle('keyword', '关键词')}</th>
+              <th rowSpan="2" className="sticky-col translation-col">翻译{resizeHandle('translation', '翻译')}</th>
+              {groups.flatMap(({ months }) => months.map(([month, dates]) => <th key={month} colSpan={dates.length}>{monthLabel(month)}</th>))}
+            </tr>
+            <tr className="matrix-dates-row">{columns.map(column => <th key={column.date} data-matrix-date={column.date} className={column.date === selectedDate ? 'selected-date' : ''}><span>{shortDate(column.date)}</span>{column.date === today && <span className="matrix-today-dot" title="今天" />}{resizeHandle('date', '日期')}</th>)}</tr>
           </thead>
           <tbody>{renderSpacer(topSpacerHeight, 'matrix-virtual-top')}{visibleRows.map((row) => <MatrixRow
             key={row.keyword}
@@ -380,6 +363,7 @@ export default function MatrixView({ model, metric, rows: filteredRows, filters,
           />)}{renderSpacer(bottomSpacerHeight, 'matrix-virtual-bottom')}</tbody>
         </table>
       </div>
+      {!columns.length && <div className="matrix-period-empty">当前条件下没有日期，请选择月份或调整日期筛选。</div>}
       {hovered && createPortal(
         <AbaTrendPopover
           keyword={hovered.keyword}

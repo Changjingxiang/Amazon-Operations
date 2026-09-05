@@ -683,3 +683,32 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .busy-k-video { width:220px; max-width:100%; aspect-ratio:1; object-fit:contain; mask-image:radial-gradient(ellipse at center,#000 49%,transparent 72%); }
 .busy-overlay-video strong { text-align:center; line-height:1.5; overflow-wrap:anywhere; }
 .busy-video-play { border:1px solid #168da0; border-radius:6px; padding:6px 10px; background:#effbfc; color:#173b64; font-size:12px; }
+/* Shared matrix period controls and quieter table headers. */
+.matrix-period-select { position:relative; display:flex; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid #dce5ec; color:#28445e; flex-shrink:0; z-index:40; background:#fff; }
+.matrix-period-select label { display:flex; align-items:center; gap:8px; }
+.matrix-period-select select,.matrix-month-trigger { min-height:32px; border:1px solid #c7d5e0; border-radius:7px; background:#fff; color:#193b5d; padding:5px 10px; font:inherit; }
+.matrix-month-trigger { display:flex; align-items:center; gap:12px; max-width:500px; }
+.matrix-month-trigger svg { flex-shrink:0; transition:transform 200ms ease-out; }
+.matrix-month-trigger[aria-expanded=true] svg { transform:rotate(180deg); }
+.matrix-month-menu { position:absolute; top:calc(100% - 2px); left:140px; width:292px; padding:14px; background:#fff; border:1px solid #cbd9e3; border-radius:10px; box-shadow:0 12px 30px #15395626; opacity:0; visibility:hidden; pointer-events:none; transform:translateY(-5px); transition:opacity 200ms ease-out,transform 200ms ease-out,visibility 200ms; }
+.matrix-month-menu.is-open { opacity:1; visibility:visible; pointer-events:auto; transform:translateY(0); }
+.matrix-month-shortcuts { display:flex; gap:10px; padding-bottom:12px; border-bottom:1px solid #e7edf2; }
+.matrix-month-shortcuts button { color:#136d85; background:#eff9fb; border:0; border-radius:5px; padding:6px 10px; }
+.matrix-month-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:12px 0; }
+.matrix-month-grid label { padding:7px 4px; border-radius:5px; cursor:pointer; }
+.matrix-month-grid label:hover { background:#edf7fa; }
+.matrix-month-grid input { accent-color:#169eb4; }
+.matrix-month-grid .unavailable { opacity:.35; cursor:default; }
+.matrix-month-menu small { color:#738596; font-size:11px; }
+.matrix-period-select :focus-visible { outline:2px solid #19b6cd; outline-offset:2px; }
+.matrix-clean-table thead .matrix-month-row th { top:0; height:32px; background:#e7eff5; color:#264661; border-color:#d4e0e8; }
+.matrix-clean-table thead > tr.matrix-dates-row th { top:32px; height:36px; background:#f3f7fa; color:#36546b; border-color:#dbe5ec; }
+.matrix-clean-table thead .matrix-month-row th.sticky-col { background:#edf3f7; color:#23435d; vertical-align:middle; }
+.matrix-clean-table thead > tr.matrix-dates-row th.selected-date,.comparison-table thead th.selected-date { background:#19b9ce; color:#fff; }
+.matrix-clean-table .translation-col { color:#748291; }
+.matrix-clean-table .watched-row .sticky-col,.comparison-table .watched-row .comparison-keyword-cell,.comparison-table .watched-row .comparison-translation-cell { background:#fffcf0; }
+.comparison-table thead .comparison-date-row th { background:#e7eff5; color:#264661; }
+.comparison-table thead .comparison-metric-row th { background:#f3f7fa; color:#36546b; }
+.comparison-table thead .comparison-date-row th.selected-date,.comparison-table thead .comparison-metric-row th.selected-date { background:#19b9ce; color:white; }
+.matrix-period-empty { padding:18px; text-align:center; color:#718295; }
+@media (prefers-reduced-motion:reduce) { .matrix-month-menu,.matrix-month-trigger svg { transition:none; } }

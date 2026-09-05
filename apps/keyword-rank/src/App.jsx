@@ -191,7 +191,7 @@ export default function App({ onStartupSettled }) {
       const updated = { ...current, [view]: { ...EMPTY_FILTER, ...(next || {}) } };
       if (['natural', 'sp', 'comparison'].includes(view)) {
         for (const target of ['natural', 'sp', 'comparison']) {
-          updated[target] = { ...updated[target], keywords: next.keywords || [], dateMode: next.dateMode || 'all', dateStart: next.dateStart || '', dateEnd: next.dateEnd || '' };
+          updated[target] = { ...updated[target], keywords: next.keywords || [], dateMode: next.dateMode || 'all', dateStart: next.dateStart || '', dateEnd: next.dateEnd || '', matrixYear: next.matrixYear, matrixMonths: next.matrixMonths };
         }
       }
       return updated;

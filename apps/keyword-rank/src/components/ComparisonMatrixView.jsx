@@ -1,3 +1,4 @@
+import MatrixPeriodSelect, { filterPeriodDates } from './MatrixPeriodSelect.jsx';
 import { useEffect, useMemo, useRef } from 'react';
 import { Star } from 'lucide-react';
 import { integer, rankClass, shortDate } from '../lib/format.js';
@@ -190,7 +191,7 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
     [visibleRows, model?.matrixRows, currentFilter.query, currentFilter.watch, currentFilter.keywords],
   );
   const allDates = model?.dates || [];
-  const dates = useMemo(() => filterDates(allDates, currentFilter), [allDates, currentFilter.dateMode, currentFilter.dateStart, currentFilter.dateEnd]);
+  const dates = useMemo(() => filterDates(filterPeriodDates(allDates, currentFilter), currentFilter), [allDates, currentFilter.dateMode, currentFilter.dateStart, currentFilter.dateEnd, currentFilter.matrixYear, currentFilter.matrixMonths]);
   const comparisonDate = dates.includes(selectedDate) ? selectedDate : dates.at(-1) || selectedDate || allDates.at(-1) || '';
   const dateIndexMap = useMemo(() => new Map(allDates.map((date, index) => [date, index])), [allDates]);
   const activeCategories = useMemo(() => {
@@ -253,6 +254,7 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
         />
         <div className="comparison-note-legend"><span>排名数字越小越好</span><span>①/②/③＝第1/2/3页，④+＝第4页及以后</span></div>
       </div>
+      <MatrixPeriodSelect dates={allDates} filter={currentFilter} onChange={onFiltersChange} />
       <div ref={comparisonScrollRef} className="comparison-scroll">
         {activeCategories.map((category) => (
           <ComparisonSection
