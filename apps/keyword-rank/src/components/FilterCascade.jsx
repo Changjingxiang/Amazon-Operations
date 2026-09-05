@@ -351,6 +351,22 @@ export default function FilterCascade({
         <div className="cascade-popover" ref={popoverRef} role="dialog" aria-label={`${label}条件`} style={popoverStyle}>
           <div className="cascade-popover-head"><strong>筛选条件</strong><button type="button" aria-label="关闭筛选条件" onClick={() => setOpen(false)}><X size={15} /></button></div>
           <div className="cascade-group-list">
+            {keywordOptions.length > 0 && (
+              <KeywordCombinations
+                items={keywordCombinations}
+                currentKeywords={current.keywords}
+                availableKeywords={availableKeywordKeys}
+                onApply={applyCombination}
+                onEdit={editCombination}
+                onDelete={deleteCombination}
+                onSave={saveCombination}
+                editingId={editingCombinationId}
+                name={combinationName}
+                onNameChange={(value) => { setCombinationName(value); setCombinationMessage(''); }}
+                message={combinationMessage}
+              />
+            )}
+            {showDate && <DateFilterGroup filter={current} dates={dates} onChange={update} />}
             {groups.map((group) => (
               <FilterGroup
                 key={group.key}
@@ -388,22 +404,7 @@ export default function FilterCascade({
                 </div>
               </section>
             )}
-            {keywordOptions.length > 0 && (
-              <KeywordCombinations
-                items={keywordCombinations}
-                currentKeywords={current.keywords}
-                availableKeywords={availableKeywordKeys}
-                onApply={applyCombination}
-                onEdit={editCombination}
-                onDelete={deleteCombination}
-                onSave={saveCombination}
-                editingId={editingCombinationId}
-                name={combinationName}
-                onNameChange={(value) => { setCombinationName(value); setCombinationMessage(''); }}
-                message={combinationMessage}
-              />
-            )}
-            {showDate && <DateFilterGroup filter={current} dates={dates} onChange={update} />}
+
           </div>
           <div className="cascade-popover-foot"><span>{hasAnyFilter ? '已应用筛选条件' : '未设置筛选条件'}</span><button type="button" onClick={() => setOpen(false)}>完成</button></div>
         </div>,

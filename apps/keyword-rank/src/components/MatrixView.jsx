@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, Star } from 'lucide-react';
 import { buildSifAbaTrendMap, rankClass, shortDate } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
-import FilterCascade, { WATCH_FILTER_OPTIONS } from './FilterCascade.jsx';
+import FilterCascade, { WATCH_FILTER_OPTIONS, filterDates } from './FilterCascade.jsx';
 
 function keywordKey(value) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
@@ -124,14 +124,14 @@ export default function MatrixView({ model, metric, rows: filteredRows, filters,
   };
   const groups = useMemo(() => {
     const byYear = new Map();
-    (model.dates || []).forEach((date) => {
+    filterDates(model.dates, filters).forEach((date) => {
       const year = date.slice(0, 4); const month = date.slice(0, 7);
       if (!byYear.has(year)) byYear.set(year, new Map());
       if (!byYear.get(year).has(month)) byYear.get(year).set(month, []);
       byYear.get(year).get(month).push(date);
     });
     return [...byYear.entries()].map(([year, months]) => ({ year, months: [...months.entries()] }));
-  }, [model.dates]);
+  }, [model.dates, filters?.dateMode, filters?.dateStart, filters?.dateEnd]);
   const columns = useMemo(() => {
     const next = [];
     groups.forEach(({ year, months }) => {
@@ -342,6 +342,8 @@ export default function MatrixView({ model, metric, rows: filteredRows, filters,
         <FilterCascade
           rows={model.matrixRows || []}
           filter={filters}
+          showDate
+          dates={model.dates || []}
           onChange={onFiltersChange}
           groups={[{ key: 'watch', label: '关注状态', options: WATCH_FILTER_OPTIONS }]}
           label="筛选"
