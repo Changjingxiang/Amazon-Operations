@@ -728,3 +728,7 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .web-edition .header-actions .manual-import-button { margin-left:4px;color:#526c80;background:white; }
 .web-edition .header-actions button[aria-busy=true] { opacity:.65;cursor:wait; }
 .web-edition .header-actions .sif-all-import-status:empty { display:none; }
+.aba-group-table thead .aba-summary-head { vertical-align:middle; top:0; white-space:normal; line-height:1.6; }
+.aba-trend-popover { z-index:1500; background:#fff; animation:aba-popup-fade 160ms ease-out; transform:none; overflow:auto; }
+@keyframes aba-popup-fade { from { opacity:0; } to { opacity:1; } }
+@media (prefers-reduced-motion:reduce) { .aba-trend-popover { animation:none; } }

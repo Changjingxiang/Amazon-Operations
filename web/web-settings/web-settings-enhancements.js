@@ -485,7 +485,7 @@
     const label = comparisonLabel(direction);
     cell.className = `aba-comparison-cell aba-trend-${direction || 'none'}`;
     cell.textContent = label;
-    cell.title = comparisonTitle(row || {});
+    cell.removeAttribute('title');
     cell.setAttribute('aria-label', `去年ABA排名环比趋势：${label}`);
   }
 
@@ -525,7 +525,7 @@
     }
     const firstHeader = table.querySelector('thead tr.matrix-year-row');
     if (firstHeader) {
-      const spacer = firstHeader.querySelector('.aba-meta-spacer');
+      const spacer = firstHeader.querySelector('.aba-summary-head, .aba-meta-spacer');
       [['previous-year-mom', '去年ABA排名环比趋势']].forEach(([key, label]) => {
         let head = firstHeader.querySelector(`[data-aba-comparison-head="${key}"]`);
         if (!head) {
