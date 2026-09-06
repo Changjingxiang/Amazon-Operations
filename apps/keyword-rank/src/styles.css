@@ -736,3 +736,4 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .aba-detail-bubble { position:fixed; z-index:1500; width:310px; max-width:calc(100vw - 16px); padding:13px 16px; border:1px solid #173b64; border-radius:10px; background:white; color:#28445e; box-shadow:0 10px 28px #173b6430; pointer-events:none; font-size:12px; line-height:1.7; animation:aba-popup-fade 160ms ease-out; }
 .aba-detail-bubble strong { display:block; margin-bottom:5px; color:#173b64; }
 @media (prefers-reduced-motion:reduce) { .aba-detail-bubble { animation:none; } }
+.app-text-tooltip { position:fixed; z-index:1600; width:max-content; max-width:min(400px,calc(100vw - 16px)); padding:9px 12px; background:#fff; color:#173b64; border:1px solid #b9cedc; border-radius:8px; box-shadow:0 8px 24px #173b6426; font-size:12px; line-height:1.6; white-space:normal; overflow-wrap:anywhere; pointer-events:none; }

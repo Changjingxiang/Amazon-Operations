@@ -55,11 +55,11 @@ const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueFie
       <td className="sticky-col star-col"><button type="button" className={`star-button ${row.watched ? 'watched' : ''}`} title={row.watched ? '取消关注' : '设为关注'} onClick={() => onToggleWatch(row.keyword, !row.watched, row.note)}><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button></td>
       <td
         className={`sticky-col keyword-col ${metric === 'natural' ? 'matrix-keyword-aba-cell' : ''}`}
-        title={row.keyword}
+        data-text-tooltip={metric === 'sp' ? row.keyword : undefined}
         data-matrix-keyword={row.keyword}
         aria-label={metric === 'natural' ? `${row.keyword}，悬停查看 ABA 对照` : undefined}
         tabIndex={metric === 'natural' ? 0 : undefined}
-      >{row.keyword}</td><td className="sticky-col translation-col" title={row.translation}>{row.translation || '—'}</td>
+      >{row.keyword}</td><td className="sticky-col translation-col" data-text-tooltip={row.translation}>{row.translation || '—'}</td>
       {columns.map((column) => {
         if (column.type !== 'date') return <td key={`${row.keyword}-${column.key}`} className="matrix-placeholder" aria-label="折叠分组" />;
         const index = dateIndexMap.get(column.date);

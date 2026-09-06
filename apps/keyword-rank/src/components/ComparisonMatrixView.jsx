@@ -100,7 +100,7 @@ function RankCell({ value, previous, metric, date, selected }) {
       data-comparison-date={date}
       data-comparison-metric={metric}
       aria-label={label}
-      title={label}
+      data-text-tooltip={label}
     >
       <span className="comparison-rank-number">{currentRank == null ? '—' : integer(currentRank)}</span>
       <small className="comparison-page-marker">{pageMarker(value)}</small>
@@ -157,8 +157,8 @@ function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate
                       aria-label={row.watched ? `取消关注 ${row.keyword}` : `关注 ${row.keyword}`}
                     ><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button>
                   </td>
-                  <td className="comparison-keyword-cell" title={row.keyword}>{row.keyword}</td>
-                  <td className="comparison-translation-cell" title={row.translation}>{row.translation || '—'}</td>
+                  <td className="comparison-keyword-cell" data-text-tooltip={row.keyword}>{row.keyword}</td>
+                  <td className="comparison-translation-cell" data-text-tooltip={row.translation}>{row.translation || '—'}</td>
                   {dates.flatMap((date) => {
                     const index = dateIndexMap.get(date);
                     const naturalValues = row.naturalValues || [];
