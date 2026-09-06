@@ -35,7 +35,7 @@ export default function Header({ model, activeTab, onTab, selectedDate, onDate, 
             <RefreshCw size={19} className={busy ? 'spin' : ''} />刷新
           </button>
           <button type="button" className="primary-button sif-import-button" disabled={busy} onClick={onSifImport} title={`自动打开 SIF ${model.site || '加拿大站'}并下载后导入`}>
-            <img src={importIcon} alt="" /><span>自动导入今日报表</span>
+            <img src={importIcon} alt="" /><span>{window.keywordTracker?.isWeb ? '导入当前产品' : '自动导入今日报表'}</span>
           </button>
           <button type="button" className="secondary-button manual-import-button" disabled={busy} onClick={onImport} title="扫描工具文件夹中的本地报表">
             <FileInput size={18} />本地导入

@@ -1468,14 +1468,15 @@
     scanMatrices();
   }
 
-  function batchItemsFromData(data) {
-    const ownItems = ownModelsFromData(data).map((model) => ({
+  function batchItemsFromData(data, currentAsin = null) {
+    const owner = currentAsin ? resolveOwnerAsin(data, currentAsin) : null;
+    const ownItems = ownModelsFromData(data).filter(model => !owner || normalizedAsin(model.parentAsin) === owner).map((model) => ({
       asin: model.parentAsin,
       countryCode: model.countryCode || model.site || 'CA',
       modelName: model.modelName,
       kind: 'own',
     }));
-    const competitorItems = competitorModelsFromData(data).map((competitor) => ({
+    const competitorItems = competitorModelsFromData(data).filter(model => !owner || normalizedAsin(model.ownerParentAsin) === owner).map((competitor) => ({
       asin: competitor.parentAsin,
       countryCode: competitor.countryCode || competitor.site || 'CA',
       modelName: competitor.competitorName || competitor.modelName,
@@ -1484,13 +1485,21 @@
     return [...ownItems, ...competitorItems];
   }
 
-  async function runAllBatchImport({ trigger, peer, status, setStatus }) {
+  let batchImportRunning = false;
+  async function runAllBatchImport({ trigger, peer, status, setStatus, currentOnly = false }) {
+    if (batchImportRunning) return;
     if (trigger?.dataset.batchBusy === 'true') return;
     const api = window.keywordTracker;
     if (!api || typeof api.startSifBatchImport !== 'function' || typeof api.getData !== 'function') {
       setStatus('当前网页未加载批量自动导入功能，请刷新后重试。', true);
       return;
     }
+    const currentAsin = currentOnly ? getCurrentAsin() : null;
+    if (currentOnly && !currentAsin) { setStatus('无法识别当前产品，请重新选择产品。', true); return; }
+    batchImportRunning = true;
+    const actions = [...document.querySelectorAll('.header-actions button')].map(button => [button, button.disabled]);
+    actions.forEach(([button]) => { button.disabled = true; });
+    trigger.setAttribute('aria-busy', 'true');
     trigger.dataset.batchBusy = 'true';
     if (peer) peer.dataset.batchBusy = 'true';
     if (trigger) trigger.disabled = true;
@@ -1500,7 +1509,7 @@
       const data = await api.getData();
       sidebarDataCache = data;
       matrixDataCache = data;
-      const items = batchItemsFromData(data);
+      const items = batchItemsFromData(data, currentAsin);
       if (!items.length) throw new Error('当前没有已登记产品或竞品。');
       // startSifBatchImport submits one extension job for own products and
       // only after it settles submits the competitor job.  The explicit kind
@@ -1513,6 +1522,12 @@
       setStatus(error?.message || '批量自动导入失败，请重试。', true);
       if (trigger) { trigger.disabled = false; delete trigger.dataset.batchBusy; }
       if (peer) { peer.disabled = false; delete peer.dataset.batchBusy; }
+    } finally {
+      batchImportRunning = false;
+      actions.forEach(([button, disabled]) => { button.disabled = disabled; });
+      trigger.removeAttribute('aria-busy');
+      delete trigger.dataset.batchBusy;
+      if (peer) delete peer.dataset.batchBusy;
     }
   }
 
@@ -1524,12 +1539,12 @@
       installAutomaticBatchCapture(singleButton, button, button.nextElementSibling);
       return;
     }
-    singleButton.title = '按设置里的国家先导入全部自己产品，再导入全部竞品';
+    singleButton.title = '自动导入当前产品及关联竞品；先自有产品，再竞品';
     const allButton = document.createElement('button');
     allButton.type = 'button';
     allButton.className = 'primary-button sif-all-import-button';
     allButton.setAttribute(BATCH_ATTR, '');
-    allButton.textContent = '一键导入全部产品';
+    allButton.textContent = '导入全部产品';
     allButton.title = '先导入所有自己产品，再统一导入所有竞品';
     const status = document.createElement('small');
     status.className = 'sif-all-import-status';
@@ -1573,7 +1588,7 @@
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
-      runAllBatchImport({ trigger: singleButton, peer: allButton, status, setStatus }).catch((error) => setStatus(error?.message || '批量自动导入失败。', true));
+      runAllBatchImport({ trigger: singleButton, peer: allButton, status, setStatus, currentOnly: true }).catch((error) => setStatus(error?.message || '批量自动导入失败。', true));
     }, true);
   }
 

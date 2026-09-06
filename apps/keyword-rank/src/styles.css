@@ -717,3 +717,14 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .matrix-month-menu.is-open { visibility:visible; opacity:1; transform:none; transition:none; animation:matrix-month-appear 180ms ease-out; }
 @keyframes matrix-month-appear { from { opacity:0; } to { opacity:1; } }
 @media (prefers-reduced-motion:reduce) { .matrix-month-menu.is-open { animation:none; } }
+.web-edition .header-actions { gap:8px; }
+.web-edition .header-actions button,.web-edition .header-actions .date-control { height:38px; border-radius:8px; box-shadow:none; }
+.web-edition .header-actions button { transition:background-color 160ms ease,border-color 160ms ease; }
+.web-edition .header-actions button:active:not(:disabled) { transform:scale(.98); }
+.web-edition .header-actions .sif-import-button { min-width:148px; }
+.web-edition .header-actions .sif-import-button img { width:20px;height:20px; }
+.web-edition .header-actions .sif-all-import-button { min-width:140px!important; background:#f5f9fc!important;color:#173b64!important;border-color:#c4d3df!important; }
+.web-edition .header-actions .sif-all-import-button:hover:not(:disabled) { background:#e6f1f7!important;transform:none; }
+.web-edition .header-actions .manual-import-button { margin-left:4px;color:#526c80;background:white; }
+.web-edition .header-actions button[aria-busy=true] { opacity:.65;cursor:wait; }
+.web-edition .header-actions .sif-all-import-status:empty { display:none; }
