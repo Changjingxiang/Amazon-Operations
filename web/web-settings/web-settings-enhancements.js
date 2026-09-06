@@ -486,8 +486,50 @@
     cell.className = `aba-comparison-cell aba-trend-${direction || 'none'}`;
     cell.textContent = label;
     cell.removeAttribute('title');
+    cell.dataset.trendDetail = comparisonTitle(row || {});
+    cell.tabIndex = 0;
     cell.setAttribute('aria-label', `去年ABA排名环比趋势：${label}`);
   }
+
+  let abaDetailBubble = null;
+  let abaDetailAnchor = null;
+  function closeAbaDetail() {
+    abaDetailBubble?.remove();
+    abaDetailBubble = null;
+    abaDetailAnchor = null;
+  }
+  function showAbaDetail(cell) {
+    if (abaDetailAnchor === cell) return;
+    closeAbaDetail();
+    const bubble = document.createElement('div');
+    bubble.className = 'aba-detail-bubble';
+    bubble.setAttribute('role', 'tooltip');
+    const heading = document.createElement('strong');
+    heading.textContent = '去年 ABA 排名环比趋势';
+    const detail = document.createElement('div');
+    detail.textContent = cell.dataset.trendDetail;
+    bubble.append(heading, detail);
+    document.body.appendChild(bubble);
+    const rect = cell.getBoundingClientRect();
+    bubble.style.left = `${Math.max(8, Math.min(rect.right + 10, window.innerWidth - bubble.offsetWidth - 8))}px`;
+    bubble.style.top = `${Math.max(8, Math.min(rect.top, window.innerHeight - bubble.offsetHeight - 8))}px`;
+    abaDetailBubble = bubble;
+    abaDetailAnchor = cell;
+  }
+  document.addEventListener('pointerover', event => {
+    const cell = event.target.closest?.('.aba-comparison-cell');
+    if (cell) showAbaDetail(cell);
+  });
+  document.addEventListener('pointerout', event => {
+    if (abaDetailAnchor && !abaDetailAnchor.contains(event.relatedTarget)) closeAbaDetail();
+  });
+  document.addEventListener('focusin', event => {
+    const cell = event.target.closest?.('.aba-comparison-cell');
+    if (cell) showAbaDetail(cell);
+  });
+  document.addEventListener('focusout', closeAbaDetail);
+  document.addEventListener('scroll', closeAbaDetail, true);
+  window.addEventListener('resize', closeAbaDetail);
 
   async function enhanceAbaTable(table) {
     if (!(table instanceof HTMLTableElement) || !table.classList.contains('aba-table')) return;
@@ -1450,6 +1492,7 @@
   }
 
   function scan() {
+    if (abaDetailAnchor && !abaDetailAnchor.isConnected) closeAbaDetail();
     addStyles();
     // A matrix table can disappear without a pointerout when React switches
     // tabs or products. Do this check before scanning the newly rendered UI so

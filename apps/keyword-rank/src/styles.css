@@ -732,3 +732,7 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .aba-trend-popover { z-index:1500; background:#fff; animation:aba-popup-fade 160ms ease-out; transform:none; overflow:auto; }
 @keyframes aba-popup-fade { from { opacity:0; } to { opacity:1; } }
 @media (prefers-reduced-motion:reduce) { .aba-trend-popover { animation:none; } }
+.aba-group-table thead .matrix-month-row th[rowspan="2"] { vertical-align:middle; }
+.aba-detail-bubble { position:fixed; z-index:1500; width:310px; max-width:calc(100vw - 16px); padding:13px 16px; border:1px solid #173b64; border-radius:10px; background:white; color:#28445e; box-shadow:0 10px 28px #173b6430; pointer-events:none; font-size:12px; line-height:1.7; animation:aba-popup-fade 160ms ease-out; }
+.aba-detail-bubble strong { display:block; margin-bottom:5px; color:#173b64; }
+@media (prefers-reduced-motion:reduce) { .aba-detail-bubble { animation:none; } }
