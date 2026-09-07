@@ -743,3 +743,10 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .busy-overlay-video > div { background:transparent;border:0;box-shadow:none; }
 .k-loading-content:before,.busy-overlay-video > div:before { content:'';position:absolute;inset:-60px -90px;z-index:-1;background:rgba(255,253,245,.2);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);mask-image:radial-gradient(ellipse,#000 28%,transparent 72%);pointer-events:none; }
 .k-loading .k-loading-video,.busy-overlay-video .busy-k-video { mask-image:radial-gradient(ellipse,#000 22%,rgba(0,0,0,.9) 38%,rgba(0,0,0,.35) 56%,transparent 72%); }
+
+.dashboard-panel.dashboard-expanded { position: fixed; inset: 48px 12px 12px 232px; width: auto; height: auto; z-index: 45; margin: 0; background: #fff; box-shadow: 0 6px 28px #173b6426; }
+.competitor-image-button { flex: 0 0 28px; width: 28px; height: 32px; padding: 2px; border: 1px solid #ffffff55; border-radius: 6px; background: #fff; cursor: pointer; }
+.competitor-image-button img { width: 100%; height: 100%; object-fit: contain; }
+.matrix-competitor-bubble-row .competitor-movement { display: block; font-size: 9px; text-align: right; font-weight: 500; color: #718092; }
+.matrix-competitor-bubble-row .competitor-movement.up { color: #db453f; }
+.matrix-competitor-bubble-row .competitor-movement.down { color: #19763e; }

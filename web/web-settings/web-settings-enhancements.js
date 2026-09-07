@@ -738,6 +738,21 @@
     return rawRank == null || Number(rawRank) <= 0 ? null : Number(rawRank);
   }
 
+  function matrixCompetitorMovement(model, keyword, date, metric, rank, lookup) {
+    const previous = new Date(`${date}T00:00:00Z`);
+    previous.setUTCDate(previous.getUTCDate() - 1);
+    const previousDate = previous.toISOString().slice(0, 10);
+    const dates = lookup.modelLookups.get(model)?.datesByValue;
+    if (!dates?.has(date)) return { label: '当日无报表', direction: '' };
+    if (!dates.has(previousDate)) return { label: '无前日数据', direction: '' };
+    const before = matrixHistoryRank(model, keyword, previousDate, metric, lookup);
+    if (rank == null && before != null) return { label: '↓ 掉榜', direction: 'down' };
+    if (rank != null && before == null) return { label: '↑ 新上榜', direction: 'up' };
+    if (rank == null) return { label: '仍未上榜', direction: '' };
+    if (rank === before) return { label: '— 持平', direction: '' };
+    return rank < before ? { label: `↑ 上升 ${before - rank} 名`, direction: 'up' } : { label: `↓ 下降 ${rank - before} 名`, direction: 'down' };
+  }
+
   function matrixRankLabel(rank) {
     return rank == null ? '未上榜' : `#${Number(rank).toLocaleString('zh-CN')}`;
   }
@@ -876,7 +891,8 @@
     const competitors = lookup.competitorsByOwner.get(normalizedAsin(owner.parentAsin)) || ownerCompetitors(modelData, owner);
     const rows = competitors.map((competitor) => {
       const rank = matrixHistoryRank(competitor, keyword, date, metric, lookup);
-      return `<div class="matrix-competitor-bubble-row"><span title="${escapeHtml(competitor.competitorName || competitor.modelName || '')}">${escapeHtml(competitor.competitorName || competitor.modelName || '竞品')}</span><b>${matrixRankLabel(rank)}</b></div>`;
+      const movement = matrixCompetitorMovement(competitor, keyword, date, metric, rank, lookup);
+      return `<div class="matrix-competitor-bubble-row"><span title="${escapeHtml(competitor.competitorName || competitor.modelName || '')}">${escapeHtml(competitor.competitorName || competitor.modelName || '竞品')}</span><b>${matrixRankLabel(rank)}<small class="competitor-movement ${movement.direction}">${escapeHtml(movement.label)}</small></b></div>`;
     }).join('');
     const competitorContent = rows || '<div class="matrix-competitor-bubble-empty">暂无已关联竞品</div>';
     const annotation = ownerRank.annotation
@@ -1391,7 +1407,7 @@
         list.id = `${COMPETITOR_DRAWER_ID}-${asin}`;
         node.insertAdjacentElement('afterend', list);
       }
-      const signature = ownerCompetitors.map((competitor) => `${competitor.competitorId || competitor.id || competitor.parentAsin}:${competitor.competitorName || competitor.modelName}`).join('|');
+      const signature = ownerCompetitors.map((competitor) => `${competitor.competitorId || competitor.id || competitor.parentAsin}:${competitor.competitorName || competitor.modelName}:${JSON.stringify(competitor.iconKey)}`).join('|');
       if (list.dataset.signature !== signature) {
         list.textContent = '';
         list.dataset.signature = signature;
@@ -1408,6 +1424,16 @@
             line.setAttribute(COMPETITOR_ITEM_ATTR, '');
             line.setAttribute('data-competitor-asin', competitorAsin);
             line.innerHTML = `<span class="competitor-sidebar-branch" aria-hidden="true">├─</span><button type="button" class="competitor-sidebar-copy"><strong>${escapeHtml(competitor.competitorName || competitor.modelName || '未命名竞品')}</strong><small>${escapeHtml(competitorAsin)}</small></button><span class="competitor-sidebar-badge">竞品</span>`;
+            const sourceRow = [...modelList.querySelectorAll(':scope > .model-item')].find((candidate) => sidebarRowDetails(candidate).asin === competitorAsin);
+            const imageButton = document.createElement('button');
+            imageButton.type = 'button';
+            imageButton.className = 'competitor-image-button';
+            imageButton.title = '更换竞品图片';
+            imageButton.setAttribute('aria-label', `更换 ${competitor.competitorName || competitor.modelName} 的图片`);
+            const productImage = sourceRow?.querySelector('.model-icon img');
+            if (productImage) imageButton.appendChild(productImage.cloneNode(true));
+            imageButton.addEventListener('click', () => sourceRow?.querySelector('.model-icon')?.click());
+            line.querySelector('.competitor-sidebar-branch')?.replaceWith(imageButton);
             const copy = line.querySelector('.competitor-sidebar-copy');
             copy?.addEventListener('click', (event) => {
               event.preventDefault();
@@ -1653,6 +1679,7 @@
     }
   };
   window.addEventListener('keyword-tracker-competitor-updated', invalidateEnhancementData);
+  window.addEventListener('keyword-tracker-data-updated', invalidateEnhancementData);
   window.addEventListener('keyword-tracker-aba-imported', () => {
     matrixDataCache = null;
     matrixDataPromise = null;

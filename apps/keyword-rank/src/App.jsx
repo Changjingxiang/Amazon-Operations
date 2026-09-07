@@ -209,7 +209,7 @@ export default function App({ onStartupSettled }) {
     setComparisonFocus(null);
   }, [model?.parentAsin]);
 
-  useEffect(() => { syncWebBridgeData(data); }, [data]);
+  useEffect(() => { syncWebBridgeData(data); if (data) window.dispatchEvent(new Event('keyword-tracker-data-updated')); }, [data]);
 
   const applyResult = (result, title) => {
     setData(result.data);

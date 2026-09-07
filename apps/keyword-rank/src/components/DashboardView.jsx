@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDownAZ, ArrowUpAZ, Star } from 'lucide-react';
+import { ArrowDownAZ, ArrowUpAZ, Star, Maximize2, Minimize2 } from 'lucide-react';
 import Sparkline from './Sparkline.jsx';
 import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
 import { integer, percent } from '../lib/format.js';
@@ -17,6 +17,8 @@ function keywordKey(value) {
 }
 
 export default function DashboardView({ rows, sourceRows, model, filters, onFiltersChange, onToggleWatch, onManage }) {
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => { const escape = (event) => { if (event.key === 'Escape') setExpanded(false); }; window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape); }, []);
   const [sort, setSort] = useState({ field: null, direction: 'asc' });
   const [hovered, setHovered] = useState(null);
   const defaults = useMemo(() => ({ star: 52, traffic: 72, keyword: 190, translation: 130, naturalTrend: 92, spTrend: 92, trafficShare: 105, naturalRank: 82, spRank: 82, weeklyAbaRank: 98, weeklySearchVolume: 98, status: 128 }), []);
@@ -72,9 +74,9 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
     ><Icon size={14} />{label}{direction === 'asc' ? '升' : '降'}</button>
   );
 
-  return (
-    <section className="dashboard-panel">
-      <div className="table-toolbar">
+  const content = (
+    <section className={`dashboard-panel ${expanded ? 'dashboard-expanded' : ''}`}>
+      <div className="table-toolbar"><button type="button" className="sort-button" aria-expanded={expanded} onClick={() => { setHovered(null); setExpanded(value => !value); }}>{expanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{expanded ? '恢复看板' : '放大表格'}</button>
         <span>关注词置顶，其后保留完整流量前 100</span>
         <FilterCascade
           rows={sourceRows || rows}
@@ -152,4 +154,5 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
       )}
     </section>
   );
+  return expanded ? createPortal(content, document.body) : content;
 }
