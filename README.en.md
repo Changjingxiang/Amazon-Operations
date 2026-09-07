@@ -8,31 +8,25 @@
 
 Keyword rank tracker v2.1: a local-first workspace for daily organic rankings, sponsored product (SP) rankings, ABA trends, and competitor comparisons. The application interface is currently in Chinese.
 
-## Latest updates — September 7, 2026
-
-- Shared competitor library: link one competitor to multiple owned products, reuse images and history, and import it only once. Unlinking preserves the shared record.
-- Expand the dashboard keyword table and restore it with the button or Escape. Competitors support custom images.
-- Fixed matrix hover keyword matching to restore ranks and annotations. Competitor bubbles show daily rank movement and entry/exit status.
-- Select historical years in the monthly ABA table. Comparison rows remain together when no relationship filter is selected.
-
-## Previous updates — September 6, 2026
-
-- Three clear import actions: **Import current product**, **Import all products**, and **Local import**. Automatic imports process owned products before competitors.
-- Organic, SP, and comparison matrices share year and multi-select month controls. The latest month with data is shown by default. Hidden months leave no placeholder columns.
-- Lighter fixed headers and a highlighted selected date improve table readability. The month menu renders on opening with a fade-in and keeps at least one month selected.
-- A running K video accompanies startup. Web import loading uses a frosted background and video at 1.5× speed.
-- Rank hover bubbles use a 0.5-second fade and clear on pointer exit, scrolling, and view changes.
-- Import history, file tools, and settings are grouped in the web header. Restoring the previous week's backup requires typed confirmation and is unavailable without a matching backup.
-
 ## Features
 
-- Daily dashboard, organic and SP matrices, annotations, watched keywords, and import history.
+- Daily dashboard with an expandable keyword table, organic and SP matrices, annotations, watched keywords, and import history.
 - Side-by-side organic/SP comparisons with leading relationships and ranking page indicators.
-- Shared detail views for owned products and competitors, with hierarchical navigation and comparison popovers.
-- Monthly ABA CSV imports and current/previous-year trends.
+- Link one shared competitor to multiple owned products, reuse its images and history, and compare ranks and daily movement. Unlinking preserves data.
+- Monthly ABA CSV imports with selectable historical years and year-over-year trends.
 - Resizable columns, date and keyword filters, saved keyword combinations, custom product images, and parent ASIN editing.
 - Product settings for the US, Germany, UK, Japan, Canada, France, Spain, and Italy.
 - Web data stored in browser IndexedDB; desktop data stored locally through the Electron bridge.
+
+## Use a web release
+
+The complete web package needs no Node.js, Python, or Codex installation. GitHub’s **Code → Download ZIP** downloads source code, not the latest ready-to-use package.
+
+1. Extract the entire generated release folder.
+2. Open `打开网页版.cmd` or `index.html` in Chrome or Edge.
+3. For automatic imports, install the bundled [SIF extension](web/extensions/sif-batch-reverse-downloader/README.md) and sign in to SIF in the same browser.
+4. Check product ASINs, countries, and competitor associations in Settings before importing.
+5. Export a JSON backup through File Tools before moving to another browser or computer.
 
 ## Import actions
 
@@ -43,14 +37,6 @@ Keyword rank tracker v2.1: a local-first workspace for daily organic rankings, s
 | 本地导入 — Local import | Manually import downloaded reports. |
 
 Automatic SIF imports use the configured country for each product. All owned-product imports must finish before competitor imports begin. The SIF extension also supports standalone batch downloads for up to 15 ASINs.
-
-## Use a web release
-
-1. Extract the entire generated release folder.
-2. Open `打开网页版.cmd` or `index.html` in Chrome or Edge.
-3. For automatic imports, install the bundled [SIF extension](web/extensions/sif-batch-reverse-downloader/README.md) and sign in to SIF in the same browser.
-4. Check product ASINs, countries, and competitor associations in Settings before importing.
-5. Export a JSON backup through File Tools before moving to another browser or computer.
 
 ## Run from source
 
@@ -112,3 +98,27 @@ The following detailed guides are currently in Chinese:
 - [SIF extension](web/extensions/sif-batch-reverse-downloader/README.md)
 - [Application source guide](apps/keyword-rank/README.md)
 - [SIF automatic import guide](apps/keyword-rank/SIF自动导入说明.md)
+
+## Changelog
+
+<details>
+<summary>Show recent updates</summary>
+
+### Latest updates — September 7, 2026
+
+- Shared competitor library: link one competitor to multiple owned products, reuse images and history, and import it only once. Unlinking preserves the shared record.
+- Expand the dashboard keyword table and restore it with the button or Escape. Competitors support custom images.
+- Fixed matrix hover keyword matching to restore ranks and annotations. Competitor bubbles show daily rank movement and entry/exit status.
+- Select historical years in the monthly ABA table. Comparison rows remain together when no relationship filter is selected.
+
+### Previous updates — September 6, 2026
+
+- Three clear import actions: **Import current product**, **Import all products**, and **Local import**. Automatic imports process owned products before competitors.
+- Organic, SP, and comparison matrices share year and multi-select month controls. The latest month with data is shown by default. Hidden months leave no placeholder columns.
+- Lighter fixed headers and a highlighted selected date improve table readability. The month menu renders on opening with a fade-in and keeps at least one month selected.
+- A running K video accompanies startup. Web import loading uses a frosted background and video at 1.5× speed.
+- Rank hover bubbles use a 0.5-second fade and clear on pointer exit, scrolling, and view changes.
+- Import history, file tools, and settings are grouped in the web header. Restoring the previous week's backup requires typed confirmation and is unavailable without a matching backup.
+
+
+</details>
