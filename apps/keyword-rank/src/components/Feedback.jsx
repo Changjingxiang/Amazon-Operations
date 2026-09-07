@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import runningKVideo from '../assets/running-k.mp4';
+import LoadingWaves from './LoadingWaves.jsx';
 import { AlertTriangle, CheckCircle2, LoaderCircle, X } from 'lucide-react';
 
 function BusyVideo() {
@@ -21,6 +22,7 @@ export function BusyOverlay({ label }) {
   if (!label) return null;
   return (
     <div className={`busy-overlay ${window.keywordTracker?.isWeb ? 'busy-overlay-video' : ''}`} role="status" aria-live="polite">
+      {window.keywordTracker?.isWeb && <LoadingWaves />}
       <div>{window.keywordTracker?.isWeb ? <BusyVideo /> : <LoaderCircle className="spin" size={34} />}<strong>{label}</strong><span>请不要关闭软件窗口</span></div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import App from '../App.jsx';
+import LoadingWaves from './LoadingWaves.jsx';
 import runningKVideo from '../assets/running-k.mp4';
 import './StartupExperience.css';
 
@@ -35,6 +36,7 @@ function RunningK({ status, onDone }) {
     return () => window.clearTimeout(timer);
   }, [status, onDone, playedEnough, videoFailed, timedOut]);
   return <div className={`k-loading ${leaving ? 'is-leaving' : ''}`} role="status" aria-live="polite" onTransitionEnd={(event) => { if (event.target === event.currentTarget && event.propertyName === 'opacity' && leaving) onDone(); }}>
+    <LoadingWaves />
     <div className="k-loading-content">
       <div className="k-loading-media" aria-hidden="true">
         {(!videoReady || videoFailed) && <span className="k-video-fallback">K</span>}
