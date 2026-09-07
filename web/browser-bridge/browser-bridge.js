@@ -716,7 +716,7 @@
         spAnnotations: dates.map((date) => annotationMaps.sp.get(`${itemKey}|${date}`) || ''),
       };
     });
-    const abaRows = orderedKeys.map((itemKey) => {
+    const buildAbaRowsForYear = (selectedYear) => orderedKeys.map((itemKey) => {
       const base = latestByKeyword.get(itemKey);
       const watch = watchMap.get(itemKey);
       const keywordRecords = recordsByKeyword.get(itemKey) || [];
@@ -735,7 +735,7 @@
       });
       const previousYear = selectedYear - 1;
       const abaPreviousTrend = buildAbaSeries(allAbaMonthly, config.countryCode || config.site, previousYear, itemKey, currentMonthNumber);
-      const currentMonth = latestDate ? latestDate.slice(0, 7) : '';
+      const currentMonth = `${selectedYear}-${latestDate ? latestDate.slice(5, 7) : '01'}`;
       const previousYearMonth = currentMonth ? shiftMonthKey(currentMonth, -12) : '';
       const previousYearNextMonth = previousYearMonth ? shiftMonthKey(previousYearMonth, 1) : '';
       const previousYearRank = nullableNumber(abaEntryRows(getAbaMonthlyEntry(allAbaMonthly, config.countryCode || config.site, previousYearMonth))?.[itemKey]);
@@ -756,6 +756,12 @@
         abaPreviousYearMoMTrend: direction(previousYearNextRank, previousYearRank),
       };
     });
+    const abaYears = [...new Set([selectedYear, selectedYear - 1,
+      ...dates.map((date) => Number(date.slice(0, 4))),
+      ...listAbaMonthlyImports(allAbaMonthly).map((entry) => entry.year),
+    ])].sort((a, b) => b - a);
+    const abaRowsByYear = Object.fromEntries(abaYears.map((year) => [year, buildAbaRowsForYear(year)]));
+    const abaRows = abaRowsByYear[selectedYear];
     const snapshotSummary = dates.map((date) => {
       const sameDay = records.filter((item) => item.snapshotDate === date);
       return {
@@ -782,6 +788,8 @@
       dashboardRows,
       matrixRows,
       abaRows,
+      abaYears,
+      abaRowsByYear,
       snapshotSummary,
       historyRecords: records,
     };

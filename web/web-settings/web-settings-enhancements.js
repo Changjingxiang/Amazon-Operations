@@ -547,7 +547,7 @@
     let data;
     try { data = await api.getData(); } catch (error) { delete table.dataset.abaComparisonColumns; return; }
     const model = activeModel(data);
-    const rowsByKeyword = new Map((model?.abaRows || []).map((row) => [keywordKey(row.keyword), row]));
+    const rowsByKeyword = new Map((model?.abaRowsByYear?.[table.dataset.abaYear] || model?.abaRows || []).map((row) => [keywordKey(row.keyword), row]));
     const colgroup = table.querySelector('colgroup');
     // Remove the old同比 column when this enhancer is applied to a table that
     // was already enhanced by an earlier release or a hot reload.
@@ -866,7 +866,8 @@
     const ownerAsin = active?.kind === 'competitor' ? active.ownerParentAsin : (active?.parentAsin || currentAsin);
     const owner = lookup.modelByAsin.get(normalizedAsin(ownerAsin)) || ownerModelForAsin(modelData, ownerAsin);
     if (!owner) return;
-    const keyword = cell.closest('tr')?.querySelector('.keyword-col')?.getAttribute('title')
+    const keyword = cell.getAttribute('data-matrix-keyword')
+      || cell.closest('tr')?.querySelector('.keyword-col')?.getAttribute('title')
       || cell.closest('tr')?.querySelector('.keyword-col')?.textContent?.trim() || '';
     const metric = cell.classList.contains('sp-annotation-cell') ? 'sp' : 'natural';
     const date = matrixCellDate(table, cell, active || owner);

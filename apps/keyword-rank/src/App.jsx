@@ -169,7 +169,9 @@ export default function App({ onStartupSettled }) {
   const dashboardRows = useMemo(() => filterRows(dateView.rows, viewFilters.dashboard), [dateView.rows, viewFilters.dashboard]);
   const naturalRows = useMemo(() => filterRows(model?.matrixRows, viewFilters.natural), [model?.matrixRows, viewFilters.natural]);
   const spRows = useMemo(() => filterRows(model?.matrixRows, viewFilters.sp), [model?.matrixRows, viewFilters.sp]);
-  const abaRows = useMemo(() => filterRows(model?.abaRows, viewFilters.aba), [model?.abaRows, viewFilters.aba]);
+  const abaYear = Number(viewFilters.aba.abaYear || model?.selectedYear);
+  const abaModel = useMemo(() => model ? { ...model, selectedYear: abaYear, abaRows: model.abaRowsByYear?.[abaYear] || model.abaRows } : null, [model, abaYear]);
+  const abaRows = useMemo(() => filterRows(abaModel?.abaRows, viewFilters.aba), [abaModel, viewFilters.aba]);
   const comparisonRows = useMemo(() => filterRows(model?.matrixRows, viewFilters.comparison), [model?.matrixRows, viewFilters.comparison]);
   const filteredMetrics = useMemo(() => ({
     ...dateView.metrics,
@@ -384,7 +386,7 @@ export default function App({ onStartupSettled }) {
             {activeTab === 'natural' && <MatrixView model={model} metric="natural" rows={naturalRows} filters={viewFilters.natural} onFiltersChange={(next) => updateViewFilter('natural', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
             {activeTab === 'sp' && <MatrixView model={model} metric="sp" rows={spRows} filters={viewFilters.sp} onFiltersChange={(next) => updateViewFilter('sp', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
             {activeTab === 'comparison' && <ComparisonMatrixView model={model} rows={model.matrixRows} filters={viewFilters.comparison} onFiltersChange={(next) => updateViewFilter('comparison', next)} selectedDate={selectedDate} focusSection={comparisonFocus} onFocusHandled={() => setComparisonFocus(null)} onToggleWatch={toggleWatch} />}
-            {activeTab === 'aba' && <ABAView model={model} rows={abaRows} filters={viewFilters.aba} onFiltersChange={(next) => updateViewFilter('aba', next)} onToggleWatch={toggleWatch} />}
+            {activeTab === 'aba' && <ABAView model={abaModel} rows={abaRows} filters={viewFilters.aba} onFiltersChange={(next) => updateViewFilter('aba', next)} onToggleWatch={toggleWatch} />}
             {activeTab === 'history' && <HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} />}
           </div>
           <footer className="statusbar">

@@ -42,6 +42,7 @@ function movementText(value, previous) {
 }
 
 const CATEGORY_META = {
+  all: { title: '全部关键词', subtitle: '未选择对比关系，合并显示全部关键词', empty: '当前筛选没有关键词。' },
   natural: {
     title: '自然领先',
     subtitle: '当前日期自然排名优于 SP 排名',
@@ -79,6 +80,7 @@ function inCategory(natural, sp, category) {
 }
 
 function categoryRows(model, comparisonDate, category, sourceRows) {
+  if (category === 'all') return (sourceRows || []).map((row, order) => ({ row, order }));
   const dates = model?.dates || [];
   const selectedIndex = dates.indexOf(comparisonDate);
   if (selectedIndex < 0) return [];
@@ -197,7 +199,7 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
   const activeCategories = useMemo(() => {
     const requested = new Set(currentFilter.relations || []);
     const categoryOrder = ['natural', 'sp', ...COMPARISON_FILTER_OPTIONS.map((option) => option.value).filter((value) => value !== 'natural' && value !== 'sp')];
-    return categoryOrder.filter((value) => requested.size ? requested.has(value) : value === 'natural' || value === 'sp');
+    return requested.size ? categoryOrder.filter((value) => requested.has(value)) : ['all'];
   }, [currentFilter.relations]);
   const rowsByCategory = useMemo(() => Object.fromEntries(activeCategories.map((category) => [category, categoryRows(model, comparisonDate, category, sourceRows)])), [activeCategories, model, comparisonDate, sourceRows]);
   const dateAxisKey = dates.join('|');
@@ -238,7 +240,7 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
   return (
     <section className="comparison-panel" data-comparison-matrix aria-labelledby="comparison-matrix-title">
       <div className="comparison-note">
-        <div className="comparison-note-copy"><strong id="comparison-matrix-title">对比矩阵</strong><span>按当前日期筛选分类；每个日期下分别显示自然、SP排名。五类筛选同级，可多选。</span></div>
+        <div className="comparison-note-copy"><strong id="comparison-matrix-title">对比矩阵</strong><span>按当前日期筛选分类；每个日期下分别显示自然、SP排名。未选对比关系时合并显示，勾选后按关系分组。</span></div>
         <FilterCascade
           rows={model?.matrixRows || []}
           filter={currentFilter}
