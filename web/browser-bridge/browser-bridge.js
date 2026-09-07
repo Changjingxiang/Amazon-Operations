@@ -335,6 +335,7 @@
       competitorName: name,
       modelName: name,
       parentAsin,
+      ownerParentAsins: [...new Set((Array.isArray(competitor.ownerParentAsins) ? competitor.ownerParentAsins : [ownerParentAsin]).map(value => text(value).toUpperCase()).filter(Boolean))],
       ownerParentAsin,
       ownerModelName: text(competitor.ownerModelName),
       historySheet,
@@ -821,9 +822,11 @@
     });
     const competitorsByOwner = new Map();
     competitors.forEach((competitor) => {
-      const bucket = competitorsByOwner.get(competitor.ownerParentAsin) || [];
-      bucket.push(competitor);
-      competitorsByOwner.set(competitor.ownerParentAsin, bucket);
+      competitor.ownerParentAsins.forEach((ownerAsin) => {
+        const bucket = competitorsByOwner.get(ownerAsin) || [];
+        bucket.push(competitor);
+        competitorsByOwner.set(ownerAsin, bucket);
+      });
     });
     ownModels.forEach((model) => {
       model.competitors = competitorsByOwner.get(model.parentAsin) || [];
@@ -976,6 +979,15 @@
     if (!owner) throw new Error('找不到要关联竞品的自有产品。');
     const parentAsin = text(payload.parentAsin || payload.asin).toUpperCase();
     if (!/^B0[A-Z0-9]{8}$/.test(parentAsin)) throw new Error('竞品父体 ASIN 格式不正确。');
+    const existing = store.competitors.find(item => item.parentAsin === parentAsin || (item.legacyParentAsins || []).includes(parentAsin));
+    if (existing) {
+      const requestedCountry = payload.countryCode || payload.site;
+      if (requestedCountry && normalizeCountryCode(requestedCountry) !== existing.countryCode) throw new Error('该竞品已在共享库中，站点不同，不能关联到另一站点。');
+      existing.ownerParentAsins = [...new Set([...existing.ownerParentAsins, owner.parentAsin])];
+      existing.ownerParentAsin = existing.ownerParentAsins[0];
+      await writeStore(store);
+      return result(`已将共享竞品“${existing.competitorName}”关联到“${owner.modelName}”，原有数据保持共用。`);
+    }
     const competitorName = text(payload.competitorName || payload.modelName || payload.name);
     if (!competitorName) throw new Error('竞品名称不能为空。');
     const ownAsins = store.configs.flatMap((item) => [item.parentAsin, ...(item.legacyParentAsins || [])]);
@@ -1077,6 +1089,7 @@
       }
     });
     store.competitors.forEach((competitor) => {
+      competitor.ownerParentAsins = [...new Set(competitor.ownerParentAsins.map(asin => aliases.has(asin) ? nextAsin : asin))];
       if (aliases.has(text(competitor.ownerParentAsin).toUpperCase())) {
         competitor.ownerParentAsin = nextAsin;
         competitor.ownerModelName = config.modelName;
@@ -1105,14 +1118,9 @@
     store.annotations = store.annotations.filter((item) => item.parentAsin
       ? !removedAsins.has(text(item.parentAsin).toUpperCase())
       : item.modelName !== removed.modelName);
-    const removedCompetitors = store.competitors.filter((item) => removedAsins.has(text(item.ownerParentAsin).toUpperCase()));
-    store.competitors = store.competitors.filter((item) => !removedAsins.has(text(item.ownerParentAsin).toUpperCase()));
-    removedCompetitors.forEach((competitor) => {
-      delete store.histories[competitor.historySheet];
-      const competitorAsins = new Set([competitor.parentAsin, ...(competitor.legacyParentAsins || [])]);
-      for (const [fileName, info] of Object.entries(store.importedFiles)) {
-        if (info && competitorAsins.has(text(info.parentAsin).toUpperCase())) delete store.importedFiles[fileName];
-      }
+    store.competitors.forEach((competitor) => {
+      competitor.ownerParentAsins = competitor.ownerParentAsins.filter(asin => !removedAsins.has(asin));
+      competitor.ownerParentAsin = competitor.ownerParentAsins[0] || '';
     });
     for (const [fileName, info] of Object.entries(store.importedFiles)) {
       if (info && removedAsins.has(text(info.parentAsin).toUpperCase())) delete store.importedFiles[fileName];
@@ -1131,8 +1139,15 @@
     const ownerAsin = text(payload.ownerParentAsin || payload.ownerAsin).toUpperCase();
     const index = store.competitors.findIndex((item) =>
       (id && item.id === id)
-      || (!id && asin && item.parentAsin === asin && (!ownerAsin || item.ownerParentAsin === ownerAsin)));
+      || (!id && asin && item.parentAsin === asin && (!ownerAsin || item.ownerParentAsins.includes(ownerAsin))));
     if (index < 0) throw new Error('找不到要删除的竞品。');
+    if (ownerAsin) {
+      const competitor = store.competitors[index];
+      competitor.ownerParentAsins = competitor.ownerParentAsins.filter(asin => asin !== ownerAsin);
+      competitor.ownerParentAsin = competitor.ownerParentAsins[0] || '';
+      await writeStore(store);
+      return result('已解除当前产品关联，共享竞品及历史数据已保留。');
+    }
     const [removed] = store.competitors.splice(index, 1);
     let ownerOrder = 0;
     store.competitors.forEach((item) => {

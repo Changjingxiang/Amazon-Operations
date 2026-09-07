@@ -306,6 +306,15 @@
       || (model?.legacyParentAsins || []).map(normalizedAsin).includes(wanted)) || null;
   }
 
+  let sharedOwnerContext = '';
+  function competitorOwners(model) {
+    return (Array.isArray(model?.ownerParentAsins) ? model.ownerParentAsins : [model?.ownerParentAsin]).map(normalizedAsin).filter(Boolean);
+  }
+  function contextualOwner(model) {
+    const owners = competitorOwners(model);
+    return owners.includes(sharedOwnerContext) ? sharedOwnerContext : owners[0] || '';
+  }
+
   function resolveOwnerAsin(data, asin) {
     const wanted = normalizedAsin(asin);
     const own = ownModelsFromData(data).find((model) =>
@@ -315,7 +324,7 @@
     const competitor = competitorModelsFromData(data).find((model) =>
       normalizedAsin(model?.parentAsin) === wanted
       || (model?.legacyParentAsins || []).map(normalizedAsin).includes(wanted));
-    return normalizedAsin(competitor?.ownerParentAsin || wanted);
+    return normalizedAsin(contextualOwner(competitor) || wanted);
   }
 
   function ownerModelForAsin(data, asin) {
@@ -706,10 +715,11 @@
       });
       modelLookups.set(model, { rowsByKeyword, datesByValue, historyByKeywordDate });
       if (model?.kind === 'competitor') {
-        const owner = normalizedAsin(model.ownerParentAsin);
-        const bucket = competitorsByOwner.get(owner) || [];
-        bucket.push(model);
-        competitorsByOwner.set(owner, bucket);
+        competitorOwners(model).forEach(owner => {
+          const bucket = competitorsByOwner.get(owner) || [];
+          bucket.push(model);
+          competitorsByOwner.set(owner, bucket);
+        });
       }
     });
     competitorsByOwner.forEach((list) => list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
@@ -878,7 +888,7 @@
     const lookup = buildMatrixLookup(modelData);
     const currentAsin = getCurrentAsin();
     const active = lookup.modelByAsin.get(currentAsin) || activeModel(modelData);
-    const ownerAsin = active?.kind === 'competitor' ? active.ownerParentAsin : (active?.parentAsin || currentAsin);
+    const ownerAsin = active?.kind === 'competitor' ? contextualOwner(active) : (active?.parentAsin || currentAsin);
     const owner = lookup.modelByAsin.get(normalizedAsin(ownerAsin)) || ownerModelForAsin(modelData, ownerAsin);
     if (!owner) return;
     const keyword = cell.getAttribute('data-matrix-keyword')
@@ -1000,9 +1010,9 @@
       line.innerHTML = `
         <div class="settings-competitor-item-main">
           <strong>${escapeHtml(competitor.competitorName || competitor.modelName || '未命名竞品')}</strong>
-          <small>${escapeHtml(competitor.ownerModelName || competitor.ownerParentAsin || '')} · ${escapeHtml(competitor.parentAsin || '')} · ${escapeHtml(competitor.site || competitor.countryCode || '')}</small>
+          <small>${escapeHtml(competitorOwners(competitor).map(asin => models.find(model => model.parentAsin === asin)?.modelName || asin).join('、') || '尚未关联产品')} · ${escapeHtml(competitor.parentAsin || '')} · ${escapeHtml(competitor.site || competitor.countryCode || '')}</small>
         </div>
-        <button type="button" class="settings-competitor-remove" data-competitor-remove="${escapeHtml(competitor.competitorId || competitor.id || '')}">删除</button>`;
+        <button type="button" class="settings-competitor-remove" data-competitor-remove="${escapeHtml(competitor.competitorId || competitor.id || '')}" data-shared-asin="${escapeHtml(competitor.parentAsin)}" data-linked="${competitorOwners(competitor).includes(ownerSelect.value)}">${competitorOwners(competitor).includes(ownerSelect.value) ? '解除当前关联' : '关联到当前产品'}</button>`;
       list.appendChild(line);
     });
   }
@@ -1014,10 +1024,10 @@
     section.className = 'settings-competitor-panel';
     section.setAttribute(COMPETITOR_SETTINGS_ATTR, '');
     section.innerHTML = `
-      <div class="settings-competitor-title"><span>竞品设置</span><small>按 ASIN 自动匹配报表</small></div>
-      <p class="settings-competitor-help">为自己的产品添加一个或多个竞品。竞品使用与自有产品相同的 SIF/本地 Excel 导入方式，报表中的父体 ASIN 会自动归档到对应竞品；历史数据会持续保留。</p>
+      <div class="settings-competitor-title"><span>竞品设置 · 共享竞品库</span><small>按 ASIN 自动匹配报表</small></div>
+      <p class="settings-competitor-help">选择自家产品后，可添加新竞品，或从下方共享库关联已有竞品。同一竞品的图片、排名和历史共用，只导入一次；解除关联不删除共享数据。</p>
       <div class="settings-competitor-fields">
-        <label>归属自己的产品<select data-competitor-owner></select></label>
+        <label>关联到自家产品<select data-competitor-owner></select></label>
         <label>竞品名称<input data-competitor-name type="text" maxlength="80" placeholder="例如 竞品 A" /></label>
         <label>竞品父体 ASIN<input data-competitor-asin type="text" maxlength="10" placeholder="B0XXXXXXXX" spellcheck="false" /></label>
         <label>国家<select data-competitor-country>${countryOptions('CA')}</select></label>
@@ -1056,6 +1066,7 @@
       const data = await api?.getData?.();
       const model = ownModelsFromData(data).find((item) => item.parentAsin === ownerSelect.value);
       if (model && !countrySelect.dataset.userChanged) countrySelect.value = model.countryCode || 'CA';
+      renderCompetitorSettings(section, data);
     });
     countrySelect.addEventListener('change', () => { countrySelect.dataset.userChanged = 'true'; });
     asinInput.addEventListener('input', () => { asinInput.value = asinInput.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
@@ -1098,11 +1109,13 @@
       const competitorId = button.getAttribute('data-competitor-remove');
       const item = button.closest('.settings-competitor-item');
       const label = item?.querySelector('strong')?.textContent?.trim() || '该竞品';
-      if (!window.confirm(`确定删除竞品“${label}”吗？其历史报表也会从浏览器本地数据中删除。`)) return;
+      const linked = button.dataset.linked === 'true';
       if (!api || typeof api.deleteCompetitor !== 'function') { competitorSettingsStatus(section, '当前网页未加载竞品删除功能，请刷新后重试。', true); return; }
       button.disabled = true;
       try {
-        const response = await api.deleteCompetitor({ competitorId });
+        const response = linked
+          ? await api.deleteCompetitor({ competitorId, ownerParentAsin: ownerSelect.value })
+          : await api.addCompetitor({ parentAsin: button.dataset.sharedAsin, ownerParentAsin: ownerSelect.value });
         competitorSettingsStatus(section, response?.output || '竞品已删除。');
         await refresh();
         window.dispatchEvent(new CustomEvent('keyword-tracker-competitor-updated'));
@@ -1190,7 +1203,7 @@
   function ownerCompetitors(data, owner) {
     if (!owner) return [];
     const list = Array.isArray(data?.competitors) ? data.competitors : [];
-    return list.filter((item) => String(item.ownerParentAsin || '').toUpperCase() === String(owner.parentAsin || '').toUpperCase())
+    return list.filter((item) => competitorOwners(item).includes(normalizedAsin(owner.parentAsin)))
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
@@ -1318,7 +1331,7 @@
   function sidebarCompetitorsFor(data, ownerAsin) {
     const owner = normalizedAsin(ownerAsin);
     return competitorModelsFromData(data)
-      .filter((competitor) => normalizedAsin(competitor?.ownerParentAsin) === owner)
+      .filter((competitor) => competitorOwners(competitor).includes(owner))
       .sort((a, b) => Number(a?.order || 0) - Number(b?.order || 0));
   }
 
@@ -1328,9 +1341,9 @@
       const ownerRow = list.previousElementSibling;
       const ownerAsin = sidebarRowDetails(ownerRow).asin;
       const selected = [...list.querySelectorAll(`[${COMPETITOR_ITEM_ATTR}]`)]
-        .some((line) => normalizedAsin(line.getAttribute('data-competitor-asin')) === activeAsin);
+        .some((line) => normalizedAsin(line.getAttribute('data-competitor-asin')) === activeAsin && (!sharedOwnerContext || sharedOwnerContext === sidebarRowDetails(list.previousElementSibling).asin));
       list.querySelectorAll(`[${COMPETITOR_ITEM_ATTR}]`).forEach((line) => {
-        line.classList.toggle('is-selected', normalizedAsin(line.getAttribute('data-competitor-asin')) === activeAsin);
+        line.classList.toggle('is-selected', normalizedAsin(line.getAttribute('data-competitor-asin')) === activeAsin && (!sharedOwnerContext || sharedOwnerContext === sidebarRowDetails(list.previousElementSibling).asin));
       });
       const toggle = ownerRow?.querySelector(`[${COMPETITOR_SIDEBAR_ATTR}]`);
       if (selected) {
@@ -1438,6 +1451,7 @@
             copy?.addEventListener('click', (event) => {
               event.preventDefault();
               event.stopPropagation();
+              sharedOwnerContext = asin;
               toggle.setAttribute('aria-expanded', 'true');
               list.hidden = false;
               const hiddenRow = [...modelList.querySelectorAll(':scope > .model-item')]
@@ -1449,12 +1463,12 @@
           });
         }
       }
-      const selectedCompetitor = ownerCompetitors.some((competitor) => normalizedAsin(competitor.parentAsin) === activeAsin);
+      const selectedCompetitor = (!sharedOwnerContext || sharedOwnerContext === asin) && ownerCompetitors.some((competitor) => normalizedAsin(competitor.parentAsin) === activeAsin);
       if (selectedCompetitor) toggle.setAttribute('aria-expanded', 'true');
       const expanded = toggle.getAttribute('aria-expanded') === 'true';
       list.hidden = !expanded;
       list.querySelectorAll(`[${COMPETITOR_ITEM_ATTR}]`).forEach((line) => {
-        line.classList.toggle('is-selected', normalizedAsin(line.getAttribute('data-competitor-asin')) === activeAsin);
+        line.classList.toggle('is-selected', normalizedAsin(line.getAttribute('data-competitor-asin')) === activeAsin && (!sharedOwnerContext || sharedOwnerContext === sidebarRowDetails(list.previousElementSibling).asin));
       });
     });
     modelList.querySelectorAll(`[${COMPETITOR_LIST_ATTR}]`).forEach((list) => {
@@ -1546,7 +1560,7 @@
       modelName: model.modelName,
       kind: 'own',
     }));
-    const competitorItems = competitorModelsFromData(data).filter(model => !owner || normalizedAsin(model.ownerParentAsin) === owner).map((competitor) => ({
+    const competitorItems = competitorModelsFromData(data).filter(model => !owner || competitorOwners(model).includes(owner)).map((competitor) => ({
       asin: competitor.parentAsin,
       countryCode: competitor.countryCode || competitor.site || 'CA',
       modelName: competitor.competitorName || competitor.modelName,

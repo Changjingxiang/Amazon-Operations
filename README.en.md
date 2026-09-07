@@ -8,7 +8,14 @@
 
 Keyword rank tracker v2.1: a local-first workspace for daily organic rankings, sponsored product (SP) rankings, ABA trends, and competitor comparisons. The application interface is currently in Chinese.
 
-## Latest updates — September 6, 2026
+## Latest updates — September 7, 2026
+
+- Shared competitor library: link one competitor to multiple owned products, reuse images and history, and import it only once. Unlinking preserves the shared record.
+- Expand the dashboard keyword table and restore it with the button or Escape. Competitors support custom images.
+- Fixed matrix hover keyword matching to restore ranks and annotations. Competitor bubbles show daily rank movement and entry/exit status.
+- Select historical years in the monthly ABA table. Comparison rows remain together when no relationship filter is selected.
+
+## Previous updates — September 6, 2026
 
 - Three clear import actions: **Import current product**, **Import all products**, and **Local import**. Automatic imports process owned products before competitors.
 - Organic, SP, and comparison matrices share year and multi-select month controls. The latest month with data is shown by default. Hidden months leave no placeholder columns.
