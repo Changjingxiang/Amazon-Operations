@@ -110,7 +110,7 @@ function RankCell({ value, previous, metric, date, selected }) {
   );
 }
 
-function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate, onToggleWatch, widths, resizeHandle, sectionRef }) {
+function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, widths, resizeHandle, sectionRef }) {
   const meta = CATEGORY_META[category] || CATEGORY_META.common;
   return (
     <section ref={sectionRef} className={`comparison-section comparison-section-${category}`} data-comparison-section={category} aria-labelledby={`comparison-${category}-title`}>
@@ -159,7 +159,12 @@ function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate
                       aria-label={row.watched ? `取消关注 ${row.keyword}` : `关注 ${row.keyword}`}
                     ><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button>
                   </td>
-                  <td className="comparison-keyword-cell" data-text-tooltip={row.keyword}>{row.keyword}</td>
+                  <td
+                    className="comparison-keyword-cell comparison-trend-keyword"
+                    data-text-tooltip="双击查看趋势"
+                    title="双击查看趋势"
+                    onDoubleClick={() => onOpenTrend?.(row)}
+                  >{row.keyword}</td>
                   <td className="comparison-translation-cell" data-text-tooltip={row.translation}>{row.translation || '—'}</td>
                   {dates.flatMap((date) => {
                     const index = dateIndexMap.get(date);
@@ -182,7 +187,7 @@ function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate
   );
 }
 
-export default function ComparisonMatrixView({ model, rows: visibleRows, filters, onFiltersChange, selectedDate, focusSection, onFocusHandled, onToggleWatch }) {
+export default function ComparisonMatrixView({ model, rows: visibleRows, filters, onFiltersChange, selectedDate, focusSection, onFocusHandled, onToggleWatch, onOpenTrend, restoreScroll }) {
   const comparisonScrollRef = useRef(null);
   const sectionRefs = useRef({});
   const defaults = useMemo(() => ({ star: 54, keyword: 250, translation: 180, rank: 82 }), []);
@@ -219,12 +224,13 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
         return;
       }
       tableScrolls.forEach((tableScroll) => {
-        tableScroll.scrollLeft = Math.max(0, tableScroll.scrollWidth - tableScroll.clientWidth);
+        tableScroll.scrollLeft = restoreScroll?.left ?? Math.max(0, tableScroll.scrollWidth - tableScroll.clientWidth);
       });
+      if (restoreScroll?.top != null) scroll.scrollTop = restoreScroll.top;
     };
     frame = window.requestAnimationFrame(() => { frame = window.requestAnimationFrame(align); });
     return () => { if (frame) window.cancelAnimationFrame(frame); };
-  }, [model?.parentAsin, model?.latestDate, dateAxisKey, activeCategories.join('|')]);
+  }, [model?.parentAsin, model?.latestDate, dateAxisKey, activeCategories.join('|'), restoreScroll?.left, restoreScroll?.top]);
 
   useEffect(() => {
     if (!focusSection) return undefined;
@@ -267,6 +273,7 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
             dateIndexMap={dateIndexMap}
             comparisonDate={comparisonDate}
             onToggleWatch={onToggleWatch}
+            onOpenTrend={onOpenTrend}
             widths={widths}
             resizeHandle={resizeHandle}
             sectionRef={(node) => { sectionRefs.current[category] = node; }}

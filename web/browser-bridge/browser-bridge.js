@@ -8,6 +8,8 @@
   const STORE_NAME = 'state';
   const STATE_KEY = 'tracker-store';
   const SCHEMA_VERSION = 4;
+  const cloudMode = Boolean(window.__KEYWORD_CLOUD_MODE__) || new URLSearchParams(window.location.search).get('cloud') === '1';
+  const cloudStorage = cloudMode && window.parent !== window ? window.parent.__keywordCloudStorage : null;
   const ORIGINAL_SEED = window.__KEYWORD_TRACKER_SEED__ || {
     schemaVersion: SCHEMA_VERSION,
     configs: [],
@@ -427,6 +429,10 @@
   }
 
   async function previousWeekBackup() {
+    if (cloudMode) {
+      if (!cloudStorage) throw new Error('请从飞书云端工作台入口打开。');
+      return cloudStorage.previousWeek();
+    }
     const db = await openDatabase();
     try {
       const backups = await new Promise((resolve, reject) => {
@@ -444,7 +450,15 @@
   }
 
   async function ensureStore() {
-    if (memoryStore) return memoryStore;
+    if (memoryStore) return cloudMode ? clone(memoryStore) : memoryStore;
+    if (cloudMode) {
+      if (!cloudStorage) throw new Error('云端连接未建立，请从飞书云端工作台入口打开。');
+      const savedCloud = await cloudStorage.read();
+      const next = normalizeStore(savedCloud || clone(ORIGINAL_SEED));
+      if (!savedCloud) await cloudStorage.write(next);
+      memoryStore = next;
+      return clone(memoryStore);
+    }
     let saved = null;
     try {
       saved = await readIndexedStore();
@@ -460,6 +474,13 @@
   }
 
   async function writeStore(store) {
+    if (cloudMode) {
+      if (!cloudStorage) throw new Error('云端连接未建立，数据尚未保存。');
+      const next = normalizeStore({ ...store, updatedAt: new Date().toISOString() });
+      await cloudStorage.write(next);
+      memoryStore = next;
+      return memoryStore;
+    }
     memoryStore = normalizeStore({ ...store, updatedAt: new Date().toISOString() });
     if (indexedDbAvailable) {
       try { await writeIndexedStore(memoryStore); } catch (error) {
@@ -1795,8 +1816,7 @@
     if (!files.length) return;
     const parsed = JSON.parse(await files[0].text());
     if (!Array.isArray(parsed.configs) || !parsed.histories || typeof parsed.histories !== 'object') throw new Error('所选文件不是有效的关键词排名数据备份。');
-    memoryStore = normalizeStore(parsed);
-    await writeStore(memoryStore);
+    await writeStore(normalizeStore(parsed));
     location.reload();
   }
 
@@ -1814,7 +1834,7 @@
       <div class="browser-manager-card" role="dialog" aria-modal="true" aria-labelledby="browser-manager-title">
         <button class="browser-manager-close" aria-label="关闭">×</button>
         <h2 id="browser-manager-title">工具文件夹</h2>
-        <p>数据保存在此浏览器的 IndexedDB 中。建议定期导出 JSON 备份。</p>
+        <p>${cloudMode ? '数据保存到云端，同一飞书账号可跨设备读取。可导出 JSON 备份。' : '数据保存在此浏览器的 IndexedDB 中。建议定期导出 JSON 备份。'}</p>
         <div class="browser-manager-actions">
           <button data-action="export">导出数据备份</button>
           <button data-action="import">导入数据备份</button>
@@ -1874,7 +1894,8 @@
           try {
             const current = clone(await ensureStore());
             const restored = normalizeStore(clone(backup.store));
-            await writeIndexedStore(restored, current);
+            if (cloudMode) await writeStore(restored);
+            else await writeIndexedStore(restored, current);
             memoryStore = restored;
             location.reload();
           } catch (error) { status.textContent = '恢复失败：' + error.message; button.disabled = false; }
@@ -1932,4 +1953,18 @@
     },
     closeWindow: () => alert('网页版不会主动关闭标签页，请使用浏览器的关闭按钮。'),
   };
+  if (cloudMode) {
+    document.documentElement.classList.add('cloud-edition');
+    const cloudStyle = document.createElement('link');
+    cloudStyle.rel = 'stylesheet'; cloudStyle.href = './cloud-mobile.css'; document.head.appendChild(cloudStyle);
+    window.__keywordCloudAction = async (action) => {
+      if (action === 'products') { document.body.classList.toggle('cloud-products-open'); return; }
+      if (action === 'export') return exportBackup();
+      if (action === 'import-backup') return importBackup();
+      if (action === 'import') {
+        const response = await importReports('normal');
+        if (!response.output?.startsWith('未选择')) location.reload();
+      }
+    };
+  }
 })();

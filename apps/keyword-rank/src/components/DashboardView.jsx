@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDownAZ, ArrowUpAZ, Star, Maximize2, Minimize2 } from 'lucide-react';
 import Sparkline from './Sparkline.jsx';
-import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
+import KeywordTrendThumbnail from './KeywordTrendThumbnail.jsx';
 import { integer, percent } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import FilterCascade, { WATCH_FILTER_OPTIONS } from './FilterCascade.jsx';
@@ -16,7 +16,7 @@ function keywordKey(value) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
 }
 
-export default function DashboardView({ rows, sourceRows, model, filters, onFiltersChange, onToggleWatch, onManage }) {
+export default function DashboardView({ rows, sourceRows, model, filters, onFiltersChange, onToggleWatch, onManage, onOpenTrend }) {
   const [expanded, setExpanded] = useState(false);
   useEffect(() => { const escape = (event) => { if (event.key === 'Escape') setExpanded(false); }; window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape); }, []);
   const [sort, setSort] = useState({ field: null, direction: 'asc' });
@@ -48,22 +48,13 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
     });
   }, [rows, sort]);
 
-  const abaRowsByKeyword = useMemo(
-    () => new Map((model?.abaRows || []).map((row) => [keywordKey(row.keyword), row])),
-    [model?.abaRows],
-  );
   useEffect(() => { setHovered(null); }, [model?.parentAsin, model?.selectedYear, rows]);
 
   const chooseSort = (field, direction) => setSort({ field, direction });
   const widthStyle = (column) => ({ width: widths[column], minWidth: widths[column] });
   const resizeHandle = (column, label) => <ResizeHandle columnKey={column} onResize={startResize} onNudge={nudgeWidth} label={label} />;
-  const showTrend = (row, event) => {
-    const abaRow = abaRowsByKeyword.get(keywordKey(row.keyword)) || row;
-    setHovered({ keyword: row.keyword, row: abaRow, style: trendPopoverStyle(event, event?.currentTarget) });
-  };
-  const updateTrend = (row, event) => setHovered((current) => current?.keyword === row.keyword
-    ? { ...current, style: trendPopoverStyle(event) }
-    : current);
+  const showTrend = (row, event) => setHovered({ keyword: row.keyword, style: { left: event.clientX + 14, top: event.clientY + 14 } });
+  const updateTrend = (row, event) => setHovered((current) => current?.keyword === row.keyword ? { ...current, style: { left: event.clientX + 14, top: event.clientY + 14 } } : current);
   const sortButton = (field, direction, label, Icon) => (
     <button
       type="button"
@@ -125,6 +116,7 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
                   onMouseLeave={() => setHovered(null)}
                   onFocus={(event) => showTrend(row, event)}
                   onBlur={() => setHovered(null)}
+                  onDoubleClick={() => onOpenTrend?.(model.matrixRows?.find((item) => keywordKey(item.keyword) === keywordKey(row.keyword)) || row)}
                   tabIndex="0"
                 >{row.keyword}</td>
                 <td title={row.translation}>{row.translation || '—'}</td>
@@ -142,14 +134,7 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
         </table>
       </div>
       {hovered && createPortal(
-        <AbaTrendPopover
-          keyword={hovered.keyword}
-          trend={hovered.row.abaTrend}
-          previousTrend={hovered.row.abaPreviousTrend}
-          year={model?.selectedYear}
-          previousYear={hovered.row.previousYear}
-          style={hovered.style}
-        />,
+        <div className="keyword-trend-thumbnail-portal" style={hovered.style}><KeywordTrendThumbnail model={model} keyword={hovered.keyword} onDoubleClick={() => onOpenTrend?.(model.matrixRows?.find((item) => keywordKey(item.keyword) === keywordKey(hovered.keyword)) || { keyword: hovered.keyword })} /></div>,
         document.body,
       )}
     </section>

@@ -5,6 +5,7 @@ import Header from './components/Header.jsx';
 import SummaryBand from './components/SummaryBand.jsx';
 import MatrixView from './components/MatrixView.jsx';
 import ComparisonMatrixView from './components/ComparisonMatrixView.jsx';
+import KeywordTrendView from './components/KeywordTrendView.jsx';
 import DashboardView from './components/DashboardView.jsx';
 import DashboardComparisonOverview from './components/DashboardComparisonOverview.jsx';
 import WatchDrawer from './components/WatchDrawer.jsx';
@@ -101,6 +102,8 @@ export default function App({ onStartupSettled }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('natural');
   const [comparisonFocus, setComparisonFocus] = useState(null);
+  const [trendRow, setTrendRow] = useState(null);
+  const [comparisonScroll, setComparisonScroll] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [viewFilters, setViewFilters] = useState(() => initialViewFilters());
   const [watchOpen, setWatchOpen] = useState(false);
@@ -207,6 +210,8 @@ export default function App({ onStartupSettled }) {
     if (!model?.parentAsin) return;
     setViewFilters(initialViewFilters());
     setComparisonFocus(null);
+    setTrendRow(null);
+    setComparisonScroll(null);
   }, [model?.parentAsin]);
 
   useEffect(() => { syncWebBridgeData(data); if (data) window.dispatchEvent(new Event('keyword-tracker-data-updated')); }, [data]);
@@ -258,6 +263,7 @@ export default function App({ onStartupSettled }) {
   };
 
   const selectModel = (index) => {
+    setTrendRow(null);
     setActiveIndex(index);
     const nextModel = data?.models?.[index];
     if (nextModel) {
@@ -285,6 +291,15 @@ export default function App({ onStartupSettled }) {
     setComparisonFocus(section);
     setActiveTab('comparison');
   };
+
+  const openKeywordTrend = (row) => {
+    const scroll = document.querySelector('.comparison-scroll');
+    const tableScroll = document.querySelector('.comparison-table-scroll');
+    setComparisonScroll({ top: scroll?.scrollTop || 0, left: tableScroll?.scrollLeft || 0 });
+    setTrendRow(row);
+  };
+
+  const closeKeywordTrend = () => setTrendRow(null);
 
   const addModel = async (payload) => {
     const ok = await runAction('正在登记型号…', () => api.addModel(payload), '型号已生成');
@@ -359,7 +374,7 @@ export default function App({ onStartupSettled }) {
           <Header
             model={model}
             activeTab={activeTab}
-            onTab={setActiveTab}
+            onTab={(tab) => { setTrendRow(null); setActiveTab(tab); }}
             selectedDate={selectedDate}
             onDate={setSelectedDate}
             busy={Boolean(busyLabel)}
@@ -370,7 +385,7 @@ export default function App({ onStartupSettled }) {
           {data.workbookOpen && data.storage !== 'local-json' && (
             <div className="workbook-alert"><AlertTriangle size={18} /><span>检测到跟进表可能正在 WPS 中打开。首次迁移完成后，软件将使用本地数据运行，不再依赖工作簿。</span></div>
           )}
-          {activeTab !== 'history' && activeTab !== 'aba' && (
+          {!trendRow && activeTab !== 'history' && activeTab !== 'aba' && (
             <>
               <SummaryBand
                 metrics={activeTab === 'dashboard' ? filteredMetrics : dateView.metrics}
@@ -381,13 +396,14 @@ export default function App({ onStartupSettled }) {
               {activeTab === 'dashboard' && <DashboardComparisonOverview rows={dashboardRows} selectedDate={selectedDate || model.latestDate} onDetails={openComparison} />}
             </>
           )}
-          <div className="content-area view-transition">
-            {activeTab === 'dashboard' && <DashboardView rows={dashboardRows} sourceRows={dateView.rows} model={model} filters={viewFilters.dashboard} onFiltersChange={(next) => updateViewFilter('dashboard', next)} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} />}
-            {activeTab === 'natural' && <MatrixView model={model} metric="natural" rows={naturalRows} filters={viewFilters.natural} onFiltersChange={(next) => updateViewFilter('natural', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
-            {activeTab === 'sp' && <MatrixView model={model} metric="sp" rows={spRows} filters={viewFilters.sp} onFiltersChange={(next) => updateViewFilter('sp', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
-            {activeTab === 'comparison' && <ComparisonMatrixView model={model} rows={model.matrixRows} filters={viewFilters.comparison} onFiltersChange={(next) => updateViewFilter('comparison', next)} selectedDate={selectedDate} focusSection={comparisonFocus} onFocusHandled={() => setComparisonFocus(null)} onToggleWatch={toggleWatch} />}
-            {activeTab === 'aba' && <ABAView model={abaModel} rows={abaRows} filters={viewFilters.aba} onFiltersChange={(next) => updateViewFilter('aba', next)} onToggleWatch={toggleWatch} />}
-            {activeTab === 'history' && <HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} />}
+          <div className={`content-area view-transition ${trendRow ? 'content-area-trend' : ''}`}>
+            {trendRow && <KeywordTrendView model={model} row={trendRow} onBack={closeKeywordTrend} />}
+            {!trendRow && activeTab === 'dashboard' && <DashboardView rows={dashboardRows} sourceRows={dateView.rows} model={model} filters={viewFilters.dashboard} onFiltersChange={(next) => updateViewFilter('dashboard', next)} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} onOpenTrend={openKeywordTrend} />}
+            {!trendRow && activeTab === 'natural' && <MatrixView model={model} metric="natural" rows={naturalRows} filters={viewFilters.natural} onFiltersChange={(next) => updateViewFilter('natural', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
+            {!trendRow && activeTab === 'sp' && <MatrixView model={model} metric="sp" rows={spRows} filters={viewFilters.sp} onFiltersChange={(next) => updateViewFilter('sp', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
+            {!trendRow && activeTab === 'comparison' && <ComparisonMatrixView model={model} rows={model.matrixRows} filters={viewFilters.comparison} onFiltersChange={(next) => updateViewFilter('comparison', next)} selectedDate={selectedDate} focusSection={comparisonFocus} onFocusHandled={() => setComparisonFocus(null)} onToggleWatch={toggleWatch} onOpenTrend={openKeywordTrend} restoreScroll={comparisonScroll} />}
+            {!trendRow && activeTab === 'aba' && <ABAView model={abaModel} rows={abaRows} filters={viewFilters.aba} onFiltersChange={(next) => updateViewFilter('aba', next)} onToggleWatch={toggleWatch} />}
+            {!trendRow && activeTab === 'history' && <HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} />}
           </div>
           <footer className="statusbar">
             <span>本地数据已同步 · {activeViewCount} 个关键词 · 源文件 {data.sourceCount} 个</span>

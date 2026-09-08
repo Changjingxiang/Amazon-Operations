@@ -1,8 +1,22 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const cloudAssetMap = process.env.KEYWORD_CLOUD_ASSETS
+  ? JSON.parse(fs.readFileSync(process.env.KEYWORD_CLOUD_ASSETS, 'utf8').replace(/^\uFEFF/, '')) : null;
+const cloudAssets = {
+  name: 'keyword-miaoda-assets', enforce: 'pre',
+  load(id) {
+    if (!cloudAssetMap) return null;
+    const relative = path.relative(process.cwd(), id.split('?')[0]).replaceAll('\\', '/');
+    if (cloudAssetMap[relative]) return `const path = ${JSON.stringify(cloudAssetMap[relative])}; export default window.parent.__keywordCloudAssets?.[path] || path;`;
+    return null;
+  },
+};
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [cloudAssets, react()],
   base: './',
   build: {
     outDir: 'dist',
