@@ -255,7 +255,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .comparison-note > div:last-child { flex: 0 0 auto; justify-content: flex-end; gap: 12px; color: #7c8794; font-size: 10px; }
 .comparison-note strong { flex: 0 0 auto; color: var(--navy); font-size: 16px; line-height: 1.2; }
 .comparison-note span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.comparison-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-color: #8b929b #e4e7ea; scrollbar-width: thin; }
+.comparison-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overflow-anchor: none; scrollbar-color: #8b929b #e4e7ea; scrollbar-width: thin; }
 .comparison-section { width: 100%; min-width: 0; background: #fff; }
 .comparison-section + .comparison-section { margin-top: 14px; border-top: 1px solid #ccd7df; }
 .comparison-section-header { position: sticky; left: 0; z-index: 6; min-height: 50px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 13px; border-bottom: 1px solid #d8dee6; background: #f7fbfc; }
@@ -283,6 +283,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .comparison-table tbody tr:hover > td { background-image: linear-gradient(rgba(39,199,217,.025), rgba(39,199,217,.025)); }
 .comparison-table .comparison-rank-cell { width: 82px; min-width: 82px; padding: 4px 5px; vertical-align: middle; }
 .comparison-table .comparison-rank-cell.selected-date { box-shadow: inset 2px 0 0 rgba(23,59,100,.25), inset -2px 0 0 rgba(23,59,100,.25); }
+.comparison-table tbody tr.comparison-virtual-spacer > td { height: 0 !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; line-height: 0 !important; font-size: 0 !important; }
+.comparison-table tbody tr.comparison-virtual-spacer > td > div { display: block; width: 1px; min-height: 0; pointer-events: none; }
 .comparison-rank-number { display: block; min-height: 14px; font-size: 13px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .comparison-page-marker { display: block; min-height: 11px; margin-top: 2px; color: currentColor; font-size: 9px; font-weight: 800; line-height: 1; opacity: .72; }
 .comparison-table .star-button { margin: auto; }

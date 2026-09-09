@@ -68,7 +68,7 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
   const content = (
     <section className={`dashboard-panel ${expanded ? 'dashboard-expanded' : ''}`}>
       <div className="table-toolbar"><button type="button" className="sort-button" aria-expanded={expanded} onClick={() => { setHovered(null); setExpanded(value => !value); }}>{expanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{expanded ? '恢复看板' : '放大表格'}</button>
-        <span>关注词置顶，其后保留完整流量前 100</span>
+        <span>关注词置顶，其后保留完整流量前 1000</span>
         <FilterCascade
           rows={sourceRows || rows}
           filter={filters}

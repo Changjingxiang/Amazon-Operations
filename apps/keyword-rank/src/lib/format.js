@@ -151,7 +151,7 @@ export function buildDateView(model, selectedDate) {
   const current = new Map();
   (recordsByDate.get(selectedDate) || []).forEach((item) => {
     const key = item.keyword.toLowerCase();
-    if (watchMap.has(key) || (item.trafficRank != null && item.trafficRank <= 100)) current.set(key, { ...item });
+    if (watchMap.has(key) || (item.trafficRank != null && item.trafficRank <= 1000)) current.set(key, { ...item });
   });
   for (const watch of model.watches || []) {
     const key = watch.keyword.toLowerCase();

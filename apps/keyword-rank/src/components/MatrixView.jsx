@@ -101,6 +101,7 @@ export default function MatrixView({ model, metric, rows: filteredRows, filters,
   const rows = Array.isArray(filteredRows) ? filteredRows : (model.matrixRows || []);
   const rowCount = rows.length;
   const [editing, setEditing] = useState(null);
+  const committedEditor = useRef(null);
   const [hovered, setHovered] = useState(null);
   const tableRef = useRef(null);
   const scrollRef = useRef(null);
@@ -111,7 +112,7 @@ export default function MatrixView({ model, metric, rows: filteredRows, filters,
   const { widths, nudgeWidth, startResize } = useColumnWidths(`keyword-tracker:columns:${metric}`, defaults);
   const sifAbaTrendByKeyword = useMemo(
     () => metric === 'natural' ? buildSifAbaTrendMap(model) : new Map(),
-    [model, metric],
+    [model.historyRecords, model.selectedYear, metric],
   );
   const groups = useMemo(() => {
     const byYear = new Map();
@@ -290,13 +291,16 @@ export default function MatrixView({ model, metric, rows: filteredRows, filters,
   }, []);
   const beginAnnotation = (row, date, existing = '') => {
     if (!date) return;
-    setEditing({ keyword: row.keyword, date, draft: existing });
+    committedEditor.current = null;
+    setEditing({ keyword: row.keyword, date, draft: existing, original: existing });
   };
-  const commitAnnotation = async () => {
-    if (!editing) return;
-    const payload = { keyword: editing.keyword, date: editing.date, text: editing.draft.trim(), metric };
-    const ok = await onSetAnnotation?.(payload);
-    if (ok !== false) setEditing(null);
+  const commitAnnotation = () => {
+    if (!editing || committedEditor.current === editing) return;
+    committedEditor.current = editing;
+    setEditing(null);
+    const text = editing.draft.trim();
+    if (text === editing.original) return;
+    void onSetAnnotation?.({ keyword: editing.keyword, date: editing.date, text, metric });
   };
   const widthStyle = (column) => ({ width: widths[column], minWidth: widths[column] });
   const resizeHandle = (column, label) => <ResizeHandle columnKey={column} onResize={startResize} onNudge={nudgeWidth} label={label} />;

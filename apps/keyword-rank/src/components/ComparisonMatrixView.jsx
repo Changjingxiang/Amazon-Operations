@@ -1,5 +1,5 @@
 import MatrixPeriodSelect, { filterPeriodDates } from './MatrixPeriodSelect.jsx';
-import { useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Star } from 'lucide-react';
 import { integer, rankClass, shortDate } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
@@ -110,10 +110,109 @@ function RankCell({ value, previous, metric, date, selected }) {
   );
 }
 
-function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, widths, resizeHandle, sectionRef }) {
-  const meta = CATEGORY_META[category] || CATEGORY_META.common;
+const COMPARISON_ROW_HEIGHT = 42;
+const COMPARISON_ROW_OVERSCAN = 24;
+const COMPARISON_RANGE_MARGIN = 8;
+const COMPARISON_RANGE_CHUNK = 48;
+const COMPARISON_INITIAL_ROWS = 48;
+const COMPARISON_SECTION_HEADER_HEIGHT = 50;
+const COMPARISON_TABLE_HEADER_HEIGHT = 66;
+
+const ComparisonRow = memo(function ComparisonRow({ category, row, order, dates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend }) {
   return (
-    <section ref={sectionRef} className={`comparison-section comparison-section-${category}`} data-comparison-section={category} aria-labelledby={`comparison-${category}-title`}>
+    <tr key={`${category}-${row.keyword}-${order}`} className={row.watched ? 'watched-row' : ''}>
+      <td className="comparison-star-cell">
+        <button
+          type="button"
+          className={`star-button ${row.watched ? 'watched' : ''}`}
+          onClick={() => onToggleWatch?.(row.keyword, !row.watched, row.note)}
+          title={row.watched ? '取消关注' : '设为关注'}
+          aria-label={row.watched ? `取消关注 ${row.keyword}` : `关注 ${row.keyword}`}
+        ><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button>
+      </td>
+      <td
+        className="comparison-keyword-cell comparison-trend-keyword"
+        data-text-tooltip="双击查看趋势"
+        title="双击查看趋势"
+        onDoubleClick={() => onOpenTrend?.(row)}
+      >{row.keyword}</td>
+      <td className="comparison-translation-cell" data-text-tooltip={row.translation}>{row.translation || '—'}</td>
+      {dates.flatMap((date) => {
+        const index = dateIndexMap.get(date);
+        const naturalValues = row.naturalValues || [];
+        const spValues = row.spValues || [];
+        const previousNatural = index > 0 ? naturalValues[index - 1] : null;
+        const previousSp = index > 0 ? spValues[index - 1] : null;
+        return [
+          <RankCell key={`${date}-natural`} value={naturalValues[index]} previous={previousNatural} metric="natural" date={date} selected={date === comparisonDate} />,
+          <RankCell key={`${date}-sp`} value={spValues[index]} previous={previousSp} metric="sp" date={date} selected={date === comparisonDate} />,
+        ];
+      })}
+    </tr>
+  );
+});
+
+function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, widths, resizeHandle, sectionRef, scrollContainerRef }) {
+  const meta = CATEGORY_META[category] || CATEGORY_META.common;
+  const sectionElementRef = useRef(null);
+  const [virtualRange, setVirtualRange] = useState(() => ({ start: 0, end: Math.min(rows.length, COMPARISON_INITIAL_ROWS) }));
+  const virtualRangeRef = useRef(virtualRange);
+  const rowCount = rows.length;
+
+  useEffect(() => {
+    const next = { start: 0, end: Math.min(rowCount, COMPARISON_INITIAL_ROWS) };
+    virtualRangeRef.current = next;
+    setVirtualRange(next);
+  }, [category, rowCount, dates.length]);
+
+  useEffect(() => {
+    const scroll = scrollContainerRef?.current;
+    const section = sectionElementRef.current;
+    if (!(scroll instanceof HTMLElement) || !(section instanceof HTMLElement)) return undefined;
+    let frame = 0;
+    const updateRange = () => {
+      frame = 0;
+      if (!section.isConnected || !rowCount) return;
+      const containerRect = scroll.getBoundingClientRect();
+      const sectionRect = section.getBoundingClientRect();
+      const sectionTop = sectionRect.top - containerRect.top + scroll.scrollTop;
+      const bodyTop = sectionTop + COMPARISON_SECTION_HEADER_HEIGHT + COMPARISON_TABLE_HEADER_HEIGHT;
+      const firstVisible = Math.floor(Math.max(0, scroll.scrollTop - bodyTop) / COMPARISON_ROW_HEIGHT);
+      const viewportCount = Math.ceil(scroll.clientHeight / COMPARISON_ROW_HEIGHT) + 4;
+      const viewportEnd = Math.min(rowCount, firstVisible + viewportCount);
+      const current = virtualRangeRef.current;
+      const safeStart = current.start === 0 ? 0 : current.start + COMPARISON_RANGE_MARGIN;
+      const safeEnd = current.end === rowCount ? rowCount : Math.max(current.start, current.end - COMPARISON_RANGE_MARGIN);
+      if (firstVisible >= safeStart && viewportEnd <= safeEnd) return;
+      const start = Math.min(rowCount, Math.max(0, Math.floor(Math.max(0, firstVisible - COMPARISON_ROW_OVERSCAN) / COMPARISON_RANGE_CHUNK) * COMPARISON_RANGE_CHUNK));
+      const end = Math.min(rowCount, Math.max(start + viewportCount + COMPARISON_ROW_OVERSCAN * 2, viewportEnd + COMPARISON_ROW_OVERSCAN));
+      if (current.start === start && current.end === end) return;
+      const next = { start, end };
+      virtualRangeRef.current = next;
+      setVirtualRange(next);
+    };
+    const handleScroll = () => {
+      if (!frame) frame = window.requestAnimationFrame(updateRange);
+    };
+    scroll.addEventListener('scroll', handleScroll, { passive: true });
+    updateRange();
+    return () => {
+      scroll.removeEventListener('scroll', handleScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [category, rowCount, scrollContainerRef]);
+
+  const visibleRows = rows.slice(virtualRange.start, virtualRange.end);
+  const topSpacerHeight = virtualRange.start * COMPARISON_ROW_HEIGHT;
+  const bottomSpacerHeight = Math.max(0, rowCount - virtualRange.end) * COMPARISON_ROW_HEIGHT;
+  const renderSpacer = (height, key) => height > 0 ? (
+    <tr key={key} className="comparison-virtual-spacer" aria-hidden="true">
+      <td colSpan={dates.length * 2 + 3}><div style={{ height: `${height}px` }} /></td>
+    </tr>
+  ) : null;
+
+  return (
+    <section ref={(node) => { sectionElementRef.current = node; sectionRef?.(node); }} className={`comparison-section comparison-section-${category}`} data-comparison-section={category} aria-labelledby={`comparison-${category}-title`}>
       <div className="comparison-section-header">
         <div>
           <h2 id={`comparison-${category}-title`}>{meta.title}</h2>
@@ -148,37 +247,9 @@ function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ row, order }) => (
-                <tr key={`${category}-${row.keyword}-${order}`} className={row.watched ? 'watched-row' : ''}>
-                  <td className="comparison-star-cell">
-                    <button
-                      type="button"
-                      className={`star-button ${row.watched ? 'watched' : ''}`}
-                      onClick={() => onToggleWatch?.(row.keyword, !row.watched, row.note)}
-                      title={row.watched ? '取消关注' : '设为关注'}
-                      aria-label={row.watched ? `取消关注 ${row.keyword}` : `关注 ${row.keyword}`}
-                    ><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button>
-                  </td>
-                  <td
-                    className="comparison-keyword-cell comparison-trend-keyword"
-                    data-text-tooltip="双击查看趋势"
-                    title="双击查看趋势"
-                    onDoubleClick={() => onOpenTrend?.(row)}
-                  >{row.keyword}</td>
-                  <td className="comparison-translation-cell" data-text-tooltip={row.translation}>{row.translation || '—'}</td>
-                  {dates.flatMap((date) => {
-                    const index = dateIndexMap.get(date);
-                    const naturalValues = row.naturalValues || [];
-                    const spValues = row.spValues || [];
-                    const previousNatural = index > 0 ? naturalValues[index - 1] : null;
-                    const previousSp = index > 0 ? spValues[index - 1] : null;
-                    return [
-                      <RankCell key={`${date}-natural`} value={naturalValues[index]} previous={previousNatural} metric="natural" date={date} selected={date === comparisonDate} />,
-                      <RankCell key={`${date}-sp`} value={spValues[index]} previous={previousSp} metric="sp" date={date} selected={date === comparisonDate} />,
-                    ];
-                  })}
-                </tr>
-              ))}
+              {renderSpacer(topSpacerHeight, 'comparison-virtual-top')}
+              {visibleRows.map(({ row, order }) => <ComparisonRow key={`${category}-${row.keyword}-${order}`} category={category} row={row} order={order} dates={dates} dateIndexMap={dateIndexMap} comparisonDate={comparisonDate} onToggleWatch={onToggleWatch} onOpenTrend={onOpenTrend} />)}
+              {renderSpacer(bottomSpacerHeight, 'comparison-virtual-bottom')}
             </tbody>
           </table>
         </div>
@@ -215,18 +286,25 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
     if (!(scroll instanceof HTMLElement)) return undefined;
     let frame = 0;
     let attempts = 0;
+    const targetTop = restoreScroll?.top;
+    const targetLeft = restoreScroll?.left;
     const align = () => {
       frame = 0;
       if (!scroll.isConnected) return;
       const tableScrolls = [...scroll.querySelectorAll('.comparison-table-scroll')];
-      if ((!tableScrolls.length || !scroll.clientWidth || !scroll.clientHeight) && attempts++ < 18) {
+      if ((!tableScrolls.length || !scroll.clientWidth || !scroll.clientHeight) && attempts++ < 24) {
         frame = window.requestAnimationFrame(align);
         return;
       }
       tableScrolls.forEach((tableScroll) => {
-        tableScroll.scrollLeft = restoreScroll?.left ?? Math.max(0, tableScroll.scrollWidth - tableScroll.clientWidth);
+        tableScroll.scrollLeft = targetLeft ?? Math.max(0, tableScroll.scrollWidth - tableScroll.clientWidth);
       });
-      if (restoreScroll?.top != null) scroll.scrollTop = restoreScroll.top;
+      if (targetTop != null) {
+        scroll.scrollTop = targetTop;
+        // Virtual rows update over the next few frames; keep the saved position
+        // until the table's spacer heights have settled.
+        if (attempts++ < 18) frame = window.requestAnimationFrame(align);
+      }
     };
     frame = window.requestAnimationFrame(() => { frame = window.requestAnimationFrame(align); });
     return () => { if (frame) window.cancelAnimationFrame(frame); };
@@ -276,6 +354,7 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
             onOpenTrend={onOpenTrend}
             widths={widths}
             resizeHandle={resizeHandle}
+            scrollContainerRef={comparisonScrollRef}
             sectionRef={(node) => { sectionRefs.current[category] = node; }}
           />
         ))}

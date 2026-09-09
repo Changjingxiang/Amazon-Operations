@@ -658,7 +658,7 @@
     const currentMap = new Map();
     for (const record of latestRecords) {
       const itemKey = key(record.keyword);
-      if (watchMap.has(itemKey) || (record.trafficRank != null && record.trafficRank <= 100)) currentMap.set(itemKey, { ...record });
+      if (watchMap.has(itemKey) || (record.trafficRank != null && record.trafficRank <= 1000)) currentMap.set(itemKey, { ...record });
     }
     for (const watch of watches) {
       const itemKey = key(watch.keyword);
@@ -732,8 +732,8 @@
         translation: base?.translation || '',
         watched: Boolean(watch),
         note: watch?.note || '',
-        naturalValues: dates.map((date) => pointMap.get(`${itemKey}|${date}`)?.naturalRank ?? 0),
-        spValues: dates.map((date) => pointMap.get(`${itemKey}|${date}`)?.spRank ?? 0),
+        naturalValues: dates.map((date) => pointMap.get(`${itemKey}|${date}`)?.naturalRank ?? null),
+        spValues: dates.map((date) => pointMap.get(`${itemKey}|${date}`)?.spRank ?? null),
         naturalAnnotations: dates.map((date) => annotationMaps.natural.get(`${itemKey}|${date}`) || ''),
         spAnnotations: dates.map((date) => annotationMaps.sp.get(`${itemKey}|${date}`) || ''),
       };
@@ -924,7 +924,8 @@
   }
 
   async function setAnnotation(payload) {
-    const store = await ensureStore();
+    const current = await ensureStore();
+    const store = { ...current, annotations: [...current.annotations] };
     const requestedAsin = text(payload.parentAsin || pageAsin()).toUpperCase();
     const config = [...store.configs, ...store.competitors].find((item) =>
       item.modelName === payload.modelName
@@ -945,7 +946,17 @@
     const same = (item) => belongs(item) && item.metric === metric && key(item.keyword) === key(keyword) && item.date === date;
     store.annotations = store.annotations.filter((item) => !same(item));
     if (note) store.annotations.push({ parentAsin: config.parentAsin, modelName: config.modelName, metric, keyword, date, text: note, updatedAt: new Date().toISOString() });
-    await writeStore(store);
+    // Publish the in-memory change only after durable storage succeeds.
+    const next = { ...store, updatedAt: new Date().toISOString() };
+    if (cloudMode) {
+      if (!cloudStorage) throw new Error('云端连接未建立，标注尚未保存。');
+      await cloudStorage.write(next);
+    } else {
+      if (!indexedDbAvailable) throw new Error('浏览器数据库不可用，标注尚未保存。');
+      await writeIndexedStore(next);
+    }
+    memoryStore = next;
+    if (payload.lightweight) return { ok: true, annotation: { parentAsin: config.parentAsin, modelName: config.modelName, metric, keyword, date, text: note } };
     return result(note ? '单元格标注已保存。' : '单元格标注已清除。');
   }
 

@@ -164,7 +164,7 @@ function buildModel(config, records, allWatches, allAnnotations = [], allAbaMont
   const currentMap = new Map();
   for (const record of latestRecords) {
     const key = watchKey(record.keyword);
-    if (watchMap.has(key) || (record.trafficRank != null && record.trafficRank <= 100)) currentMap.set(key, { ...record });
+    if (watchMap.has(key) || (record.trafficRank != null && record.trafficRank <= 1000)) currentMap.set(key, { ...record });
   }
   for (const watch of watches) {
     const key = watchKey(watch.keyword);
@@ -241,8 +241,8 @@ function buildModel(config, records, allWatches, allAnnotations = [], allAbaMont
       translation: base?.translation || '',
       watched: Boolean(watch),
       note: watch?.note || '',
-      naturalValues: dates.map((date) => pointMap.get(`${key}|${date}`)?.naturalRank ?? 0),
-      spValues: dates.map((date) => pointMap.get(`${key}|${date}`)?.spRank ?? 0),
+      naturalValues: dates.map((date) => pointMap.get(`${key}|${date}`)?.naturalRank ?? null),
+      spValues: dates.map((date) => pointMap.get(`${key}|${date}`)?.spRank ?? null),
       naturalAnnotations: dates.map((date) => annotationMaps.natural.get(`${key}|${date}`) || ''),
       spAnnotations: dates.map((date) => annotationMaps.sp.get(`${key}|${date}`) || ''),
     };

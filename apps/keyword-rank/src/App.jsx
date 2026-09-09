@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import Sidebar from './components/Sidebar.jsx';
 import Header from './components/Header.jsx';
@@ -99,6 +99,8 @@ function syncWebBridgeData(data) {
 
 export default function App({ onStartupSettled }) {
   const [data, setData] = useState(null);
+  const annotationQueue = useRef(Promise.resolve());
+  const [pendingAnnotations, setPendingAnnotations] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('natural');
   const [comparisonFocus, setComparisonFocus] = useState(null);
@@ -167,7 +169,7 @@ export default function App({ onStartupSettled }) {
   const dateView = useMemo(() => {
     if (!needsDateView) return { rows: model.dashboardRows || [], metrics: model.metrics || {} };
     return buildDateView(model, selectedDate);
-  }, [model, selectedDate, needsDateView]);
+  }, [model?.historyRecords, model?.watches, model?.dashboardRows, model?.metrics, selectedDate, needsDateView]);
 
   const dashboardRows = useMemo(() => filterRows(dateView.rows, viewFilters.dashboard), [dateView.rows, viewFilters.dashboard]);
   const naturalRows = useMemo(() => filterRows(model?.matrixRows, viewFilters.natural), [model?.matrixRows, viewFilters.natural]);
@@ -250,11 +252,48 @@ export default function App({ onStartupSettled }) {
     if (ok) setWatchOpen(false);
   };
 
-  const saveAnnotation = (payload) => runAction(
-    payload.text ? '正在保存单元格标注…' : '正在清除单元格标注…',
-    () => api.setAnnotation({ ...payload, modelName: model.modelName, metric: payload.metric || 'sp' }),
-    payload.text ? '单元格标注已保存' : '单元格标注已清除',
-  );
+  const saveAnnotation = (payload) => {
+    const target = { ...payload, modelName: model.modelName, parentAsin: model.parentAsin, metric: payload.metric || 'sp' };
+    setPendingAnnotations((count) => count + 1);
+    const save = async () => {
+      try {
+        const result = await api.setAnnotation({ ...target, lightweight: true });
+        if (result?.ok === false) throw new Error(result.error || '标注未保存');
+        const patch = result.annotation || target;
+        const field = patch.metric === 'natural' ? 'naturalAnnotations' : 'spAnnotations';
+        setData((current) => {
+          const patched = new Map();
+          const updateModel = (item) => {
+            if (patched.has(item)) return patched.get(item);
+            const competitors = item.competitors?.map(updateModel);
+            const base = competitors?.some((value, index) => value !== item.competitors[index]) ? { ...item, competitors } : item;
+            if (item.parentAsin !== target.parentAsin) return base;
+            const index = item.dates.indexOf(patch.date);
+            if (index < 0) return item;
+            const next = { ...base, matrixRows: item.matrixRows.map((row) => {
+              if (row.keyword.trim().toLocaleLowerCase('en-US') !== patch.keyword.trim().toLocaleLowerCase('en-US')) return row;
+              const annotations = [...(row[field] || [])];
+              annotations[index] = patch.text;
+              return { ...row, [field]: annotations };
+            }) };
+            patched.set(item, next);
+            return next;
+          };
+          return { ...current, models: current.models.map(updateModel),
+            ...(current.ownModels ? { ownModels: current.ownModels.map(updateModel) } : {}),
+            ...(current.competitors ? { competitors: current.competitors.map(updateModel) } : {}) };
+        });
+        return true;
+      } catch (error) {
+        setToast({ type: 'error', title: '标注保存失败，原内容已保留', message: `${target.keyword} · ${target.date}：${error.message}` });
+        return false;
+      } finally {
+        setPendingAnnotations((count) => count - 1);
+      }
+    };
+    annotationQueue.current = annotationQueue.current.then(save, save);
+    return annotationQueue.current;
+  };
 
   const resetWidths = () => {
     resetAllColumnWidths();
@@ -347,7 +386,7 @@ export default function App({ onStartupSettled }) {
       <div className={`app-root ${window.keywordTracker?.isWeb ? 'web-edition' : ''}`}>
         <WindowTitlebar onTool={toggleWebTool} activeTool={webTool} />
         <main className="empty-app">
-          <BusyOverlay label={busyLabel} />
+        <BusyOverlay label={busyLabel} />
           <h1>关键词排名每日跟进</h1>
           <p>{data?.models?.length === 0 ? '“型号配置”中没有启用的型号。' : '正在准备软件数据…'}</p>
           <Toast toast={toast} onClose={() => setToast(null)} />
@@ -397,7 +436,7 @@ export default function App({ onStartupSettled }) {
             </>
           )}
           <div className={`content-area view-transition ${trendRow ? 'content-area-trend' : ''}`}>
-            {trendRow && <KeywordTrendView model={model} row={trendRow} onBack={closeKeywordTrend} />}
+            {trendRow && <KeywordTrendView model={model} row={model.matrixRows.find((row) => row.keyword === trendRow.keyword) || trendRow} onBack={closeKeywordTrend} />}
             {!trendRow && activeTab === 'dashboard' && <DashboardView rows={dashboardRows} sourceRows={dateView.rows} model={model} filters={viewFilters.dashboard} onFiltersChange={(next) => updateViewFilter('dashboard', next)} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} onOpenTrend={openKeywordTrend} />}
             {!trendRow && activeTab === 'natural' && <MatrixView model={model} metric="natural" rows={naturalRows} filters={viewFilters.natural} onFiltersChange={(next) => updateViewFilter('natural', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
             {!trendRow && activeTab === 'sp' && <MatrixView model={model} metric="sp" rows={spRows} filters={viewFilters.sp} onFiltersChange={(next) => updateViewFilter('sp', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
@@ -406,7 +445,7 @@ export default function App({ onStartupSettled }) {
             {!trendRow && activeTab === 'history' && <HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} />}
           </div>
           <footer className="statusbar">
-            <span>本地数据已同步 · {activeViewCount} 个关键词 · 源文件 {data.sourceCount} 个</span>
+            <span role="status">{pendingAnnotations > 0 ? `正在后台保存标注（${pendingAnnotations}）…` : '本地数据已同步'} · {activeViewCount} 个关键词 · 源文件 {data.sourceCount} 个</span>
             <span><b className="legend-up">红色＝上升</b><b className="legend-down">绿色＝下降</b><b className="legend-none">灰色＝未上榜</b></span>
           </footer>
         </main>

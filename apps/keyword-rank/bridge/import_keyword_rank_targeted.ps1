@@ -232,7 +232,7 @@ function Initialize-GeneratedWorksheet {
         $Sheet.Cells.Item(3, 5).Value2 = [string]$ParentAsin
         [void]$Sheet.Range('H3').ClearContents()
         foreach ($cell in @('B5', 'E5', 'H5', 'K5')) { $Sheet.Range($cell).Value2 = 0 }
-        $Sheet.Range('N5').Value2 = '关注词置顶 + 完整流量前100'
+        $Sheet.Range('N5').Value2 = '关注词置顶 + 完整流量前1000'
         $Sheet.Visible = -1
         return
     }
@@ -1324,7 +1324,7 @@ function Update-Dashboard {
         $dashboard.Range('E5').Value2 = [double]@($current | Where-Object { $watchOrder.ContainsKey($_.Keyword.ToLowerInvariant()) }).Count
         $dashboard.Range('H5').Value2 = [double]$naturalUp
         $dashboard.Range('K5').Value2 = [double]$spUp
-        $dashboard.Range('N5').Value2 = '关注词置顶 + 完整流量前100'
+        $dashboard.Range('N5').Value2 = '关注词置顶 + 完整流量前1000'
         try { $dashboard.Range("A9:R$lastRow").AutoFilter() } catch {}
         try { $dashboard.Range('T:CE').EntireColumn.Hidden = $true } catch {}
     }
