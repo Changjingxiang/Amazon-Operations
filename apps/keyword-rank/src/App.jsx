@@ -101,6 +101,7 @@ export default function App({ onStartupSettled }) {
   const [data, setData] = useState(null);
   const annotationQueue = useRef(Promise.resolve());
   const [pendingAnnotations, setPendingAnnotations] = useState(0);
+  const [pendingAnnotationCells, setPendingAnnotationCells] = useState({});
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeTab, setActiveTab] = useState('natural');
   const [comparisonFocus, setComparisonFocus] = useState(null);
@@ -254,6 +255,18 @@ export default function App({ onStartupSettled }) {
 
   const saveAnnotation = (payload) => {
     const target = { ...payload, modelName: model.modelName, parentAsin: model.parentAsin, metric: payload.metric || 'sp' };
+    const rowKey = JSON.stringify([target.parentAsin, target.metric, target.keyword]);
+    const markPending = (delta) => setPendingAnnotationCells((current) => {
+      const dates = { ...current[rowKey] };
+      const count = (dates[target.date] || 0) + delta;
+      if (count > 0) dates[target.date] = count;
+      else delete dates[target.date];
+      const next = { ...current };
+      if (Object.keys(dates).length) next[rowKey] = dates;
+      else delete next[rowKey];
+      return next;
+    });
+    markPending(1);
     setPendingAnnotations((count) => count + 1);
     const save = async () => {
       try {
@@ -288,6 +301,7 @@ export default function App({ onStartupSettled }) {
         setToast({ type: 'error', title: '标注保存失败，原内容已保留', message: `${target.keyword} · ${target.date}：${error.message}` });
         return false;
       } finally {
+        markPending(-1);
         setPendingAnnotations((count) => count - 1);
       }
     };
@@ -438,8 +452,8 @@ export default function App({ onStartupSettled }) {
           <div className={`content-area view-transition ${trendRow ? 'content-area-trend' : ''}`}>
             {trendRow && <KeywordTrendView model={model} row={model.matrixRows.find((row) => row.keyword === trendRow.keyword) || trendRow} onBack={closeKeywordTrend} />}
             {!trendRow && activeTab === 'dashboard' && <DashboardView rows={dashboardRows} sourceRows={dateView.rows} model={model} filters={viewFilters.dashboard} onFiltersChange={(next) => updateViewFilter('dashboard', next)} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} onOpenTrend={openKeywordTrend} />}
-            {!trendRow && activeTab === 'natural' && <MatrixView model={model} metric="natural" rows={naturalRows} filters={viewFilters.natural} onFiltersChange={(next) => updateViewFilter('natural', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
-            {!trendRow && activeTab === 'sp' && <MatrixView model={model} metric="sp" rows={spRows} filters={viewFilters.sp} onFiltersChange={(next) => updateViewFilter('sp', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
+            {!trendRow && activeTab === 'natural' && <MatrixView model={model} pendingAnnotationCells={pendingAnnotationCells} metric="natural" rows={naturalRows} filters={viewFilters.natural} onFiltersChange={(next) => updateViewFilter('natural', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
+            {!trendRow && activeTab === 'sp' && <MatrixView model={model} pendingAnnotationCells={pendingAnnotationCells} metric="sp" rows={spRows} filters={viewFilters.sp} onFiltersChange={(next) => updateViewFilter('sp', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
             {!trendRow && activeTab === 'comparison' && <ComparisonMatrixView model={model} rows={model.matrixRows} filters={viewFilters.comparison} onFiltersChange={(next) => updateViewFilter('comparison', next)} selectedDate={selectedDate} focusSection={comparisonFocus} onFocusHandled={() => setComparisonFocus(null)} onToggleWatch={toggleWatch} onOpenTrend={openKeywordTrend} restoreScroll={comparisonScroll} />}
             {!trendRow && activeTab === 'aba' && <ABAView model={abaModel} rows={abaRows} filters={viewFilters.aba} onFiltersChange={(next) => updateViewFilter('aba', next)} onToggleWatch={toggleWatch} />}
             {!trendRow && activeTab === 'history' && <HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} />}

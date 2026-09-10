@@ -428,6 +428,83 @@
     } finally { db.close(); }
   }
 
+  // This function is serialized into a Blob worker so file:// releases work
+  // without a server. Only a cell-sized message crosses the UI thread; history
+  // and daily backup deserialization/cloning stay inside the worker.
+  function annotationStorageWorker() {
+    self.onmessage = ({ data }) => {
+      const fail = (error) => self.postMessage({ ok: false, error: error?.message || '标注写入失败，请重试。' });
+      const request = indexedDB.open(data.database, data.version);
+      request.onerror = () => fail(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        let transaction;
+        try {
+          transaction = db.transaction(data.objectStore, 'readwrite');
+          const records = transaction.objectStore(data.objectStore);
+          const stateRequest = records.get(data.stateKey);
+          const backupsRequest = records.get('daily-backups');
+          let remaining = 2;
+          let writeError = null;
+          const write = () => {
+            if (--remaining) return;
+            try {
+              const store = stateRequest.result;
+              if (!store) throw new Error('本地数据尚未初始化，请重新打开页面后重试。');
+              const normalizeKey = (value) => String(value || '').trim().toLocaleLowerCase('en-US');
+              const belongs = (item) => item.parentAsin
+                ? data.asins.includes(String(item.parentAsin).trim().toUpperCase())
+                : item.modelName === data.annotation.modelName;
+              store.annotations = (store.annotations || []).filter((item) => !(belongs(item)
+                && item.metric === data.annotation.metric
+                && normalizeKey(item.keyword) === normalizeKey(data.annotation.keyword)
+                && item.date === data.annotation.date));
+              if (data.annotation.text) store.annotations.push(data.annotation);
+              store.updatedAt = data.annotation.updatedAt;
+              const backups = (backupsRequest.result || []).filter((item) => item.date !== data.backupDate);
+              backups.push({ date: data.backupDate, savedAt: store.updatedAt, store });
+              records.put(backups.sort((a, b) => a.date.localeCompare(b.date)).slice(-21), 'daily-backups');
+              records.put(store, data.stateKey);
+            } catch (error) {
+              writeError = error;
+              transaction.abort();
+            }
+          };
+          stateRequest.onsuccess = write;
+          backupsRequest.onsuccess = write;
+          transaction.oncomplete = () => { db.close(); self.postMessage({ ok: true }); };
+          transaction.onabort = () => { db.close(); fail(writeError || transaction.error); };
+          transaction.onerror = () => {}; // onabort reports transaction failures once.
+        } catch (error) {
+          db.close();
+          fail(error);
+        }
+      };
+    };
+  }
+
+  function writeAnnotationInWorker(annotation, asins) {
+    return new Promise((resolve, reject) => {
+      let worker;
+      let url;
+      const finish = (error) => {
+        worker?.terminate();
+        if (url) URL.revokeObjectURL(url);
+        if (error) reject(error);
+        else resolve();
+      };
+      try {
+        url = URL.createObjectURL(new Blob([`(${annotationStorageWorker.toString()})()`], { type: 'text/javascript' }));
+        worker = new Worker(url);
+        worker.onmessage = ({ data }) => finish(data.ok ? null : new Error(data.error));
+        worker.onerror = (event) => { event.preventDefault(); finish(new Error(event.message || '标注保存线程无法启动。')); };
+        worker.onmessageerror = () => finish(new Error('标注保存结果读取失败，请重试。'));
+        worker.postMessage({ database: DB_NAME, version: DB_VERSION, objectStore: STORE_NAME,
+          stateKey: STATE_KEY, annotation, asins, backupDate: localBackupDate() });
+      } catch (error) { finish(error); }
+    });
+  }
+
   async function previousWeekBackup() {
     if (cloudMode) {
       if (!cloudStorage) throw new Error('请从飞书云端工作台入口打开。');
@@ -953,7 +1030,8 @@
       await cloudStorage.write(next);
     } else {
       if (!indexedDbAvailable) throw new Error('浏览器数据库不可用，标注尚未保存。');
-      await writeIndexedStore(next);
+      await writeAnnotationInWorker({ parentAsin: config.parentAsin, modelName: config.modelName,
+        metric, keyword, date, text: note, updatedAt: next.updatedAt }, [...configAsins]);
     }
     memoryStore = next;
     if (payload.lightweight) return { ok: true, annotation: { parentAsin: config.parentAsin, modelName: config.modelName, metric, keyword, date, text: note } };

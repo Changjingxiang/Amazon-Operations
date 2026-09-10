@@ -1,7 +1,7 @@
 import MatrixPeriodSelect, { filterPeriodDates } from './MatrixPeriodSelect.jsx';
 import { createPortal } from 'react-dom';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { Star } from 'lucide-react';
+import { LoaderCircle, Star } from 'lucide-react';
 import { buildSifAbaTrendMap, rankClass, shortDate } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
@@ -46,7 +46,7 @@ function rankTitle(value, previous, metric, annotation) {
 // Keep row identity stable while the virtual window advances. The parent still
 // recalculates the small visible window, but rows that remain in that window do
 // not rebuild every date cell or icon on each scroll tick.
-const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueField, annotationField, metric, selectedDate, editing, onToggleWatch, onBeginAnnotation, onEditDraft, onCommitAnnotation, onCancelAnnotation }) {
+const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueField, annotationField, metric, selectedDate, editing, pendingDates, onToggleWatch, onBeginAnnotation, onEditDraft, onCommitAnnotation, onCancelAnnotation }) {
   const values = row[valueField] || [];
   const annotations = annotationField ? (row[annotationField] || []) : [];
   const editingKey = editing ? `${editing.keyword}|${editing.date}` : '';
@@ -67,8 +67,9 @@ const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueFie
         const visibleValue = displayRank(value);
         const annotation = annotations[index] || '';
         const previous = index ? values[index - 1] : null;
+        const isSaving = Boolean(pendingDates?.[column.date]);
         const isEditing = editingKey === `${row.keyword}|${column.date}`;
-        return <td key={`${row.keyword}-${column.date}`} className={`${rankClass(value, previous)} matrix-annotation-cell matrix-rank-cell ${annotation ? 'matrix-annotated-cell' : ''} ${metric === 'sp' ? 'sp-annotation-cell' : ''} ${annotation ? 'sp-annotated-cell' : ''} ${column.date === selectedDate ? 'selected-date' : ''}`} data-rank={visibleValue} data-matrix-date={column.date} data-matrix-keyword={row.keyword} aria-label={rankTitle(value, previous, metric, annotation)} onClick={() => onBeginAnnotation(row, column.date, annotation)} onDoubleClick={() => onBeginAnnotation(row, column.date, annotation)}>{isEditing ? <input className="cell-annotation-input" autoFocus value={editing?.draft || ''} onChange={(event) => onEditDraft(event.target.value)} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onBlur={onCommitAnnotation} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onCommitAnnotation(); } if (event.key === 'Escape') { event.preventDefault(); onCancelAnnotation(); } }} aria-label={`编辑${row.keyword} ${column.date}标注`} /> : <span className="sp-rank-value">{visibleValue}</span>}</td>;
+        return <td key={`${row.keyword}-${column.date}`} className={`${rankClass(value, previous)} matrix-annotation-cell matrix-rank-cell ${isSaving ? 'annotation-saving' : ''} ${annotation ? 'matrix-annotated-cell' : ''} ${metric === 'sp' ? 'sp-annotation-cell' : ''} ${annotation ? 'sp-annotated-cell' : ''} ${column.date === selectedDate ? 'selected-date' : ''}`} aria-busy={isSaving || undefined} data-rank={visibleValue} data-matrix-date={column.date} data-matrix-keyword={row.keyword} aria-label={rankTitle(value, previous, metric, annotation)} onClick={() => onBeginAnnotation(row, column.date, annotation)} onDoubleClick={() => onBeginAnnotation(row, column.date, annotation)}>{isEditing ? <input className="cell-annotation-input" autoFocus value={editing?.draft || ''} onChange={(event) => onEditDraft(event.target.value)} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onBlur={onCommitAnnotation} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onCommitAnnotation(); } if (event.key === 'Escape') { event.preventDefault(); onCancelAnnotation(); } }} aria-label={`编辑${row.keyword} ${column.date}标注`} /> : <span className="sp-rank-value">{visibleValue}</span>}{isSaving && <span className="annotation-save-indicator" role="status" aria-label="正在保存标注" title="正在保存标注"><LoaderCircle size={12} className="spin" aria-hidden="true" /></span>}</td>;
       })}
     </tr>
   );
@@ -78,6 +79,7 @@ const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueFie
   && previous.dateIndexMap === next.dateIndexMap
   && previous.valueField === next.valueField
   && previous.annotationField === next.annotationField
+  && previous.pendingDates === next.pendingDates
   && previous.metric === next.metric
   && previous.selectedDate === next.selectedDate
   && previous.editing?.keyword === next.editing?.keyword
@@ -95,7 +97,7 @@ const MATRIX_RANGE_MARGIN = 8;
 const MATRIX_RANGE_CHUNK = 48;
 const MATRIX_INITIAL_ROWS = 48;
 
-export default function MatrixView({ model, metric, rows: filteredRows, filters, onFiltersChange, selectedDate, onToggleWatch, onSetAnnotation }) {
+export default function MatrixView({ model, pendingAnnotationCells, metric, rows: filteredRows, filters, onFiltersChange, selectedDate, onToggleWatch, onSetAnnotation }) {
   const valueField = metric === 'natural' ? 'naturalValues' : 'spValues';
   const annotationField = metric === 'natural' ? 'naturalAnnotations' : 'spAnnotations';
   const rows = Array.isArray(filteredRows) ? filteredRows : (model.matrixRows || []);
@@ -359,6 +361,7 @@ export default function MatrixView({ model, metric, rows: filteredRows, filters,
             metric={metric}
             selectedDate={selectedDate}
             editing={editing}
+            pendingDates={pendingAnnotationCells?.[JSON.stringify([model.parentAsin, metric, row.keyword])]}
             onToggleWatch={onToggleWatch}
             onBeginAnnotation={beginAnnotation}
             onEditDraft={(draft) => setEditing((current) => current ? { ...current, draft } : current)}
