@@ -374,6 +374,24 @@ export default function App({ onStartupSettled }) {
     '产品国家已更新',
   );
 
+  const renameModel = (item, newModelName) => runAction(
+    `正在修改“${item.modelName}”的产品名称…`,
+    () => api.renameModel({ modelName: item.modelName, parentAsin: item.parentAsin, newModelName }),
+    '产品名称已更新',
+  );
+
+  const changeModelAsin = (item, newParentAsin) => runAction(
+    `正在修改“${item.modelName}”的父体 ASIN…`,
+    () => api.changeModelAsin({ modelName: item.modelName, oldParentAsin: item.parentAsin, newParentAsin }),
+    '父体 ASIN 已更新，旧 ASIN 已保留为历史别名',
+  );
+
+  const releaseModelAlias = (item, aliasAsin) => runAction(
+    `正在解除“${item.modelName}”的历史别名…`,
+    () => api.releaseModelAlias({ modelName: item.modelName, parentAsin: item.parentAsin, aliasAsin }),
+    '历史别名已解除',
+  );
+
   const importAbaMonthlyCsv = (payload) => runAction(
     '正在导入月 ABA CSV…',
     () => api.importAbaMonthlyCsv(payload),
@@ -472,7 +490,7 @@ export default function App({ onStartupSettled }) {
         <AddModelModal open={addModelOpen} onClose={() => setAddModelOpen(false)} onSubmit={addModel} />
         <IconPickerModal model={iconModel} onClose={() => setIconModel(null)} onSelect={saveModelIcon} />
         {webTool === 'history' && <div className="web-tool-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeWebTools(); }}><section className="web-tool-panel" role="dialog" aria-label="导入日志"><div className="drawer-header"><h2>导入日志</h2><button onClick={closeWebTools} aria-label="关闭导入日志">×</button></div><HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} /></section></div>}
-        <SettingsModal open={settingsOpen} onClose={closeWebTools} onResetWidths={resetWidths} models={data.models} activeModel={model} onDeleteModel={deleteModel} onAddModel={() => setAddModelOpen(true)} onSetCountry={setModelCountry} abaMonthlyImports={data.abaMonthlyImports} onImportAba={importAbaMonthlyCsv} />
+        <SettingsModal open={settingsOpen} onClose={closeWebTools} onResetWidths={resetWidths} models={data.models} activeModel={model} onDeleteModel={deleteModel} onAddModel={() => setAddModelOpen(true)} onSetCountry={setModelCountry} onRenameModel={renameModel} onChangeModelAsin={changeModelAsin} onReleaseModelAlias={releaseModelAlias} abaMonthlyImports={data.abaMonthlyImports} onImportAba={importAbaMonthlyCsv} />
         <BusyOverlay label={busyLabel} />
         <Toast toast={toast} onClose={() => setToast(null)} />
       </div>

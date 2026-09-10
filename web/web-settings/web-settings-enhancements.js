@@ -2,8 +2,9 @@
   'use strict';
 
   // The production bundle is intentionally kept untouched here.  This small
-  // enhancement is loaded after it and adds the ASIN editor, monthly ABA CSV
-  // import controls, the ABA prior-year month-over-month column,
+  // enhancement is loaded after it and keeps a compatibility ASIN editor for
+  // older bundles, while adding monthly ABA CSV import controls, the ABA
+  // prior-year month-over-month column,
   // competitor settings/drawers, and
   // the one-click SIF batch-import control to the existing web UI.
   const ASIN_PATTERN = /^B0[A-Z0-9]{8}$/;

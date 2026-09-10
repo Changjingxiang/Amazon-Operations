@@ -467,6 +467,31 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .settings-product-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; margin-bottom: 9px; }
 .settings-product-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: #3a2e35; }
 .settings-product-copy small { color: #8a6870; font-size: 11px; }
+.settings-name-row { display: flex; align-items: center; min-width: 0; gap: 7px; }
+.settings-name-row strong { min-width: 0; flex: 1; }
+.settings-inline-button { flex: 0 0 auto; height: 24px; border: 1px solid #c9a9a9; border-radius: 6px; background: #fff; color: #855b64; padding: 0 7px; font-size: 10px; font-weight: 800; cursor: pointer; }
+.settings-inline-button:hover { border-color: #a8747d; background: #fff4f2; }
+.settings-inline-primary { border-color: #178b9a; background: #effcff; color: #137180; }
+.settings-inline-primary:hover { border-color: #137180; background: #dff9fc; }
+.settings-name-edit { display: flex; min-width: 0; gap: 5px; }
+.settings-name-edit input { min-width: 0; flex: 1; height: 27px; border: 1px solid #c9a9a9; border-radius: 6px; background: #fff; padding: 0 7px; color: #3a2e35; font: 700 12px Inter, "Microsoft YaHei", sans-serif; outline: 0; }
+.settings-name-edit input:focus { border-color: #178b9a; box-shadow: 0 0 0 3px rgba(23,139,154,.12); }
+.settings-asin-editor { margin: 5px 0 2px; padding: 9px; border: 1px solid #b8d9df; border-radius: 9px; background: #f5fdff; }
+.settings-asin-editor-title { display: block; margin-bottom: 6px; color: #245b68; font-size: 11px; font-weight: 800; }
+.settings-asin-editor-row { display: flex; align-items: center; gap: 7px; }
+.settings-asin-editor-row input { box-sizing: border-box; min-width: 0; flex: 1; height: 32px; border: 1px solid #9fc5cc; border-radius: 7px; background: #fff; padding: 0 8px; color: #25354d; font: 700 12px Inter, "Microsoft YaHei", sans-serif; text-transform: uppercase; outline: 0; }
+.settings-asin-editor-row input:focus { border-color: #27c7d9; box-shadow: 0 0 0 3px rgba(39,199,217,.13); }
+.settings-asin-save { flex: 0 0 auto; height: 32px; border: 1px solid #178b9a; border-radius: 7px; background: #27c7d9; color: #173b64; padding: 0 10px; font: 800 11px Inter, "Microsoft YaHei", sans-serif; cursor: pointer; white-space: nowrap; }
+.settings-asin-save:hover:not(:disabled) { background: #13b6c9; transform: translateY(-1px); }
+.settings-asin-save:disabled { cursor: not-allowed; opacity: .58; }
+.settings-asin-editor-help { display: block; margin-top: 6px; color: #66818a; font-size: 10px; line-height: 1.45; }
+.settings-alias-list { margin-top: 7px; padding: 8px 9px; border: 1px solid #e1d4ad; border-radius: 8px; background: #fffdf4; }
+.settings-alias-title { display: block; margin-bottom: 5px; color: #806b2f; font-size: 10px; font-weight: 800; }
+.settings-alias-item { display: flex; align-items: center; justify-content: space-between; gap: 7px; min-height: 25px; }
+.settings-alias-item code { color: #5e522e; font: 700 11px/1.3 Consolas, monospace; }
+.settings-alias-remove { height: 24px; border: 1px solid #d5bf75; border-radius: 6px; background: #fff; color: #856b23; padding: 0 7px; font-size: 10px; font-weight: 800; cursor: pointer; }
+.settings-alias-remove:hover, .settings-alias-remove.is-armed { border-color: #c38b21; background: #fff4d4; color: #8b5b0e; }
+.settings-alias-warning { display: flex; align-items: flex-start; gap: 5px; margin-top: 6px; color: #946c1a; font-size: 10px; line-height: 1.45; }
 .settings-country-control { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: #6f5360; font-size: 11px; font-weight: 800; }
 .settings-country-control select { flex: 1; min-width: 0; height: 32px; border: 1px solid #d7b6b6; border-radius: 7px; background: white; padding: 0 8px; outline: 0; font-size: 12px; font-weight: 700; }
 .settings-country-control select:focus { border-color: #e05252; box-shadow: 0 0 0 3px rgba(224,82,82,.12); }
@@ -637,6 +662,10 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
   .settings-section-heading { display: block; }
   .settings-section-actions { margin-top: 6px; justify-content: flex-start; }
   .settings-delete-actions { flex-direction: column; }
+  .settings-asin-editor-row { align-items: stretch; flex-direction: column; }
+  .settings-asin-save { width: 100%; }
+  .settings-name-edit { flex-wrap: wrap; }
+  .settings-name-edit input { flex-basis: 100%; }
   .danger-button { width: 100%; }
   .summary-band { margin-inline: 9px; padding-inline: 9px; }
   .summary-item { min-width: 82px; padding-inline: 8px; }

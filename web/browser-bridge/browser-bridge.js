@@ -1141,6 +1141,47 @@
     return result(`已将“${config.modelName}”的 SIF 国家设置为${countryLabel(countryCode)}（${countryCode}）。`);
   }
 
+  async function renameModel(payload = {}) {
+    const store = await ensureStore();
+    const requestedAsin = text(payload.parentAsin || payload.oldParentAsin).toUpperCase();
+    const requestedName = text(payload.modelName);
+    const config = store.configs.find((item) => {
+      if (requestedName && item.modelName === requestedName) return !requestedAsin
+        || item.parentAsin === requestedAsin
+        || (item.legacyParentAsins || []).includes(requestedAsin);
+      return requestedAsin && (item.parentAsin === requestedAsin || (item.legacyParentAsins || []).includes(requestedAsin));
+    });
+    if (!config) throw new Error('找不到对应产品型号。');
+    const nextName = text(payload.newModelName || payload.nextModelName || payload.name);
+    if (!nextName) throw new Error('产品名称不能为空。');
+    if (nextName === config.modelName) return result('产品名称未改变。');
+    const conflict = store.configs.find((item) => item !== config && item.modelName === nextName);
+    if (conflict) throw new Error(`产品名称“${nextName}”已被“${conflict.parentAsin}”使用。`);
+    const previousName = config.modelName;
+    const aliases = new Set([config.parentAsin, ...(config.legacyParentAsins || [])].map((asin) => text(asin).toUpperCase()));
+    config.modelName = nextName;
+    const history = store.histories[config.historySheet];
+    if (Array.isArray(history)) {
+      history.forEach((record) => {
+        if (record && (record.modelName === previousName || aliases.has(text(record.parentAsin).toUpperCase()))) record.modelName = nextName;
+      });
+    }
+    store.watches.forEach((watch) => {
+      if (watch && (watch.modelName === previousName || aliases.has(text(watch.parentAsin).toUpperCase()))) watch.modelName = nextName;
+    });
+    store.annotations.forEach((annotation) => {
+      if (annotation && (annotation.modelName === previousName || aliases.has(text(annotation.parentAsin).toUpperCase()))) annotation.modelName = nextName;
+    });
+    store.competitors.forEach((competitor) => {
+      const ownerAsins = Array.isArray(competitor.ownerParentAsins) ? competitor.ownerParentAsins : [];
+      if (competitor.ownerModelName === previousName || aliases.has(text(competitor.ownerParentAsin).toUpperCase()) || ownerAsins.some((asin) => aliases.has(text(asin).toUpperCase()))) {
+        competitor.ownerModelName = nextName;
+      }
+    });
+    await writeStore(store);
+    return result(`已将产品名称从“${previousName}”修改为“${nextName}”，ASIN 和历史数据保持不变。`);
+  }
+
   async function changeModelAsin(payload) {
     const store = await ensureStore();
     const oldAsin = text(payload.oldParentAsin || payload.parentAsin).toUpperCase();
@@ -1210,6 +1251,17 @@
     }
     await writeStore(store);
     return result(`已将“${config.modelName}”的父体 ASIN 从 ${previousAsin} 修改为 ${nextAsin}，历史数据已保留。`);
+  }
+
+  async function releaseModelAlias(payload = {}) {
+    const store = await ensureStore();
+    const alias = text(payload.aliasAsin || payload.oldParentAsin || payload.parentAsin).toUpperCase();
+    if (!/^B0[A-Z0-9]{8}$/.test(alias)) throw new Error('历史别名 ASIN 格式不正确。');
+    const config = store.configs.find((item) => (item.legacyParentAsins || []).some((asin) => text(asin).toUpperCase() === alias));
+    if (!config) throw new Error(`没有找到由“${alias}”组成的历史别名。`);
+    config.legacyParentAsins = (config.legacyParentAsins || []).filter((item) => text(item).toUpperCase() !== alias);
+    await writeStore(store);
+    return result(`已从“${config.modelName}”解除历史别名 ${alias}。今后导入该 ASIN 不会再归入此产品。`);
   }
 
   async function deleteModel(payload) {
@@ -2016,7 +2068,9 @@
     deleteModel,
     deleteCompetitor,
     setModelCountry,
+    renameModel,
     changeModelAsin,
+    releaseModelAlias,
     setModelIcon,
     onSifProgress: (listener) => {
       if (typeof listener !== 'function') return () => {};

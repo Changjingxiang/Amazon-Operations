@@ -56,6 +56,18 @@ export const api = {
     if (!electronApi()?.setModelCountry) throw new Error('浏览器预览模式不能修改产品国家，请在桌面软件中操作。');
     return electronApi().setModelCountry(payload);
   },
+  renameModel: (payload) => {
+    if (!electronApi()?.renameModel) throw new Error('当前环境不支持修改产品名称，请使用最新版软件或网页版。');
+    return electronApi().renameModel(payload);
+  },
+  changeModelAsin: (payload) => {
+    if (!electronApi()?.changeModelAsin) throw new Error('当前环境不支持修改父体 ASIN，请使用最新版软件或网页版。');
+    return electronApi().changeModelAsin(payload);
+  },
+  releaseModelAlias: (payload) => {
+    if (!electronApi()?.releaseModelAlias) throw new Error('当前环境不支持解除历史别名，请使用最新版软件或网页版。');
+    return electronApi().releaseModelAlias(payload);
+  },
   setModelIcon: (payload) => {
     if (!electronApi()?.setModelIcon) throw new Error('浏览器预览模式不能保存产品图标，请在桌面软件中操作。');
     return electronApi().setModelIcon(payload);

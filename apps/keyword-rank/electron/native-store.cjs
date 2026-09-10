@@ -16,12 +16,40 @@ const WORKBOOK_NAME = '关键词排名每日跟进表.xlsx';
 const ICON_CONFIG_NAME = '产品图标配置.json';
 const SOURCE_DIR_NAME = '每日源文件';
 const SCHEMA_VERSION = 3;
+const ASIN_PATTERN = /^B0[A-Z0-9]{8}$/;
 let readDataCache = null;
 
 function storePath(toolRoot) { return path.join(toolRoot, STORE_NAME); }
 function text(value) { return value == null ? '' : String(value).trim(); }
 function normalizeHeader(value) { return text(value).replace(/[\r\n\t ]+/g, ' '); }
 function key(value) { return text(value).toLocaleLowerCase('en-US'); }
+function normalizeAsin(value) { return text(value).toUpperCase(); }
+function configAsins(config) {
+  return [...new Set([
+    normalizeAsin(config?.parentAsin),
+    ...(Array.isArray(config?.legacyParentAsins) ? config.legacyParentAsins.map(normalizeAsin) : []),
+  ].filter((asin) => ASIN_PATTERN.test(asin)))];
+}
+function normalizeConfig(config) {
+  const parentAsin = normalizeAsin(config?.parentAsin);
+  const legacyParentAsins = [...new Set(
+    (Array.isArray(config?.legacyParentAsins) ? config.legacyParentAsins : [])
+      .map(normalizeAsin)
+      .filter((asin) => ASIN_PATTERN.test(asin) && asin !== parentAsin),
+  )];
+  const countryCode = normalizeCountryCode(config?.countryCode || config?.site || 'CA');
+  return { ...config, parentAsin, legacyParentAsins, countryCode, site: countryLabel(countryCode) };
+}
+function findModelConfig(store, payload = {}) {
+  const requestedAsin = normalizeAsin(payload.parentAsin || payload.oldParentAsin);
+  const requestedName = text(payload.modelName);
+  const byName = requestedName ? store.configs.find((item) => item.modelName === requestedName) : null;
+  if (byName) {
+    if (requestedAsin && !configAsins(byName).includes(requestedAsin)) throw new Error('产品配置已更新，请关闭设置后重新打开再操作。');
+    return byName;
+  }
+  return store.configs.find((item) => requestedAsin && configAsins(item).includes(requestedAsin)) || null;
+}
 
 function nullableNumber(value) {
   if (value == null || text(value) === '') return null;
@@ -207,7 +235,7 @@ function createModelConfig(payload, order, configs) {
     used.add(candidate); return candidate;
   };
   return {
-    modelName: text(payload.modelName), parentAsin: asin, site: countryLabel(countryCode), countryCode, order,
+    modelName: text(payload.modelName), parentAsin: asin, legacyParentAsins: [], site: countryLabel(countryCode), countryCode, order,
     dashboardSheet: unique(`${suffix}_看板`), historySheet: unique(`${suffix}_历史`),
     naturalMatrixSheet: unique(`${suffix}_自然矩阵`), spMatrixSheet: unique(`${suffix}_SP矩阵`),
     abaMonthlySheet: unique(`${suffix}_ABA月度`),
@@ -220,6 +248,7 @@ function normalizeAnnotations(value) {
     .filter((item) => item && typeof item === 'object')
     .map((item) => ({
       modelName: text(item.modelName),
+      parentAsin: normalizeAsin(item.parentAsin),
       metric: text(item.metric).toLocaleLowerCase('en-US') || 'sp',
       keyword: text(item.keyword),
       date: isoDate(item.date),
@@ -233,10 +262,7 @@ function normalizeStore(value) {
   const store = value && typeof value === 'object' ? value : {};
   return {
     schemaVersion: Math.max(SCHEMA_VERSION, Number(store.schemaVersion) || 0),
-    configs: Array.isArray(store.configs) ? store.configs.map((config) => {
-      const countryCode = normalizeCountryCode(config?.countryCode || config?.site || 'CA');
-      return { ...config, countryCode, site: countryLabel(countryCode) };
-    }) : [],
+    configs: Array.isArray(store.configs) ? store.configs.map(normalizeConfig) : [],
     watches: Array.isArray(store.watches) ? store.watches : [],
     histories: store.histories && typeof store.histories === 'object' ? store.histories : {},
     importedFiles: store.importedFiles && typeof store.importedFiles === 'object' ? store.importedFiles : {},
@@ -363,6 +389,100 @@ function setModelCountry(toolRoot, exporterPath, cachePath, payload) {
   return { ok: true, output: `已将“${config.modelName}”站点设置为${config.site}。`, data: readData(toolRoot, exporterPath, cachePath) };
 }
 
+function renameModel(toolRoot, exporterPath, cachePath, payload = {}) {
+  const store = ensureStore(toolRoot, exporterPath, cachePath);
+  const config = findModelConfig(store, payload);
+  if (!config) throw new Error('找不到对应产品型号。');
+  const nextName = text(payload.newModelName || payload.nextModelName || payload.name);
+  if (!nextName) throw new Error('产品名称不能为空。');
+  if (nextName === config.modelName) return { ok: true, output: '产品名称未改变。', data: readData(toolRoot, exporterPath, cachePath) };
+  const conflict = store.configs.find((item) => item !== config && item.modelName === nextName);
+  if (conflict) throw new Error(`产品名称“${nextName}”已被“${conflict.parentAsin}”使用。`);
+  const previousName = config.modelName;
+  const aliases = new Set(configAsins(config));
+  config.modelName = nextName;
+  const history = store.histories[config.historySheet];
+  if (Array.isArray(history)) {
+    history.forEach((record) => {
+      if (!record || typeof record !== 'object') return;
+      if (record.modelName === previousName || aliases.has(normalizeAsin(record.parentAsin))) record.modelName = nextName;
+    });
+  }
+  store.watches.forEach((watch) => {
+    if (watch && (watch.modelName === previousName || aliases.has(normalizeAsin(watch.parentAsin)))) {
+      watch.modelName = nextName;
+    }
+  });
+  store.annotations.forEach((annotation) => {
+    if (annotation && (annotation.modelName === previousName || aliases.has(normalizeAsin(annotation.parentAsin)))) {
+      annotation.modelName = nextName;
+    }
+  });
+  writeStore(toolRoot, store);
+  return { ok: true, output: `已将产品名称从“${previousName}”修改为“${nextName}”，ASIN 和历史数据保持不变。`, data: readData(toolRoot, exporterPath, cachePath) };
+}
+
+function changeModelAsin(toolRoot, exporterPath, cachePath, payload = {}) {
+  const store = ensureStore(toolRoot, exporterPath, cachePath);
+  const config = findModelConfig(store, payload);
+  if (!config) throw new Error('找不到对应产品型号。');
+  const oldAsin = normalizeAsin(payload.oldParentAsin || payload.parentAsin);
+  if (oldAsin && !configAsins(config).includes(oldAsin)) throw new Error('产品配置已更新，请关闭设置后重新打开再操作。');
+  const nextAsin = normalizeAsin(payload.newParentAsin || payload.nextParentAsin);
+  if (!ASIN_PATTERN.test(nextAsin)) throw new Error('新的父体 ASIN 格式不正确。');
+  if (nextAsin === config.parentAsin) return { ok: true, output: '父体 ASIN 未改变，历史数据保持不变。', data: readData(toolRoot, exporterPath, cachePath) };
+  const conflict = store.configs.find((item) => item !== config && configAsins(item).includes(nextAsin));
+  if (conflict) throw new Error(`父体 ASIN ${nextAsin} 已被“${conflict.modelName}”使用。`);
+
+  const previousAsin = config.parentAsin;
+  const aliases = new Set(configAsins(config));
+  config.legacyParentAsins = [...new Set([...(config.legacyParentAsins || []), previousAsin])]
+    .filter((asin) => ASIN_PATTERN.test(normalizeAsin(asin)) && normalizeAsin(asin) !== nextAsin);
+  config.parentAsin = nextAsin;
+
+  const history = store.histories[config.historySheet];
+  if (Array.isArray(history)) {
+    history.forEach((record) => {
+      if (!record || typeof record !== 'object') return;
+      if (record.modelName === config.modelName || aliases.has(normalizeAsin(record.parentAsin))) record.parentAsin = nextAsin;
+    });
+  }
+  store.watches.forEach((watch) => {
+    if (watch && (watch.modelName === config.modelName || aliases.has(normalizeAsin(watch.parentAsin)))) {
+      watch.parentAsin = nextAsin;
+      watch.modelName = config.modelName;
+    }
+  });
+  store.annotations.forEach((annotation) => {
+    if (annotation && (annotation.modelName === config.modelName || aliases.has(normalizeAsin(annotation.parentAsin)))) {
+      annotation.parentAsin = nextAsin;
+      annotation.modelName = config.modelName;
+    }
+  });
+  for (const info of Object.values(store.importedFiles || {})) {
+    if (info && aliases.has(normalizeAsin(info.parentAsin))) info.parentAsin = nextAsin;
+  }
+  writeStore(toolRoot, store);
+  return {
+    ok: true,
+    output: `已将“${config.modelName}”的父体 ASIN 从 ${previousAsin} 修改为 ${nextAsin}，旧 ASIN 已保留为历史别名。`,
+    previousParentAsin: previousAsin,
+    nextParentAsin: nextAsin,
+    data: readData(toolRoot, exporterPath, cachePath),
+  };
+}
+
+function releaseModelAlias(toolRoot, exporterPath, cachePath, payload = {}) {
+  const store = ensureStore(toolRoot, exporterPath, cachePath);
+  const alias = normalizeAsin(payload.aliasAsin || payload.oldParentAsin || payload.parentAsin);
+  if (!ASIN_PATTERN.test(alias)) throw new Error('历史别名 ASIN 格式不正确。');
+  const config = store.configs.find((item) => (item.legacyParentAsins || []).map(normalizeAsin).includes(alias));
+  if (!config) throw new Error(`没有找到由“${alias}”组成的历史别名。`);
+  config.legacyParentAsins = (config.legacyParentAsins || []).filter((item) => normalizeAsin(item) !== alias);
+  writeStore(toolRoot, store);
+  return { ok: true, output: `已从“${config.modelName}”解除历史别名 ${alias}。今后导入该 ASIN 不会再归入此产品。`, data: readData(toolRoot, exporterPath, cachePath) };
+}
+
 function setAnnotation(toolRoot, exporterPath, cachePath, payload) {
   const store = ensureStore(toolRoot, exporterPath, cachePath);
   const config = store.configs.find((item) => item.modelName === payload.modelName || item.parentAsin === text(payload.parentAsin).toUpperCase());
@@ -384,9 +504,13 @@ function setAnnotation(toolRoot, exporterPath, cachePath, payload) {
 
 function addModel(toolRoot, exporterPath, cachePath, payload) {
   const store = ensureStore(toolRoot, exporterPath, cachePath);
-  const asin = text(payload.parentAsin).toUpperCase();
-  if (!/^B0[A-Z0-9]{8}$/.test(asin)) throw new Error('父体 ASIN 格式不正确。');
-  if (store.configs.some((item) => item.parentAsin === asin)) throw new Error('该父体 ASIN 已存在。');
+  const asin = normalizeAsin(payload.parentAsin);
+  if (!ASIN_PATTERN.test(asin)) throw new Error('父体 ASIN 格式不正确。');
+  const conflict = store.configs.find((item) => configAsins(item).includes(asin));
+  if (conflict) {
+    const isAlias = normalizeAsin(conflict.parentAsin) !== asin;
+    throw new Error(`父体 ASIN ${asin} 已被“${conflict.modelName}”使用${isAlias ? '（该 ASIN 是历史别名）' : ''}。`);
+  }
   const config = createModelConfig(payload, store.configs.length, store.configs);
   store.configs.push(config); store.histories[config.historySheet] = [];
   writeStore(toolRoot, store);
@@ -421,7 +545,10 @@ function importReports(toolRoot, exporterPath, cachePath, mode = 'normal') {
       const fullPath = path.join(sourceFolder, name); const stat = fs.statSync(fullPath); return { name, fullPath, stat };
     }).sort((a, b) => a.stat.mtimeMs - b.stat.mtimeMs)
     : [];
-  const configsByAsin = new Map(store.configs.map((item) => [item.parentAsin.toUpperCase(), item]));
+  const configsByAsin = new Map();
+  store.configs.forEach((config) => {
+    configAsins(config).forEach((asin) => configsByAsin.set(asin, config));
+  });
   let imported = 0; let skipped = 0; let failed = 0; const errors = [];
   for (const file of files) {
     const fingerprint = `${file.stat.size}:${file.stat.mtimeMs}`;
@@ -433,7 +560,7 @@ function importReports(toolRoot, exporterPath, cachePath, mode = 'normal') {
       store.histories[config.historySheet] = previous.filter((item) => !(item.parentAsin === config.parentAsin && item.snapshotDate === report.snapshotDate)).concat(
         report.records.map((item) => ({ ...item, modelName: config.modelName, parentAsin: config.parentAsin })),
       );
-      store.importedFiles[file.name] = { fingerprint, parentAsin: report.parentAsin, snapshotDate: report.snapshotDate, importedAt: new Date().toISOString() };
+      store.importedFiles[file.name] = { fingerprint, parentAsin: config.parentAsin, snapshotDate: report.snapshotDate, importedAt: new Date().toISOString() };
       imported++;
     } catch (error) {
       // Older `asinKeywords_*.xlsx` exports are WPS-protected binary files.
@@ -478,5 +605,6 @@ function importAbaMonthlyCsv(toolRoot, exporterPath, cachePath, payload = {}) {
 
 module.exports = {
   STORE_NAME, storePath, ensureStore, readData, mutateWatch, replaceWatches, setAnnotation,
-  addModel, deleteModel, setModelCountry, importReports, importAbaMonthlyCsv,
+  addModel, deleteModel, setModelCountry, renameModel, changeModelAsin, releaseModelAlias,
+  importReports, importAbaMonthlyCsv,
 };

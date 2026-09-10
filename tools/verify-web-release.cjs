@@ -96,7 +96,7 @@ async function main() {
     result.bridgeFunctions = await page.evaluate(() => ({
       hasBridge: Boolean(window.keywordTracker),
       hasSeed: Boolean(window.__KEYWORD_TRACKER_SEED__),
-      methods: ['getData', 'setWatch', 'addModel', 'addCompetitor', 'changeModelAsin', 'importAbaMonthlyCsv']
+      methods: ['getData', 'setWatch', 'addModel', 'addCompetitor', 'renameModel', 'changeModelAsin', 'releaseModelAlias', 'importAbaMonthlyCsv']
         .filter((name) => typeof window.keywordTracker?.[name] === 'function'),
       seedConfigs: window.__KEYWORD_TRACKER_SEED__?.configs?.length || 0,
     }));
@@ -124,6 +124,7 @@ async function main() {
     result.settings = await page.evaluate(() => ({
       modal: Boolean(document.querySelector('.settings-modal')),
       asinEditors: document.querySelectorAll('[data-parent-asin-editor]').length,
+      nameEditors: document.querySelectorAll('.settings-name-row .settings-inline-button').length,
       competitorSettings: document.querySelectorAll('[data-competitor-settings]').length,
       abaImport: document.querySelectorAll('[data-aba-monthly-import]').length,
       batchImport: document.querySelectorAll('[data-sif-batch-import]').length,
@@ -145,6 +146,9 @@ async function main() {
       && result.bridgeFunctions.seedConfigs >= 6
       && result.settings.modal
       && result.settings.asinEditors >= 1
+      && result.settings.nameEditors >= result.models
+      && result.bridgeFunctions.methods.includes('renameModel')
+      && result.bridgeFunctions.methods.includes('releaseModelAlias')
       && result.settings.competitorSettings >= 1
       && result.settings.abaImport >= 1
       && result.settings.batchImport >= 1

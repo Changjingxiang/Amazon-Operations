@@ -2,7 +2,7 @@ const { app, BrowserWindow, dialog, ipcMain, shell, session } = require('electro
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
-const { readData, mutateWatch, replaceWatches, setAnnotation, addModel, deleteModel, setModelCountry, importReports, importAbaMonthlyCsv, STORE_NAME } = require('./native-store.cjs');
+const { readData, mutateWatch, replaceWatches, setAnnotation, addModel, deleteModel, setModelCountry, renameModel, changeModelAsin, releaseModelAlias, importReports, importAbaMonthlyCsv, STORE_NAME } = require('./native-store.cjs');
 const { normalizeCountryCode, countryLabel } = require('./countries.cjs');
 
 const WORKBOOK_NAME = '关键词排名每日跟进表.xlsx';
@@ -93,6 +93,24 @@ function saveModelIcon(parentAsin, iconKey) {
   config.products[asin] = custom || key;
   fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
   return { ok: true, output: '产品图标已保存。' };
+}
+
+function moveModelIcon(previousParentAsin, nextParentAsin) {
+  const toolRoot = findToolRoot();
+  const previous = String(previousParentAsin || '').trim().toUpperCase();
+  const next = String(nextParentAsin || '').trim().toUpperCase();
+  if (!/^B0[A-Z0-9]{8}$/.test(previous) || !/^B0[A-Z0-9]{8}$/.test(next) || previous === next) return;
+  const configPath = path.join(toolRoot, ICON_CONFIG_NAME);
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    if (!config?.products || typeof config.products !== 'object') return;
+    if (Object.prototype.hasOwnProperty.call(config.products, previous)
+      && !Object.prototype.hasOwnProperty.call(config.products, next)) {
+      config.products[next] = config.products[previous];
+    }
+    delete config.products[previous];
+    fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+  } catch {}
 }
 
 function runPowerShell(args, cwd) {
@@ -455,6 +473,20 @@ app.whenReady().then(() => {
   ipcMain.handle('tracker:set-model-country', async (_event, payload) => {
     const toolRoot = findToolRoot();
     return setModelCountry(toolRoot, bridgePath('export_tracker_data.ps1'), path.join(app.getPath('userData'), 'tracker-data-migration.json'), payload || {});
+  });
+  ipcMain.handle('tracker:rename-model', async (_event, payload) => {
+    const toolRoot = findToolRoot();
+    return renameModel(toolRoot, bridgePath('export_tracker_data.ps1'), path.join(app.getPath('userData'), 'tracker-data-migration.json'), payload || {});
+  });
+  ipcMain.handle('tracker:change-model-asin', async (_event, payload) => {
+    const toolRoot = findToolRoot();
+    const result = changeModelAsin(toolRoot, bridgePath('export_tracker_data.ps1'), path.join(app.getPath('userData'), 'tracker-data-migration.json'), payload || {});
+    moveModelIcon(result.previousParentAsin || payload?.oldParentAsin || payload?.parentAsin, result.nextParentAsin || payload?.newParentAsin || payload?.nextParentAsin);
+    return { ...result, data: loadTrackerData() };
+  });
+  ipcMain.handle('tracker:release-model-alias', async (_event, payload) => {
+    const toolRoot = findToolRoot();
+    return releaseModelAlias(toolRoot, bridgePath('export_tracker_data.ps1'), path.join(app.getPath('userData'), 'tracker-data-migration.json'), payload || {});
   });
   ipcMain.handle('tracker:set-model-icon', async (_event, payload) => {
     const result = saveModelIcon(payload.parentAsin, payload.iconKey);
