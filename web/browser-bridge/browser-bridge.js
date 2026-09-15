@@ -7,6 +7,8 @@
   const DB_VERSION = 1;
   const STORE_NAME = 'state';
   const STATE_KEY = 'tracker-store';
+  const LEGACY_BACKUPS_KEY = 'daily-backups';
+  const DAILY_BACKUP_PREFIX = 'daily-backup:';
   const SCHEMA_VERSION = 4;
   const cloudMode = Boolean(window.__KEYWORD_CLOUD_MODE__) || new URLSearchParams(window.location.search).get('cloud') === '1';
   const cloudStorage = cloudMode && window.parent !== window ? window.parent.__keywordCloudStorage : null;
@@ -52,6 +54,22 @@
 
   let memoryStore = null;
   let indexedDbAvailable = true;
+  let ensureStorePromise = null;
+  let pendingSave = null;
+  let lastPersistenceStatus = null;
+  let persistenceQueue = Promise.resolve();
+  const storageChannel = typeof BroadcastChannel === 'function'
+    ? new BroadcastChannel(`${DB_NAME}-changes`)
+    : null;
+
+  storageChannel?.addEventListener('message', (event) => {
+    const remoteUpdatedAt = text(event.data?.storageRevision || event.data?.updatedAt);
+    const localUpdatedAt = text(memoryStore?.storageRevision || memoryStore?.updatedAt);
+    if (!pendingSave && remoteUpdatedAt && localUpdatedAt && remoteUpdatedAt !== localUpdatedAt) {
+      memoryStore = null;
+      window.dispatchEvent(new CustomEvent('keyword-tracker-storage-changed', { detail: event.data }));
+    }
+  });
 
   function clone(value) {
     return typeof structuredClone === 'function'
@@ -370,6 +388,7 @@
       sourceCount: Number.isFinite(Number(store.sourceCount)) ? Number(store.sourceCount) : 54,
       migratedFromWorkbookAt: store.migratedFromWorkbookAt || null,
       updatedAt: store.updatedAt || null,
+      storageRevision: text(store.storageRevision) || null,
     };
   }
 
@@ -380,23 +399,52 @@
         return;
       }
       const request = indexedDB.open(DB_NAME, DB_VERSION);
+      let settled = false;
+      const fail = (error) => {
+        if (settled) return;
+        settled = true;
+        reject(error || new Error('无法打开浏览器数据库。'));
+      };
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
       };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error || new Error('无法打开浏览器数据库。'));
+      request.onsuccess = () => {
+        if (settled) { request.result.close(); return; }
+        settled = true;
+        request.result.onversionchange = () => request.result.close();
+        resolve(request.result);
+      };
+      request.onerror = () => fail(request.error);
+      request.onblocked = () => fail(new DOMException('浏览器数据库正被另一个页面占用，请关闭旧页面后重试。', 'BlockedError'));
     });
+  }
+
+  function newStorageRevision() {
+    return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  function storageError(operation, error) {
+    if (error?.storageOperation) return error;
+    const name = text(error?.name) || 'Error';
+    const message = text(error?.message || error) || '未知错误';
+    const wrapped = new Error(`${operation}失败（${name}）：${message}`);
+    wrapped.name = name;
+    wrapped.cause = error;
+    wrapped.storageOperation = operation;
+    return wrapped;
   }
 
   async function readIndexedStore() {
     const db = await openDatabase();
     try {
-      return await new Promise((resolve, reject) => {
+      const value = await new Promise((resolve, reject) => {
         const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(STATE_KEY);
         request.onsuccess = () => resolve(request.result || null);
-        request.onerror = () => reject(request.error);
+        request.onerror = () => reject(storageError('读取主数据', request.error));
       });
+      indexedDbAvailable = true;
+      return value;
     } finally {
       db.close();
     }
@@ -406,24 +454,92 @@
     return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
   }
 
-  async function writeIndexedStore(store, recovery = null) {
+  async function writeIndexedState(store, expectedUpdatedAt = null, recovery = null) {
     const db = await openDatabase();
     try {
       await new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
         const records = transaction.objectStore(STORE_NAME);
-        const request = records.get('daily-backups');
+        let writeError = null;
+        const request = records.get(STATE_KEY);
         request.onsuccess = () => {
-          const date = localBackupDate();
-          const backups = (request.result || []).filter((item) => item.date !== date);
-          backups.push({ date, savedAt: new Date().toISOString(), store: clone(store) });
-          records.put(backups.sort((a, b) => a.date.localeCompare(b.date)).slice(-21), 'daily-backups');
-          if (recovery) records.put({ savedAt: new Date().toISOString(), store: recovery }, 'before-weekly-restore');
-          records.put(store, STATE_KEY);
+          try {
+            const currentUpdatedAt = text(request.result?.storageRevision || request.result?.updatedAt) || null;
+            if (expectedUpdatedAt != null && currentUpdatedAt !== expectedUpdatedAt) {
+              throw new DOMException('另一个标签页已保存更新。为避免旧数据覆盖新数据，请先刷新；当前未保存数据仍可导出。', 'ConflictError');
+            }
+            if (recovery) records.put({ savedAt: new Date().toISOString(), store: recovery }, 'before-weekly-restore');
+            records.put(store, STATE_KEY);
+          } catch (error) {
+            writeError = error;
+            transaction.abort();
+          }
         };
         transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
-        transaction.onabort = () => reject(transaction.error || new Error('保存未完成，请重试。'));
+        transaction.onerror = () => {};
+        transaction.onabort = () => reject(storageError('主数据事务提交', writeError || transaction.error || new Error('保存未完成，请重试。')));
+      });
+      indexedDbAvailable = true;
+    } catch (error) {
+      throw storageError('主数据事务提交', error);
+    } finally { db.close(); }
+  }
+
+  async function writeDailyBackup(store) {
+    const db = await openDatabase();
+    try {
+      const date = localBackupDate();
+      await new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readwrite');
+        const records = transaction.objectStore(STORE_NAME);
+        let writeError = null;
+        const keysRequest = records.getAllKeys();
+        keysRequest.onsuccess = () => {
+          try {
+            const backupKeys = (keysRequest.result || [])
+              .filter((keyValue) => typeof keyValue === 'string' && keyValue.startsWith(DAILY_BACKUP_PREFIX))
+              .sort();
+            const keep = new Set([...backupKeys, `${DAILY_BACKUP_PREFIX}${date}`].sort().slice(-21));
+            backupKeys.forEach((keyValue) => { if (!keep.has(keyValue)) records.delete(keyValue); });
+            records.put({ date, savedAt: new Date().toISOString(), store: clone(store) }, `${DAILY_BACKUP_PREFIX}${date}`);
+          } catch (error) {
+            writeError = error;
+            transaction.abort();
+          }
+        };
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => {};
+        transaction.onabort = () => reject(storageError('自动备份事务提交', writeError || transaction.error || new Error('备份未完成。')));
+      });
+    } catch (error) {
+      throw storageError('自动备份事务提交', error);
+    } finally { db.close(); }
+  }
+
+  async function readDailyBackups() {
+    const db = await openDatabase();
+    try {
+      return await new Promise((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, 'readonly');
+        const records = transaction.objectStore(STORE_NAME);
+        const keysRequest = records.getAllKeys();
+        const legacyRequest = records.get(LEGACY_BACKUPS_KEY);
+        let remaining = 2;
+        let values = [];
+        const done = () => { if (--remaining === 0) resolve(values); };
+        keysRequest.onsuccess = () => {
+          const keys = (keysRequest.result || []).filter((keyValue) => typeof keyValue === 'string' && keyValue.startsWith(DAILY_BACKUP_PREFIX));
+          if (!keys.length) { done(); return; }
+          let pending = keys.length;
+          keys.forEach((keyValue) => {
+            const request = records.get(keyValue);
+            request.onsuccess = () => { if (request.result) values.push(request.result); if (--pending === 0) done(); };
+            request.onerror = () => reject(storageError('读取自动备份', request.error));
+          });
+        };
+        keysRequest.onerror = () => reject(storageError('读取自动备份索引', keysRequest.error));
+        legacyRequest.onsuccess = () => { values = values.concat(Array.isArray(legacyRequest.result) ? legacyRequest.result : []); done(); };
+        legacyRequest.onerror = () => reject(storageError('读取旧版自动备份', legacyRequest.error));
       });
     } finally { db.close(); }
   }
@@ -433,23 +549,47 @@
   // and daily backup deserialization/cloning stay inside the worker.
   function annotationStorageWorker() {
     self.onmessage = ({ data }) => {
-      const fail = (error) => self.postMessage({ ok: false, error: error?.message || '标注写入失败，请重试。' });
+      const message = (error, fallback) => `${error?.name ? `${error.name}：` : ''}${error?.message || fallback}`;
+      const fail = (error) => self.postMessage({ ok: false, error: message(error, '标注写入失败，请重试。') });
       const request = indexedDB.open(data.database, data.version);
       request.onerror = () => fail(request.error);
       request.onsuccess = () => {
         const db = request.result;
-        let transaction;
+        let store;
+        const finishBackup = (backup) => { db.close(); self.postMessage({ ok: true, backup }); };
+        const writeBackup = () => {
+          let transaction;
+          let writeError = null;
+          try {
+            transaction = db.transaction(data.objectStore, 'readwrite');
+            const records = transaction.objectStore(data.objectStore);
+            const keysRequest = records.getAllKeys();
+            keysRequest.onsuccess = () => {
+              try {
+                const keys = (keysRequest.result || [])
+                  .filter((keyValue) => typeof keyValue === 'string' && keyValue.startsWith(data.backupPrefix))
+                  .sort();
+                const targetKey = `${data.backupPrefix}${data.backupDate}`;
+                const keep = new Set([...keys, targetKey].sort().slice(-21));
+                keys.forEach((keyValue) => { if (!keep.has(keyValue)) records.delete(keyValue); });
+                records.put({ date: data.backupDate, savedAt: store.updatedAt, store }, targetKey);
+              } catch (error) { writeError = error; transaction.abort(); }
+            };
+            transaction.oncomplete = () => finishBackup({ ok: true });
+            transaction.onerror = () => {};
+            transaction.onabort = () => finishBackup({ ok: false, error: message(writeError || transaction.error, '自动备份失败。') });
+          } catch (error) {
+            finishBackup({ ok: false, error: message(error, '自动备份失败。') });
+          }
+        };
         try {
-          transaction = db.transaction(data.objectStore, 'readwrite');
+          const transaction = db.transaction(data.objectStore, 'readwrite');
           const records = transaction.objectStore(data.objectStore);
           const stateRequest = records.get(data.stateKey);
-          const backupsRequest = records.get('daily-backups');
-          let remaining = 2;
           let writeError = null;
-          const write = () => {
-            if (--remaining) return;
+          stateRequest.onsuccess = () => {
             try {
-              const store = stateRequest.result;
+              store = stateRequest.result;
               if (!store) throw new Error('本地数据尚未初始化，请重新打开页面后重试。');
               const normalizeKey = (value) => String(value || '').trim().toLocaleLowerCase('en-US');
               const belongs = (item) => item.parentAsin
@@ -461,18 +601,14 @@
                 && item.date === data.annotation.date));
               if (data.annotation.text) store.annotations.push(data.annotation);
               store.updatedAt = data.annotation.updatedAt;
-              const backups = (backupsRequest.result || []).filter((item) => item.date !== data.backupDate);
-              backups.push({ date: data.backupDate, savedAt: store.updatedAt, store });
-              records.put(backups.sort((a, b) => a.date.localeCompare(b.date)).slice(-21), 'daily-backups');
+              store.storageRevision = data.storageRevision;
               records.put(store, data.stateKey);
             } catch (error) {
               writeError = error;
               transaction.abort();
             }
           };
-          stateRequest.onsuccess = write;
-          backupsRequest.onsuccess = write;
-          transaction.oncomplete = () => { db.close(); self.postMessage({ ok: true }); };
+          transaction.oncomplete = writeBackup;
           transaction.onabort = () => { db.close(); fail(writeError || transaction.error); };
           transaction.onerror = () => {}; // onabort reports transaction failures once.
         } catch (error) {
@@ -483,24 +619,24 @@
     };
   }
 
-  function writeAnnotationInWorker(annotation, asins) {
+  function writeAnnotationInWorker(annotation, asins, storageRevision) {
     return new Promise((resolve, reject) => {
       let worker;
       let url;
-      const finish = (error) => {
+      const finish = (error, value) => {
         worker?.terminate();
         if (url) URL.revokeObjectURL(url);
         if (error) reject(error);
-        else resolve();
+        else resolve(value);
       };
       try {
         url = URL.createObjectURL(new Blob([`(${annotationStorageWorker.toString()})()`], { type: 'text/javascript' }));
         worker = new Worker(url);
-        worker.onmessage = ({ data }) => finish(data.ok ? null : new Error(data.error));
+        worker.onmessage = ({ data }) => finish(data.ok ? null : new Error(data.error), data);
         worker.onerror = (event) => { event.preventDefault(); finish(new Error(event.message || '标注保存线程无法启动。')); };
         worker.onmessageerror = () => finish(new Error('标注保存结果读取失败，请重试。'));
         worker.postMessage({ database: DB_NAME, version: DB_VERSION, objectStore: STORE_NAME,
-          stateKey: STATE_KEY, annotation, asins, backupDate: localBackupDate() });
+          stateKey: STATE_KEY, annotation, asins, storageRevision, backupDate: localBackupDate(), backupPrefix: DAILY_BACKUP_PREFIX });
       } catch (error) { finish(error); }
     });
   }
@@ -510,24 +646,160 @@
       if (!cloudStorage) throw new Error('请从飞书云端工作台入口打开。');
       return cloudStorage.previousWeek();
     }
-    const db = await openDatabase();
-    try {
-      const backups = await new Promise((resolve, reject) => {
-        const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get('daily-backups');
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
-      });
-      const monday = new Date(); monday.setHours(0, 0, 0, 0);
-      monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
-      const end = localBackupDate(monday);
-      monday.setDate(monday.getDate() - 7);
-      const start = localBackupDate(monday);
-      return backups.filter((item) => item.date >= start && item.date < end).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
-    } finally { db.close(); }
+    const backups = await readDailyBackups();
+    const monday = new Date(); monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
+    const end = localBackupDate(monday);
+    monday.setDate(monday.getDate() - 7);
+    const start = localBackupDate(monday);
+    return backups.filter((item) => item.date >= start && item.date < end).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
   }
 
-  async function ensureStore() {
-    if (memoryStore) return cloudMode ? clone(memoryStore) : memoryStore;
+  function persistenceMessage(error) {
+    return text(error?.message || error) || '未知存储错误';
+  }
+
+  function ensureStorageNotice() {
+    let notice = document.getElementById('browser-storage-notice');
+    if (notice) return notice;
+    notice = document.createElement('section');
+    notice.id = 'browser-storage-notice';
+    notice.setAttribute('role', 'alert');
+    notice.innerHTML = `
+      <strong data-storage-title></strong>
+      <span data-storage-message></span>
+      <div><button type="button" data-storage-retry>重试保存</button><button type="button" data-storage-export>导出当前数据</button><button type="button" data-storage-close aria-label="关闭存储提示">×</button></div>
+      <style>
+        #browser-storage-notice{position:fixed;z-index:100001;left:50%;top:58px;transform:translateX(-50%);box-sizing:border-box;width:min(760px,calc(100vw - 32px));padding:14px 16px;border:1px solid #df7765;border-radius:10px;background:#fff4f0;color:#7c3328;box-shadow:0 14px 38px #173b6438;font-family:Inter,"Microsoft YaHei",sans-serif;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 16px;align-items:center}
+        #browser-storage-notice strong,#browser-storage-notice span{grid-column:1}#browser-storage-notice strong{font-size:14px}#browser-storage-notice span{font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+        #browser-storage-notice>div{grid-column:2;grid-row:1/3;display:flex;gap:8px;align-items:center}#browser-storage-notice button{border:1px solid #a94434;border-radius:7px;background:#fff;color:#8b382b;padding:8px 11px;font:700 12px inherit;cursor:pointer}#browser-storage-notice [data-storage-retry]{background:#a94434;color:#fff}#browser-storage-notice [data-storage-close]{border:0;padding:6px;background:transparent;font-size:18px}
+        @media(max-width:700px){#browser-storage-notice{grid-template-columns:1fr}#browser-storage-notice>div{grid-column:1;grid-row:auto;flex-wrap:wrap}}
+      </style>`;
+    notice.querySelector('[data-storage-close]').onclick = () => notice.remove();
+    notice.querySelector('[data-storage-export]').onclick = () => exportCurrentRecoveryData().catch((error) => alert(error.message));
+    notice.querySelector('[data-storage-retry]').onclick = async () => {
+      const button = notice.querySelector('[data-storage-retry]');
+      button.disabled = true;
+      button.textContent = '正在重试…';
+      try {
+        await retryPendingSave();
+        notice.querySelector('[data-storage-title]').textContent = '数据已保存';
+        notice.querySelector('[data-storage-message]').textContent = lastPersistenceStatus?.backup?.ok === false
+          ? `主数据已保存，但自动备份失败：${lastPersistenceStatus.backup.error}`
+          : '数据库事务已成功提交，现在可以安全刷新。';
+        button.remove();
+        notice.querySelector('[data-storage-export]').textContent = '再导出一份备份';
+      } catch (error) {
+        notice.querySelector('[data-storage-title]').textContent = '重试仍未保存';
+        notice.querySelector('[data-storage-message]').textContent = `数据尚未保存，刷新会丢失。${persistenceMessage(error)}`;
+        button.disabled = false;
+        button.textContent = '重试保存';
+      }
+    };
+    document.body.appendChild(notice);
+    return notice;
+  }
+
+  function showUnsavedNotice(error) {
+    document.getElementById('browser-storage-notice')?.remove();
+    const notice = ensureStorageNotice();
+    notice.querySelector('[data-storage-title]').textContent = '数据尚未保存，刷新会丢失';
+    notice.querySelector('[data-storage-message]').textContent = persistenceMessage(error);
+    return notice;
+  }
+
+  function showBackupNotice(error) {
+    document.getElementById('browser-storage-notice')?.remove();
+    const notice = ensureStorageNotice();
+    notice.querySelector('[data-storage-title]').textContent = '主数据已保存，但自动备份失败';
+    notice.querySelector('[data-storage-message]').textContent = `${persistenceMessage(error)}\n本次数据刷新后仍会保留，可稍后重试备份或导出 JSON。`;
+    const retry = notice.querySelector('[data-storage-retry]');
+    retry.textContent = '重试备份';
+    retry.onclick = async () => {
+      retry.disabled = true;
+      try {
+        await writeDailyBackup(memoryStore);
+        lastPersistenceStatus = { ...(lastPersistenceStatus || {}), backup: { ok: true } };
+        notice.remove();
+      } catch (nextError) {
+        notice.querySelector('[data-storage-message]').textContent = `${persistenceMessage(nextError)}\n主数据仍已安全保存。`;
+        retry.disabled = false;
+      }
+    };
+  }
+
+  function showReadFailureNotice(error) {
+    document.getElementById('browser-storage-notice')?.remove();
+    const notice = ensureStorageNotice();
+    notice.querySelector('[data-storage-title]').textContent = '浏览器数据库读取失败，未加载初始数据';
+    notice.querySelector('[data-storage-message]').textContent = `${persistenceMessage(error)}\n为避免覆盖已有数据，本页面没有用内置初始数据继续保存。`;
+    notice.querySelector('[data-storage-export]').hidden = true;
+    const retry = notice.querySelector('[data-storage-retry]');
+    retry.textContent = '重试读取';
+    retry.onclick = async () => {
+      retry.disabled = true;
+      try {
+        memoryStore = null;
+        await ensureStore();
+        location.reload();
+      } catch (nextError) {
+        notice.querySelector('[data-storage-message]').textContent = `${persistenceMessage(nextError)}\n原数据库仍未被覆盖。`;
+        retry.disabled = false;
+      }
+    };
+  }
+
+  async function persistMainAndBackup(next, expectedUpdatedAt, recovery = null) {
+    try {
+      await writeIndexedState(next, expectedUpdatedAt, recovery);
+    } catch (error) {
+      indexedDbAvailable = false;
+      pendingSave = { store: next, expectedUpdatedAt, recovery };
+      lastPersistenceStatus = { main: { ok: false, error: persistenceMessage(error) }, backup: { ok: false, skipped: true } };
+      showUnsavedNotice(error);
+      throw error;
+    }
+    indexedDbAvailable = true;
+    pendingSave = null;
+    if (!memoryStore || text(memoryStore.storageRevision || memoryStore.updatedAt) === text(next.storageRevision || next.updatedAt)) memoryStore = next;
+    storageChannel?.postMessage({ updatedAt: next.updatedAt, storageRevision: next.storageRevision });
+    try {
+      await writeDailyBackup(next);
+      lastPersistenceStatus = { main: { ok: true }, backup: { ok: true } };
+    } catch (error) {
+      lastPersistenceStatus = { main: { ok: true }, backup: { ok: false, error: persistenceMessage(error) } };
+      console.warn('主数据已保存，但自动备份失败。', error);
+      showBackupNotice(error);
+    }
+    return lastPersistenceStatus;
+  }
+
+  async function retryPendingSave() {
+    if (!pendingSave) {
+      if (lastPersistenceStatus?.main?.ok && lastPersistenceStatus?.backup?.ok === false && memoryStore) {
+        await writeDailyBackup(memoryStore);
+        lastPersistenceStatus = { main: { ok: true }, backup: { ok: true } };
+      }
+      return lastPersistenceStatus;
+    }
+    const pending = pendingSave;
+    return enqueuePersistence(() => persistMainAndBackup(pending.store, pending.expectedUpdatedAt, pending.recovery));
+  }
+
+  function enqueuePersistence(task) {
+    const scheduled = persistenceQueue.then(task, task);
+    persistenceQueue = scheduled.catch(() => {});
+    return scheduled;
+  }
+
+  async function exportCurrentRecoveryData() {
+    const store = pendingSave?.store || memoryStore;
+    if (!store) throw new Error('当前没有可导出的待保存数据。');
+    const date = new Date().toISOString().slice(0, 10);
+    downloadBlob(`${JSON.stringify(store)}\n`, `关键词排名待保存数据_${date}.json`, 'application/json;charset=utf-8');
+  }
+
+  async function loadStore() {
     if (cloudMode) {
       if (!cloudStorage) throw new Error('云端连接未建立，请从飞书云端工作台入口打开。');
       const savedCloud = await cloudStorage.read();
@@ -536,18 +808,39 @@
       memoryStore = next;
       return clone(memoryStore);
     }
-    let saved = null;
+    let saved;
     try {
       saved = await readIndexedStore();
     } catch (error) {
       indexedDbAvailable = false;
-      console.warn('浏览器数据库不可用，本次改动仅在当前页面保留。', error);
+      memoryStore = null;
+      console.warn('浏览器数据库读取失败；为避免覆盖已有数据，未加载初始数据。', error);
+      const wrapped = storageError('浏览器数据库读取', error);
+      wrapped.readFailure = true;
+      showReadFailureNotice(wrapped);
+      throw wrapped;
     }
-    memoryStore = normalizeStore(saved || clone(ORIGINAL_SEED));
-    if (indexedDbAvailable) {
-      try { await writeIndexedStore(memoryStore); } catch (error) { indexedDbAvailable = false; }
+    if (saved) {
+      memoryStore = normalizeStore(saved);
+      try {
+        await writeDailyBackup(memoryStore);
+        lastPersistenceStatus = { main: { ok: true }, backup: { ok: true } };
+      } catch (backupError) {
+        lastPersistenceStatus = { main: { ok: true }, backup: { ok: false, error: persistenceMessage(backupError) } };
+        showBackupNotice(backupError);
+      }
+      return memoryStore;
     }
+    const initial = normalizeStore(clone(ORIGINAL_SEED));
+    const next = normalizeStore({ ...initial, updatedAt: new Date().toISOString(), storageRevision: newStorageRevision() });
+    await persistMainAndBackup(next, null);
     return memoryStore;
+  }
+
+  async function ensureStore() {
+    if (memoryStore) return cloudMode ? clone(memoryStore) : memoryStore;
+    if (!ensureStorePromise) ensureStorePromise = loadStore().finally(() => { ensureStorePromise = null; });
+    return ensureStorePromise;
   }
 
   async function writeStore(store) {
@@ -558,13 +851,10 @@
       memoryStore = next;
       return memoryStore;
     }
-    memoryStore = normalizeStore({ ...store, updatedAt: new Date().toISOString() });
-    if (indexedDbAvailable) {
-      try { await writeIndexedStore(memoryStore); } catch (error) {
-        indexedDbAvailable = false;
-        console.warn('保存到浏览器数据库失败，本次改动仅在当前页面保留。', error);
-      }
-    }
+    const expectedUpdatedAt = pendingSave?.expectedUpdatedAt ?? (text(store?.storageRevision || store?.updatedAt) || null);
+    const next = normalizeStore({ ...store, updatedAt: new Date().toISOString(), storageRevision: newStorageRevision() });
+    memoryStore = next;
+    await enqueuePersistence(() => persistMainAndBackup(next, pendingSave?.expectedUpdatedAt ?? expectedUpdatedAt));
     return memoryStore;
   }
 
@@ -946,12 +1236,12 @@
       ownModels,
       competitors,
       loadedAt: new Date().toISOString(),
-      storage: indexedDbAvailable ? 'browser-indexeddb' : 'browser-memory',
+      storage: pendingSave ? 'browser-memory-unsaved' : (indexedDbAvailable ? 'browser-indexeddb' : 'browser-indexeddb-error'),
     };
   }
 
   async function result(output) {
-    return { ok: true, output, data: await readData() };
+    return { ok: true, output, data: await readData(), persistence: lastPersistenceStatus };
   }
 
   async function setWatch(payload) {
@@ -1024,14 +1314,21 @@
     store.annotations = store.annotations.filter((item) => !same(item));
     if (note) store.annotations.push({ parentAsin: config.parentAsin, modelName: config.modelName, metric, keyword, date, text: note, updatedAt: new Date().toISOString() });
     // Publish the in-memory change only after durable storage succeeds.
-    const next = { ...store, updatedAt: new Date().toISOString() };
+    const next = { ...store, updatedAt: new Date().toISOString(), storageRevision: newStorageRevision() };
     if (cloudMode) {
       if (!cloudStorage) throw new Error('云端连接未建立，标注尚未保存。');
       await cloudStorage.write(next);
     } else {
-      if (!indexedDbAvailable) throw new Error('浏览器数据库不可用，标注尚未保存。');
-      await writeAnnotationInWorker({ parentAsin: config.parentAsin, modelName: config.modelName,
-        metric, keyword, date, text: note, updatedAt: next.updatedAt }, [...configAsins]);
+      try {
+        const annotationStatus = await writeAnnotationInWorker({ parentAsin: config.parentAsin, modelName: config.modelName,
+          metric, keyword, date, text: note, updatedAt: next.updatedAt }, [...configAsins], next.storageRevision);
+        indexedDbAvailable = true;
+        lastPersistenceStatus = { main: { ok: true }, backup: annotationStatus.backup };
+        if (annotationStatus.backup?.ok === false) showBackupNotice(new Error(annotationStatus.backup.error));
+      } catch (error) {
+        indexedDbAvailable = false;
+        throw error;
+      }
     }
     memoryStore = next;
     if (payload.lightweight) return { ok: true, annotation: { parentAsin: config.parentAsin, modelName: config.modelName, metric, keyword, date, text: note } };
@@ -1947,7 +2244,7 @@
   }
 
   async function exportBackup() {
-    const store = await ensureStore();
+    const store = pendingSave?.store || await ensureStore();
     const date = new Date().toISOString().slice(0, 10);
     downloadBlob(`${JSON.stringify(store)}\n`, `关键词排名每日跟进数据_${date}.json`, 'application/json;charset=utf-8');
   }
@@ -1963,6 +2260,11 @@
 
   let dataManagerGeneration = 0;
   window.addEventListener('close-web-data-manager', () => { dataManagerGeneration += 1; });
+  function storageStatusLabel() {
+    if (pendingSave) return '当前：有未保存数据（刷新会丢失）';
+    if (lastPersistenceStatus?.main?.ok && lastPersistenceStatus?.backup?.ok === false) return '当前：主数据已保存，自动备份失败';
+    return indexedDbAvailable ? '当前：浏览器持久化存储' : '当前：浏览器数据库异常';
+  }
   async function dataManager() {
     const generation = ++dataManagerGeneration;
     await ensureStore();
@@ -1987,7 +2289,7 @@
           <div class="weekly-confirm" hidden><p>将替换全部产品、竞品、排名历史、关注词、标注及 ABA 数据。恢复前会自动保存当前数据。布局和关键词组合不变。</p><label>请输入「恢复上周」确认<input class="weekly-confirm-input" aria-label="恢复确认文字" autocomplete="off" /></label><button class="weekly-confirm-button" disabled>确认恢复</button></div>
         </div>
         <small>打开网页及保存数据时自动备份，保留最近 21 个有记录的日期。上周按本地周一至周日计算。</small>
-        <small>${indexedDbAvailable ? '当前：浏览器持久化存储' : '当前：仅本次页面会话存储'}</small>
+        <small>${storageStatusLabel()}</small>
       </div>`;
     const style = document.createElement('style');
     style.textContent = `
@@ -2036,8 +2338,11 @@
             const current = clone(await ensureStore());
             const restored = normalizeStore(clone(backup.store));
             if (cloudMode) await writeStore(restored);
-            else await writeIndexedStore(restored, current);
-            memoryStore = restored;
+            else {
+              const next = normalizeStore({ ...restored, updatedAt: new Date().toISOString(), storageRevision: newStorageRevision() });
+              await persistMainAndBackup(next, text(current.storageRevision || current.updatedAt) || null, current);
+              memoryStore = next;
+            }
             location.reload();
           } catch (error) { status.textContent = '恢复失败：' + error.message; button.disabled = false; }
         };

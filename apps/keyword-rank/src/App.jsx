@@ -86,9 +86,11 @@ function syncWebBridgeData(data) {
       const invalidate = () => { cache.value = null; };
       window.addEventListener('keyword-tracker-competitor-updated', invalidate);
       window.addEventListener('keyword-tracker-aba-imported', invalidate);
+      window.addEventListener('keyword-tracker-storage-changed', invalidate);
       cache.cleanup = () => {
         window.removeEventListener('keyword-tracker-competitor-updated', invalidate);
         window.removeEventListener('keyword-tracker-aba-imported', invalidate);
+        window.removeEventListener('keyword-tracker-storage-changed', invalidate);
       };
     } catch {
       return;
@@ -148,6 +150,16 @@ export default function App({ onStartupSettled }) {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const refreshFromStorage = () => {
+      const cache = window.keywordTracker?.__keywordRankGetDataCache;
+      if (cache) cache.value = null;
+      load();
+    };
+    window.addEventListener('keyword-tracker-storage-changed', refreshFromStorage);
+    return () => window.removeEventListener('keyword-tracker-storage-changed', refreshFromStorage);
+  }, []);
 
   useEffect(() => api.onSifProgress?.((progress) => {
     if (progress?.message) setBusyLabel(progress.message);
@@ -222,7 +234,14 @@ export default function App({ onStartupSettled }) {
   const applyResult = (result, title) => {
     setData(result.data);
     setActiveIndex((index) => Math.min(index, Math.max(0, (result.data?.models?.length || 0) - 1)));
-    setToast({ type: 'success', title, message: result.output?.split(/\r?\n/).filter(Boolean).at(-1) || '数据已保存并重新读取。' });
+    const backupFailure = result.persistence?.main?.ok && result.persistence?.backup?.ok === false;
+    setToast({
+      type: backupFailure ? 'warning' : 'success',
+      title: backupFailure ? `${title}，但自动备份失败` : title,
+      message: backupFailure
+        ? `${result.output?.split(/\r?\n/).filter(Boolean).at(-1) || '主数据已保存。'}\n${result.persistence.backup.error}`
+        : result.output?.split(/\r?\n/).filter(Boolean).at(-1) || '数据已保存并重新读取。',
+    });
   };
 
   const runAction = async (label, action, successTitle) => {

@@ -632,6 +632,7 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 @keyframes spin { to { transform: rotate(360deg); } }
 .toast { position: fixed; z-index: 110; right: 20px; bottom: 20px; width: min(430px, calc(100vw - 40px)); border: 1.5px solid #5ea978; border-radius: 12px; background: #f3fff5; color: #285f3c; padding: 13px; display: flex; align-items: flex-start; gap: 10px; box-shadow: 0 12px 32px rgba(23,59,100,.18); }
 .toast.error { border-color: #e88874; background: #fff4f0; color: #8f3f32; }
+.toast.warning { border-color: #e2a94f; background: #fff9e9; color: #7b571d; }
 .toast > div { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }.toast strong { font-size: 13px; }.toast span { font-size: 11px; line-height: 1.5; white-space: pre-line; }
 .toast button { width: 27px; height: 27px; border: 0; background: transparent; display: grid; place-items: center; border-radius: 7px; }
 .empty-app { width: 100%; height: 100%; display: grid; place-content: center; text-align: center; color: var(--navy); }

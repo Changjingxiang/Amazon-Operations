@@ -30,7 +30,7 @@ export function BusyOverlay({ label }) {
 
 export function Toast({ toast, onClose }) {
   if (!toast) return null;
-  const Icon = toast.type === 'error' ? AlertTriangle : CheckCircle2;
+  const Icon = ['error', 'warning'].includes(toast.type) ? AlertTriangle : CheckCircle2;
   return (
     <div className={`toast ${toast.type || 'success'}`} role="alert">
       <Icon size={22} />
