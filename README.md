@@ -13,7 +13,7 @@
 >
 > **网页版 v2.1 · 导入持久化修复版（2026-09-15）**
 >
-> [**点击下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/latest) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/%E5%85%B3%E9%94%AE%E8%AF%8D%E6%8E%92%E5%90%8D%E6%AF%8F%E6%97%A5%E8%B7%9F%E8%BF%9B%E7%BD%91%E9%A1%B5%E7%89%88-v2.1-%E5%AF%BC%E5%85%A5%E6%8C%81%E4%B9%85%E5%8C%96%E4%BF%AE%E5%A4%8D-20260915.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 >
 > 下载后请先“解压全部”，再双击压缩包里的 `打开网页版.cmd`。**不要用 GitHub 的 `Code → Download ZIP`**，那是源码，不是给普通用户直接打开的发布包。
 
