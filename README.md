@@ -8,6 +8,15 @@
 
 > 关键词排名每日跟进 v2.1：把自然排名、SP、ABA 与竞品变化，整理成一张可追踪的运营工作台。
 
+> [!IMPORTANT]
+> ## 最新版下载（小白直接用这个）
+>
+> **网页版 v2.1 · 导入持久化修复版（2026-09-15）**
+>
+> [**点击下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/latest) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+>
+> 下载后请先“解压全部”，再双击压缩包里的 `打开网页版.cmd`。**不要用 GitHub 的 `Code → Download ZIP`**，那是源码，不是给普通用户直接打开的发布包。
+
 <p align="center">
   <a href="web/docs/使用说明.md">网页版使用说明</a> ·
   <a href="#快速开始">快速开始</a> ·
@@ -27,13 +36,21 @@
 
 ### 使用网页版发布包
 
-拿到完整网页版压缩包后即可使用，无需安装 Node.js、Python 或 Codex。GitHub 的 **Code → Download ZIP** 下载的是源码，不是可直接使用的最新版发布包。
+拿到上方“最新版下载”的完整网页版压缩包后即可使用，无需安装 Node.js、Python 或 Codex。
 
-1. **完整解压**发布包，不要直接在压缩包内打开文件。
-2. 双击 `打开网页版.cmd`，或直接打开 `index.html`；推荐最新版 Chrome 或 Edge。
-3. 需要一键 SIF 导入时，按 [SIF 扩展说明](web/extensions/sif-batch-reverse-downloader/README.md) 加载本地扩展，并在同一浏览器中登录 SIF。
-4. 首次打开先到“设置 → 产品管理”检查产品、父体 ASIN 和国家，再从 1 个产品开始验证权限与下载设置。
-5. 在“工具文件夹”导出 JSON 备份。隐私模式、清理站点数据或更换浏览器可能清除网页版本地数据。
+### 从下载到第一次导入（一步一步照做）
+
+1. 在 [最新版发布页](https://github.com/Changjingxiang/Amazon-Operations/releases/latest) 下载 ZIP。
+2. 右键 ZIP → **全部解压缩**，记住解压后的文件夹位置；不要直接在压缩包里双击。
+3. 打开解压后的文件夹，双击 **`打开网页版.cmd`**。如果 Windows 弹出安全提示，选择“更多信息 → 仍要运行”。
+4. 网页打开后推荐使用最新版 Chrome 或 Edge；第一次使用先到“设置 → 产品管理”检查产品、父体 ASIN 和国家。
+5. 导入报表：右上角点 **“本地导入”** → 选择 Excel → 等待页面明确提示“导入成功且已保存”。
+6. 按 `Ctrl+R` 刷新页面确认刚导入的日期仍在；关闭浏览器后重新打开 `打开网页版.cmd`，数据仍应保留。
+7. 日常使用后到 **“工具文件夹” → “导出 JSON 备份”** 保存一份备份文件。更换浏览器、清理网站数据或使用隐私模式，都可能看不到原浏览器里的数据。
+
+如果页面提示“数据尚未保存，刷新会丢失”，不要刷新：先点“导出当前数据”保留文件，再点“重试保存”；确认页面提示保存成功后再刷新。
+
+需要一键 SIF 导入时，再按 [SIF 扩展说明](web/extensions/sif-batch-reverse-downloader/README.md) 加载本地扩展，并在同一浏览器中登录 SIF。
 
 ## 主要能力
 
