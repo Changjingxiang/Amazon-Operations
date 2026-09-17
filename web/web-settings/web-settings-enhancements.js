@@ -866,6 +866,7 @@
 
   function scheduleMatrixBubbleShow(table, cell) {
     hideMatrixBubble();
+    if (table.hasAttribute('data-annotation-editor-open') || document.querySelector('.annotation-editor')) return;
     const rank = Number(cell?.getAttribute('data-rank'));
     if (!Number.isFinite(rank) || rank < 0) return;
     matrixBubbleAnchorCell = cell;
@@ -885,7 +886,7 @@
     const bubble = ensureMatrixBubble();
     const token = ++matrixBubbleToken;
     const modelData = await matrixDataForEnhancements(false);
-    if (token !== matrixBubbleToken || matrixBubbleAnchorCell !== cell || !cell.isConnected || !modelData) return;
+    if (token !== matrixBubbleToken || matrixBubbleAnchorCell !== cell || !cell.isConnected || !modelData || table.hasAttribute('data-annotation-editor-open')) return;
     const lookup = buildMatrixLookup(modelData);
     const currentAsin = getCurrentAsin();
     const active = lookup.modelByAsin.get(currentAsin) || activeModel(modelData);
@@ -906,10 +907,12 @@
       return `<div class="matrix-competitor-bubble-row"><span title="${escapeHtml(competitor.competitorName || competitor.modelName || '')}">${escapeHtml(competitor.competitorName || competitor.modelName || '竞品')}</span><b>${matrixRankLabel(rank)}<small class="competitor-movement ${movement.direction}">${escapeHtml(movement.label)}</small></b></div>`;
     }).join('');
     const competitorContent = rows || '<div class="matrix-competitor-bubble-empty">暂无已关联竞品</div>';
-    const annotation = ownerRank.annotation
-      ? `<div class="matrix-competitor-bubble-annotation">标注：${escapeHtml(ownerRank.annotation)}</div>`
-      : '<div class="matrix-competitor-bubble-annotation">暂无自有产品标注</div>';
-    bubble.innerHTML = `<div class="matrix-competitor-bubble-title"><strong title="${escapeHtml(keyword)}">${escapeHtml(keyword)}</strong><small>${escapeHtml(date)} · ${metric === 'sp' ? 'SP排名' : '自然排名'}</small></div><div class="matrix-competitor-bubble-grid"><section class="matrix-competitor-bubble-section"><h4>竞品排名</h4>${competitorContent}</section><section class="matrix-competitor-bubble-section"><h4>自己产品信息</h4><div class="matrix-competitor-bubble-row self-rank"><span title="${escapeHtml(owner.modelName)}">${escapeHtml(owner.modelName)}</span><b>${matrixRankLabel(ownerRank.rank)}</b></div>${annotation}</section></div>`;
+    // Read the visible cell's note after each save instead of a cached snapshot.
+    const note = cell.getAttribute('data-annotation') ?? ownerRank.annotation;
+    const annotation = note
+      ? `<div class="matrix-competitor-bubble-annotation">${escapeHtml(note)}</div>`
+      : '<div class="matrix-competitor-bubble-empty">暂无标注</div>';
+    bubble.innerHTML = `<div class="matrix-competitor-bubble-title"><strong title="${escapeHtml(keyword)}">${escapeHtml(keyword)}</strong><small>${escapeHtml(date)} · ${metric === 'sp' ? 'SP排名' : '自然排名'}</small></div><div class="matrix-competitor-bubble-grid"><section class="matrix-competitor-bubble-section"><div class="matrix-competitor-bubble-row self-rank"><span title="${escapeHtml((active || owner).modelName)}">${escapeHtml((active || owner).modelName)}</span><b>${matrixRankLabel(currentRank)}</b></div><h4>标注</h4>${annotation}<div class="matrix-annotation-action-hint">点击单元格${note ? '编辑' : '添加'}标注</div></section><section class="matrix-competitor-bubble-section"><h4>竞品排名</h4>${competitorContent}</section></div>`;
     bubble.hidden = false;
     matrixBubbleAnchorCell = cell;
     matrixBubbleAnchorTable = table;
@@ -929,6 +932,8 @@
       cell.tabIndex = 0;
     });
     const cellFromTarget = (target) => target?.closest?.('td.matrix-annotation-cell');
+    table.addEventListener('click', (event) => { if (cellFromTarget(event.target)) hideMatrixBubble(); });
+    table.addEventListener('keydown', (event) => { if (cellFromTarget(event.target) && (event.key === 'Enter' || event.key === ' ')) hideMatrixBubble(); });
     table.addEventListener('pointerover', (event) => {
       const cell = cellFromTarget(event.target);
       if (!cell || !table.contains(cell) || cellFromTarget(event.relatedTarget) === cell) return;

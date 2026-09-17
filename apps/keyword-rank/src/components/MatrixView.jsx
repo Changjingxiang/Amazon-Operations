@@ -6,6 +6,7 @@ import { buildSifAbaTrendMap, rankClass, shortDate } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
 import FilterCascade, { WATCH_FILTER_OPTIONS, filterDates } from './FilterCascade.jsx';
+import AnnotationEditor from './AnnotationEditor.jsx';
 
 function keywordKey(value) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
@@ -13,12 +14,18 @@ function keywordKey(value) {
 
 function monthLabel(monthKey) { return `${Number(monthKey.slice(5, 7))}月`; }
 
-// Keep the measured rank visible independently from the annotation editor.
-// Some Chromium builds can briefly paint a cell with no text while React swaps
-// the editor input back to a text node after an async save.  Rendering an
-// explicit value element makes the post-save black/white rank deterministic.
+// The measured rank is always visible, including while its note is edited.
 function displayRank(value) {
   return value == null || value === '' ? 0 : value;
+}
+
+function revealRankCell(cell) {
+  const scroll = cell.closest('.matrix-scroll');
+  if (!scroll) return;
+  const rect = cell.getBoundingClientRect();
+  const frozenRight = cell.parentElement.querySelector('.translation-col')?.getBoundingClientRect().right || scroll.getBoundingClientRect().left;
+  if (rect.left < frozenRight) scroll.scrollLeft -= frozenRight - rect.left;
+  else if (rect.right > scroll.getBoundingClientRect().right) scroll.scrollLeft += rect.right - scroll.getBoundingClientRect().right;
 }
 
 function localToday() {
@@ -37,7 +44,7 @@ function rankMovement(value, previous) {
 }
 
 function rankTitle(value, previous, metric, annotation) {
-  const action = `点击${metric === 'natural' ? '自然' : 'SP'}排名单元格添加标注；双击可再次编辑`;
+  const action = `点击${metric === 'natural' ? '自然' : 'SP'}排名单元格添加标注`;
   const movement = rankMovement(value, previous);
   const detail = annotation ? `标注：${annotation}` : action;
   return movement ? `${detail}；${movement}` : detail;
@@ -46,7 +53,7 @@ function rankTitle(value, previous, metric, annotation) {
 // Keep row identity stable while the virtual window advances. The parent still
 // recalculates the small visible window, but rows that remain in that window do
 // not rebuild every date cell or icon on each scroll tick.
-const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueField, annotationField, metric, selectedDate, editing, pendingDates, onToggleWatch, onBeginAnnotation, onEditDraft, onCommitAnnotation, onCancelAnnotation }) {
+const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueField, annotationField, metric, selectedDate, editing, pendingDates, savedDates, onToggleWatch, onBeginAnnotation }) {
   const values = row[valueField] || [];
   const annotations = annotationField ? (row[annotationField] || []) : [];
   const editingKey = editing ? `${editing.keyword}|${editing.date}` : '';
@@ -69,7 +76,15 @@ const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueFie
         const previous = index ? values[index - 1] : null;
         const isSaving = Boolean(pendingDates?.[column.date]);
         const isEditing = editingKey === `${row.keyword}|${column.date}`;
-        return <td key={`${row.keyword}-${column.date}`} className={`${rankClass(value, previous)} matrix-annotation-cell matrix-rank-cell ${isSaving ? 'annotation-saving' : ''} ${annotation ? 'matrix-annotated-cell' : ''} ${metric === 'sp' ? 'sp-annotation-cell' : ''} ${annotation ? 'sp-annotated-cell' : ''} ${column.date === selectedDate ? 'selected-date' : ''}`} aria-busy={isSaving || undefined} data-rank={visibleValue} data-matrix-date={column.date} data-matrix-keyword={row.keyword} aria-label={rankTitle(value, previous, metric, annotation)} onClick={() => onBeginAnnotation(row, column.date, annotation)} onDoubleClick={() => onBeginAnnotation(row, column.date, annotation)}>{isEditing ? <input className="cell-annotation-input" autoFocus value={editing?.draft || ''} onChange={(event) => onEditDraft(event.target.value)} onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onBlur={onCommitAnnotation} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); onCommitAnnotation(); } if (event.key === 'Escape') { event.preventDefault(); onCancelAnnotation(); } }} aria-label={`编辑${row.keyword} ${column.date}标注`} /> : <span className="sp-rank-value">{visibleValue}</span>}{isSaving && <span className="annotation-save-indicator" role="status" aria-label="正在保存标注" title="正在保存标注"><LoaderCircle size={12} className="spin" aria-hidden="true" /></span>}</td>;
+        const openEditor = (event) => { if (!isSaving && !isEditing) onBeginAnnotation(row, column.date, annotation, event.currentTarget, visibleValue); };
+        return <td key={`${row.keyword}-${column.date}`} className={`${rankClass(value, previous)} matrix-annotation-cell matrix-rank-cell ${isSaving ? 'annotation-saving' : ''} ${isEditing ? 'annotation-editing' : ''} ${annotation ? 'matrix-annotated-cell' : ''} ${metric === 'sp' ? 'sp-annotation-cell' : ''} ${annotation ? 'sp-annotated-cell' : ''} ${column.date === selectedDate ? 'selected-date' : ''}`}
+          tabIndex={0} aria-haspopup="dialog" aria-expanded={isEditing} aria-busy={isSaving || undefined} data-rank={visibleValue} data-annotation={annotation} data-matrix-date={column.date} data-matrix-keyword={row.keyword} aria-label={rankTitle(value, previous, metric, annotation)} onFocus={(event) => revealRankCell(event.currentTarget)} onClick={openEditor}
+          onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openEditor(event); } }}>
+          <span className="sp-rank-value">{visibleValue}</span>
+          {annotation && <span className="annotation-corner" aria-hidden="true" />}
+          {isSaving ? <span className="annotation-save-indicator" role="status" aria-label="正在保存标注" title="正在保存标注"><LoaderCircle size={12} className="spin" aria-hidden="true" /></span>
+            : savedDates?.[column.date] && <span className="annotation-saved-indicator" role="status">已保存</span>}
+        </td>;
       })}
     </tr>
   );
@@ -80,11 +95,11 @@ const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueFie
   && previous.valueField === next.valueField
   && previous.annotationField === next.annotationField
   && previous.pendingDates === next.pendingDates
+  && previous.savedDates === next.savedDates
   && previous.metric === next.metric
   && previous.selectedDate === next.selectedDate
   && previous.editing?.keyword === next.editing?.keyword
   && previous.editing?.date === next.editing?.date
-  && previous.editing?.draft === next.editing?.draft
 ));
 
 // Matrix rows are deliberately virtualized without touching the date axis.
@@ -103,7 +118,9 @@ export default function MatrixView({ model, pendingAnnotationCells, metric, rows
   const rows = Array.isArray(filteredRows) ? filteredRows : (model.matrixRows || []);
   const rowCount = rows.length;
   const [editing, setEditing] = useState(null);
-  const committedEditor = useRef(null);
+  const [savedCells, setSavedCells] = useState({});
+  const savedTimers = useRef(new Map());
+  const saveScope = useRef(null);
   const [hovered, setHovered] = useState(null);
   const tableRef = useRef(null);
   const scrollRef = useRef(null);
@@ -129,6 +146,17 @@ export default function MatrixView({ model, pendingAnnotationCells, metric, rows
   const columns = useMemo(() => groups.flatMap(({ year, months }) => months.flatMap(([month, dates]) => dates.map(date => ({ type: 'date', key: date, year, month, date })))), [groups]);
   const dateIndexMap = useMemo(() => new Map((model.dates || []).map((date, index) => [date, index])), [model.dates]);
   const today = useMemo(() => localToday(), []);
+
+  useEffect(() => {
+    const scope = {};
+    saveScope.current = scope;
+    setSavedCells({});
+    return () => {
+      saveScope.current = null;
+      savedTimers.current.forEach(clearTimeout);
+      savedTimers.current.clear();
+    };
+  }, [model.parentAsin, metric]);
 
   useEffect(() => {
     const next = { start: 0, end: Math.min(rowCount, MATRIX_INITIAL_ROWS) };
@@ -291,18 +319,31 @@ export default function MatrixView({ model, pendingAnnotationCells, metric, rows
       clearHover();
     };
   }, []);
-  const beginAnnotation = (row, date, existing = '') => {
+  const beginAnnotation = (row, date, existing = '', anchor, rank) => {
     if (!date) return;
-    committedEditor.current = null;
-    setEditing({ keyword: row.keyword, date, draft: existing, original: existing });
+    setHovered(null);
+    setEditing({ keyword: row.keyword, date, original: existing, anchor, rank });
   };
-  const commitAnnotation = () => {
-    if (!editing || committedEditor.current === editing) return;
-    committedEditor.current = editing;
+  const commitAnnotation = async (draft) => {
+    if (!editing) return;
+    const target = editing;
+    const scope = saveScope.current;
     setEditing(null);
-    const text = editing.draft.trim();
-    if (text === editing.original) return;
-    void onSetAnnotation?.({ keyword: editing.keyword, date: editing.date, text, metric });
+    const text = draft.trim();
+    if (text === target.original) return;
+    const ok = await onSetAnnotation?.({ keyword: target.keyword, date: target.date, text, metric });
+    if (!ok || !scope || saveScope.current !== scope) return;
+    const key = JSON.stringify([target.keyword, target.date]);
+    clearTimeout(savedTimers.current.get(key));
+    setSavedCells((current) => ({ ...current, [target.keyword]: { ...current[target.keyword], [target.date]: true } }));
+    savedTimers.current.set(key, setTimeout(() => {
+      setSavedCells((current) => {
+        const dates = { ...current[target.keyword] };
+        delete dates[target.date];
+        return { ...current, [target.keyword]: dates };
+      });
+      savedTimers.current.delete(key);
+    }, 1500));
   };
   const widthStyle = (column) => ({ width: widths[column], minWidth: widths[column] });
   const resizeHandle = (column, label) => <ResizeHandle columnKey={column} onResize={startResize} onNudge={nudgeWidth} label={label} />;
@@ -322,7 +363,7 @@ export default function MatrixView({ model, pendingAnnotationCells, metric, rows
   return (
     <section className="matrix-panel">
       <div className="matrix-note matrix-group-note">
-        <div className="matrix-note-copy"><span>{metric === 'natural' ? '自然矩阵' : 'SP矩阵'}</span><span>关键词为行、日期为列；0 表示未上榜。点击{metric === 'natural' ? '自然' : 'SP'}排名单元格添加标注，黑底白字表示已标注。</span><span><b className="legend-up">红色</b>=排名上升　<b className="legend-down">绿色</b>=排名下降　<b className="legend-none">灰色</b>=未上榜</span></div>
+        <div className="matrix-note-copy"><span>{metric === 'natural' ? '自然矩阵' : 'SP矩阵'}</span><span>关键词为行、日期为列；0 表示未上榜。点击排名添加标注，<i className="annotation-legend-corner" aria-hidden="true" />蓝色折角表示已标注。</span><span><b className="legend-up">红色</b>=排名上升　<b className="legend-down">绿色</b>=排名下降　<b className="legend-none">灰色</b>=未上榜</span></div>
         <FilterCascade
           rows={model.matrixRows || []}
           filter={filters}
@@ -337,7 +378,7 @@ export default function MatrixView({ model, pendingAnnotationCells, metric, rows
       <MatrixPeriodSelect dates={model.dates || []} filter={filters} onChange={onFiltersChange} />
       <div ref={scrollRef} className="matrix-scroll">
         <div ref={columnOverlayRef} className="matrix-column-hover-overlay" hidden aria-hidden="true" />
-        <table ref={tableRef} style={stickyLayoutStyle} className="matrix-table matrix-group-table matrix-clean-table">
+        <table ref={tableRef} data-annotation-editor-open={editing ? 'true' : undefined} style={stickyLayoutStyle} className="matrix-table matrix-group-table matrix-clean-table">
           <colgroup>
             <col style={widthStyle('star')} /><col style={widthStyle('keyword')} /><col style={widthStyle('translation')} />
             {columns.map((column) => <col key={`width-${column.key}`} style={widthStyle('date')} />)}
@@ -362,15 +403,14 @@ export default function MatrixView({ model, pendingAnnotationCells, metric, rows
             selectedDate={selectedDate}
             editing={editing}
             pendingDates={pendingAnnotationCells?.[JSON.stringify([model.parentAsin, metric, row.keyword])]}
+            savedDates={savedCells[row.keyword]}
             onToggleWatch={onToggleWatch}
             onBeginAnnotation={beginAnnotation}
-            onEditDraft={(draft) => setEditing((current) => current ? { ...current, draft } : current)}
-            onCommitAnnotation={commitAnnotation}
-            onCancelAnnotation={() => setEditing(null)}
           />)}{renderSpacer(bottomSpacerHeight, 'matrix-virtual-bottom')}</tbody>
         </table>
       </div>
       {!columns.length && <div className="matrix-period-empty">当前条件下没有日期，请选择月份或调整日期筛选。</div>}
+      {editing && <AnnotationEditor key={`${editing.keyword}|${editing.date}`} editor={editing} metric={metric} onSave={commitAnnotation} onCancel={() => setEditing(null)} />}
       {hovered && createPortal(
         <AbaTrendPopover
           keyword={hovered.keyword}
