@@ -11,9 +11,9 @@
 > [!IMPORTANT]
 > ## 最新版下载（小白直接用这个）
 >
-> **网页版 v2.1 · 导入持久化修复版（2026-09-15）**
+> **网页版 v2.1 · 直觉标注版（2026-09-17）**
 >
-> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/keyword-rank-web-v2.1-persistence-20260915.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/keyword-rank-web-v2.1-annotations-20260917.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 >
 > 下载后请先“解压全部”，再双击压缩包里的 `打开网页版.cmd`。**不要用 GitHub 的 `Code → Download ZIP`**，那是源码，不是给普通用户直接打开的发布包。
 
@@ -60,6 +60,7 @@
 - 对比矩阵未选关系时合并展示，选择关系后按所选关系分区；每个日期并列显示自然排名、SP 排名，并以 ①/②/③ 标记所在页。
 - 看板、自然矩阵和 SP 矩阵可查看同关键词、同日期的竞品排名、标注、周 ABA、周搜索量与流量排名。
 - 支持日期筛选、关注词排序、列宽调整和父体 ASIN 修改；修改 ASIN 会保留历史、关注词、标注与产品图标。
+- 自然/SP 标注保留排名涨跌颜色，以蓝色折角提示；点击排名打开就地编辑卡片，支持多行备注、Enter 保存与 Esc 取消，后台保存不打断其他单元格操作。
 
 ### 产品与数据管理
 
@@ -153,7 +154,20 @@ npm run release:web -- --force
 <details>
 <summary>展开查看近期更新</summary>
 
-### 最新更新（2026-09-07）
+### 最新更新（2026-09-17）
+
+- 标注从黑底白字改为蓝色折角，保留排名数字及红/绿/灰状态颜色。
+- 点击排名打开就地编辑卡片，显示关键词、日期和排名类型；支持保存、取消、清除、Enter 保存、Shift+Enter 换行与 Esc 取消，点击卡片外也会保存。
+- 悬停优先展示当前标注及排名，再展示竞品信息；编辑卡片打开时隐藏悬浮提示。
+- 后台保存只反馈到当前格，完成后短暂显示“已保存”；保存失败保留原内容。
+- 通过实际浏览器交互、窄窗口、保存失败和本地文件刷新恢复检查。升级前请从旧版导出 JSON 备份。
+
+### 此前更新（2026-09-15）
+
+- 修复本地 Excel 导入的持久化反馈，写入失败时提供重试和导出入口。
+- 初始化读取失败不会用初始数据覆盖已有数据，主数据与自动备份分别报告保存状态。
+
+### 此前更新（2026-09-07）
 
 - 共享竞品库：一个竞品可关联多个自家产品，共用图片和排名历史；解除关联保留共享数据，批量导入只处理一次。
 - 看板关键词表格支持放大，点击恢复按钮或按 Esc 返回；竞品支持上传自定义图片。

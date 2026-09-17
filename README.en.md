@@ -11,6 +11,7 @@ Keyword rank tracker v2.1: a local-first workspace for daily organic rankings, s
 ## Features
 
 - Daily dashboard with an expandable keyword table, organic and SP matrices, annotations, watched keywords, and import history.
+- Annotation corners preserve rank colors. Click a rank to edit a multiline note in an anchored card; save in the background without blocking other cells.
 - Side-by-side organic/SP comparisons with leading relationships and ranking page indicators.
 - Link one shared competitor to multiple owned products, reuse its images and history, and compare ranks and daily movement. Unlinking preserves data.
 - Monthly ABA CSV imports with selectable historical years and year-over-year trends.
@@ -21,6 +22,10 @@ Keyword rank tracker v2.1: a local-first workspace for daily organic rankings, s
 ## Use a web release
 
 The complete web package needs no Node.js, Python, or Codex installation. GitHub’s **Code → Download ZIP** downloads source code, not the latest ready-to-use package.
+
+**[Download the latest web ZIP — annotation update, September 17, 2026](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/keyword-rank-web-v2.1-annotations-20260917.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+
+Before upgrading, export a JSON backup from your current version. In the annotation editor, Enter saves, Shift+Enter adds a line, and Esc cancels. Clicking outside the card also saves.
 
 1. Extract the entire generated release folder.
 2. Open `打开网页版.cmd` or `index.html` in Chrome or Edge.
