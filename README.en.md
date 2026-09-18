@@ -23,7 +23,7 @@ Keyword rank tracker v2.1: a local-first workspace for daily organic rankings, s
 
 The complete web package needs no Node.js, Python, or Codex installation. GitHub’s **Code → Download ZIP** downloads source code, not the latest ready-to-use package.
 
-**[Download 关键词排名每日跟进网页版-v2.1.zip](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/关键词排名每日跟进网页版-v2.1.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+**[Download 关键词排名每日跟进网页版-v2.1.zip](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/keyword-rank-web-v2.1.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 
 Batch imports now end with a result dialog, including partial failures. Review errors, retry failed items, or confirm and refresh after data has been saved. Unsaved data requires a save retry or backup export before refreshing.
 
