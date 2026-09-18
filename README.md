@@ -11,9 +11,9 @@
 > [!IMPORTANT]
 > ## 最新版下载（小白直接用这个）
 >
-> **网页版 v2.1 · 直觉标注版（2026-09-17）**
+> **关键词排名每日跟进网页版-v2.1**
 >
-> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/keyword-rank-web-v2.1-annotations-20260917.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/关键词排名每日跟进网页版-v2.1.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 >
 > 下载后请先“解压全部”，再双击压缩包里的 `打开网页版.cmd`。**不要用 GitHub 的 `Code → Download ZIP`**，那是源码，不是给普通用户直接打开的发布包。
 
@@ -154,7 +154,14 @@ npm run release:web -- --force
 <details>
 <summary>展开查看近期更新</summary>
 
-### 最新更新（2026-09-17）
+### 最新更新（2026-09-18）
+
+- 批量导入结束后显示结果面板，部分失败也能正常退出加载状态。
+- 显示自己产品、竞品的阶段统计和完整错误详情，支持仅重试明确失败项。
+- 确认数据已保存后可点击“确定并刷新”；未确认保存时提供重试保存和导出备份，禁止直接刷新。
+- 发布名称、ZIP 和解压后的文件夹统一使用“关键词排名每日跟进网页版-v2.1”。
+
+### 此前更新（2026-09-17）
 
 - 标注从黑底白字改为蓝色折角，保留排名数字及红/绿/灰状态颜色。
 - 点击排名打开就地编辑卡片，显示关键词、日期和排名类型；支持保存、取消、清除、Enter 保存、Shift+Enter 换行与 Esc 取消，点击卡片外也会保存。
