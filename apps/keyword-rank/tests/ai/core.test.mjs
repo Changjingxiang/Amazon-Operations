@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {suggestMapping,normalizeReport,mergeBatch,totals,prepareAnalysis,validateResult,groupKey,numberValue,day} from '../../src/ai/core.mjs';
+import {suggestMapping,reportHint,normalizeReport,mergeBatch,totals,prepareAnalysis,validateResult,groupKey,numberValue,day} from '../../src/ai/core.mjs';
 const meta={type:'search',account:'local-a',accountType:'seller',marketplace:'CA',currency:'CAD',timezone:'America/Toronto',numberFormat:'dot',asOf:'2026-09-18'};
 const row={Date:'2026-09-01','Campaign Name':'private campaign','Ad Group Name':'private group','Customer Search Term':'winter coat',Targeting:'coat','Match Type':'BROAD',Impressions:100,Clicks:5,Spend:2,'7 Day Total Orders (#)':1,'7 Day Total Sales':20};
 const normalize=(rows=[row],m=meta)=>normalizeReport(rows,suggestMapping(Object.keys(rows[0])),m);
@@ -8,6 +8,17 @@ const batch=(rows=[row],extra={})=>({...normalize(rows),id:'batch-1',digest:'dig
 const input={mode:'product',start:'2026-09-01',end:'2026-09-07',records:[{keyword:'winter coat',snapshotDate:'2026-08-31',naturalRank:30,spRank:0},{keyword:'winter coat',snapshotDate:'2026-09-01',naturalRank:null,spRank:0},{keyword:'winter coat',snapshotDate:'2026-09-07',naturalRank:10,spRank:3}]};
 test('legacy and unified metrics respect account lookback',()=>{assert.equal(normalize().rows[0].sales,20);assert.throws(()=>normalize([row],{...meta,accountType:'vendor'}),/归因窗口/);const unified={...row,Sales:20,Purchases:1};delete unified['7 Day Total Orders (#)'];delete unified['7 Day Total Sales'];assert.equal(normalize([unified]).meta.attributionDays,7);});
 test('Chinese report aliases',()=>{const rows=[{'日期':'2026-09-01','广告活动名称':'A','广告组名称':'G','客户搜索词':'coat','投放':'coat','曝光量':100,'点击量':5,'花费':2,'7天总订单数':1,'7天总销售额':20}];assert.equal(normalize(rows).rows[0].term,'coat');});
+
+test('Lingxing keyword report maps targeting, not customer terms or unverified sales splits',()=>{
+  const r={'广告活动':'A','广告组':'G','关键词':'coat','匹配方式':'broad','日期':'2026-09-15','曝光量':100,'点击':5,'花费':2,'广告订单':1,'广告销售额':20,'直接销售额':15,'间接销售额':5,'ACoS':'999%'};
+  const headers=Object.keys(r),mapping=suggestMapping(headers);
+  assert.equal(reportHint(headers).type,'targeting');
+  assert.equal(mapping.term,'');assert.equal(mapping.promotedSales,'');assert.equal(mapping.haloSales,'');
+  const result=normalizeReport([r],mapping,{...meta,type:'targeting'});
+  assert.equal(result.rows[0].target,'coat');assert.equal(totals(result.rows).acos,.1);
+  assert.throws(()=>normalizeReport([r],mapping,meta),/客户搜索词/);
+  assert.equal(numberValue('--'),null);
+});
 test('mixed source accounts, marketplaces and timezones rejected',()=>{assert.throws(()=>normalize([{...row,'Account ID':'a'},{...row,'Account ID':'b','Customer Search Term':'other'}]),/多个值/);assert.throws(()=>normalize([{...row,Country:'US'}]),/站点不同/);assert.throws(()=>normalize([{...row,'Time Zone':'America/Los_Angeles'}]),/时区不同/);assert.equal(normalize([{...row,Country:'Canada'}]).meta.marketplace,'CA');});
 test('missing mappings, null metrics and mixed currencies fail closed',()=>{assert.throws(()=>normalize([{...row,Spend:''}]),/关键指标为空/);assert.throws(()=>normalize([{...row,Currency:'USD'}]),/不同币种/);const r={...row};delete r.Clicks;assert.throws(()=>normalize([r]),/必要字段/);});
 test('localized numbers and date validity',()=>{assert.equal(numberValue('1.234,56','comma'),1234.56);assert.equal(numberValue('$1,234.56'),1234.56);assert.equal(day('9/1/2026'),'2026-09-01');assert.throws(()=>day('2026-02-30'));assert.throws(()=>numberValue(-1));});

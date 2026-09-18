@@ -3,6 +3,7 @@ import {
   buildSifReverseUrl,
   downloadExtension,
   extractAsin,
+  isSifDownload,
   normalizeConcurrency,
   parseAsins,
   suggestedFilename
@@ -33,3 +34,12 @@ assert.equal(suggestedFilename("B0FF4HCVXT", { filename: "report.xlsx" }, new Da
 assert.equal(suggestedFilename("B0FF4HCVXT", { filename: "report.xlsx" }, new Date(2026, 7, 13), "DE"), "Sif反查流量词_DE_B0FF4HCVXT_2026-08-13.xlsx");
 
 console.log("utils.test.mjs: all assertions passed");
+
+assert.equal(isSifDownload({referrer:'https://erp.lingxing.com/',url:'https://files.example/1254213275.xlsx'}),false);
+assert.equal(isSifDownload({url:'https://example.com/B0FF4HCVXT.xlsx'}),false);
+assert.equal(isSifDownload({url:'https://www.sif.com.evil.example/1254213275.xlsx'}),false);
+assert.equal(isSifDownload({url:'https://example.com/?source=sif.com'}),false);
+assert.equal(isSifDownload({filename:'Sif反查流量词_CA_B0FF4HCVXT.xlsx'}),false);
+assert.equal(isSifDownload({referrer:'https://www.sif.com/reverse',url:'https://cdn.example/report.xlsx'}),true);
+assert.equal(isSifDownload({url:'blob:https://www.sif.com/abc'}),true);
+assert.equal(isSifDownload({referrer:'https://erp.lingxing.com/',url:'https://www.sif.com/report.xlsx'}),false);

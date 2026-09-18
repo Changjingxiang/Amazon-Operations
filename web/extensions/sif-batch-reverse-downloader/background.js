@@ -3,6 +3,7 @@ import {
   ASIN_PATTERN,
   buildSifReverseUrl,
   extractAsin,
+  isSifDownload,
   normalizeConcurrency,
   normalizeCountryCode,
   suggestedFilename
@@ -473,11 +474,12 @@ function cancelExpectedDownload(asin, error) {
 }
 
 chrome.downloads.onCreated.addListener((item) => {
+  if (!isSifDownload(item)) return;
   const asin = extractAsin(item.referrer, item.finalUrl, item.url, item.filename);
   let pending = asin ? expectedDownloads.get(asin) : null;
   let owner = asin;
 
-  if (!pending && [item.referrer, item.finalUrl, item.url].some((value) => String(value || "").includes("sif.com"))) {
+  if (!pending) {
     const fallback = [...expectedDownloads.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt)[0];
     if (fallback) [owner, pending] = fallback;
   }
@@ -493,6 +495,7 @@ chrome.downloads.onCreated.addListener((item) => {
 
 chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
   const owner = downloadOwners.get(item.id);
+  if (!owner && !isSifDownload(item)) return suggest();
   const asin = owner?.asin || extractAsin(item.referrer, item.finalUrl, item.url, item.filename);
   if (!asin) return suggest();
   suggest({ filename: suggestedFilename(asin, item, new Date(), owner?.countryCode || "CA"), conflictAction: "uniquify" });

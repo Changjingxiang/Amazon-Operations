@@ -1,6 +1,16 @@
 export const MAX_ASINS = 15;
 export const ASIN_PATTERN = /^[A-Z0-9]{10}$/;
 
+// A filename or ten-character ID is not proof that a download belongs to Sif.
+export function isSifDownload(item = {}) {
+  const trusted = value => {
+    try { return new URL(value).origin === 'https://www.sif.com'; }
+    catch { return false; }
+  };
+  if (item.referrer) return trusted(item.referrer);
+  return trusted(item.url) || trusted(item.finalUrl);
+}
+
 export const SIF_COUNTRIES = [
   { code: "US", label: "美国站" },
   { code: "DE", label: "德国站" },

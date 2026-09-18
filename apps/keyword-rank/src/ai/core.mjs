@@ -1,16 +1,16 @@
 // Shared, deterministic calculations. No network, credentials or model execution.
 export const FIELDS = {
   date: ['Date', '日期'], start: ['Start Date', '开始日期'], end: ['End Date', '结束日期'],
-  campaign: ['Campaign Name', '广告活动名称'], campaignId: ['Campaign ID', '广告活动编号', '广告活动ID'],
-  group: ['Ad Group Name', '广告组名称'], groupId: ['Ad Group ID', '广告组编号', '广告组ID'],
+  campaign: ['Campaign Name', '广告活动名称', '广告活动'], campaignId: ['Campaign ID', '广告活动编号', '广告活动ID'],
+  group: ['Ad Group Name', '广告组名称', '广告组'], groupId: ['Ad Group ID', '广告组编号', '广告组ID'],
   term: ['Customer Search Term', 'Search Term', '客户搜索词', '搜索词'],
   target: ['Targeting', 'Keyword', '投放', '投放表达式', '关键词'],
-  match: ['Match Type', '匹配类型'], asin: ['Advertised ASIN', '推广的ASIN', '广告ASIN', '广告 ASIN'],
+  match: ['Match Type', '匹配类型', '匹配方式'], asin: ['Advertised ASIN', '推广的ASIN', '广告ASIN', '广告 ASIN'],
   sku: ['Advertised SKU', '推广的SKU', '广告SKU'], currency: ['Currency', '货币', '币种'],
-  impressions: ['Impressions', '展示量', '曝光量'], clicks: ['Clicks', '点击量', '点击次数'],
+  impressions: ['Impressions', '展示量', '曝光量'], clicks: ['Clicks', '点击量', '点击次数', '点击'],
   spend: ['Spend', 'Cost', '花费', '支出', '费用'],
-  orders: ['Purchases', '7 Day Total Orders (#)', '14 Day Total Orders (#)', '7天总订单数(#)', '7天总订单数', '14天总订单数'],
-  sales: ['Sales', '7 Day Total Sales', '14 Day Total Sales', '7天总销售额', '14天总销售额'],
+  orders: ['Purchases', '7 Day Total Orders (#)', '14 Day Total Orders (#)', '7天总订单数(#)', '7天总订单数', '14天总订单数', '广告订单'],
+  sales: ['Sales', '7 Day Total Sales', '14 Day Total Sales', '7天总销售额', '14天总销售额', '广告销售额'],
   promotedSales: ['Sales (promoted)', '7 Day Advertised SKU Sales', '14 Day Advertised ASIN Sales', '7天广告SKU销售额'],
   haloSales: ['Sales (halo)', '7 Day Other SKU Sales', '14 Day Other SKU Sales', '7天其他SKU销售额'],
   adProduct: ['Ad Product', '广告产品', '广告类型'],
@@ -34,8 +34,13 @@ export const shift = (d,n) => new Date(Date.parse(day(d)+'T00:00:00Z')+n*8640000
 export function suggestMapping(headers) {
   return Object.fromEntries(Object.entries(FIELDS).map(([key,aliases])=>[key,headers.find(h=>aliases.some(a=>norm(a)===norm(h))) || '']));
 }
+export function reportHint(headers) {
+  if(['广告活动','广告组','关键词','匹配方式','广告订单','广告销售额'].every(h=>headers.includes(h)))
+    return {type:'targeting',source:'领星关键词广告报表',notice:'已识别领星关键词广告报表，建议按 SP 投放报表导入。请确认仅含 SP，并核对站点、币种、时区及归因口径；不根据文件名判断。直接/间接销售额暂不自动等同于 Amazon 的推广/关联商品销售额。'};
+  return null;
+}
 export function numberValue(v, format='dot') {
-  if(v==null || text(v)==='' || ['—','-','N/A'].includes(text(v))) return null;
+  if(v==null || text(v)==='' || ['—','-','--','N/A'].includes(text(v))) return null;
   if(typeof v==='number') { if(!Number.isFinite(v)||v<0) throw new Error('指标必须为非负有限数值'); return v; }
   let s=text(v).replace(/[$£€¥￥\s]/g,'');
   const valid=format==='comma'?/^(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,\d+)?$/:/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/;
