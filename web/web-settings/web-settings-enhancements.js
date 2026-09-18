@@ -1498,6 +1498,7 @@
     cells.forEach((cell) => {
       if (!(cell instanceof HTMLElement) || cell.querySelector(`[${COMPETITOR_KEYWORD_ATTR}]`)) return;
       const keyword = cell.getAttribute('data-keyword')?.trim()
+        || cell.getAttribute('data-matrix-keyword')?.trim()
         || cell.getAttribute('title')?.trim()
         || cell.textContent?.trim()
         || '';
@@ -1526,6 +1527,13 @@
         const selectedDate = table?.closest('.app-shell')?.querySelector('.date-control input[type="date"]')?.value || '';
         openCompetitorDrawer({ mode: 'keyword', ownerAsin, keyword, metric, date: selectedDate });
       });
+      // React owns the AI action and its keyword label in the enhanced app.
+      // Keep those nodes and their handlers; do not include button text in the keyword.
+      if (cell.querySelector('.ai-row-button')) {
+        cell.classList.add('competitor-keyword-cell', 'ai-keyword-cell');
+        cell.append(button);
+        return;
+      }
       while (cell.firstChild) cell.removeChild(cell.firstChild);
       cell.classList.add('competitor-keyword-cell');
       cell.append(label, button);

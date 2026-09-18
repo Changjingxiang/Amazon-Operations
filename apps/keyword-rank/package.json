@@ -8,20 +8,25 @@
     "data:dev": "node scripts/export-dev-data.cjs",
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
     "build": "vite build",
-    "dist:win": "npm run build && electron-builder --win portable --x64"
+    "dist:win": "npm run build && electron-builder --win portable --x64",
+    "build:ai": "node scripts/build-ai.cjs",
+    "start:ai": "electron electron/ai/main.cjs",
+    "test:ai": "node --test tests/ai/*.test.*",
+    "dist:ai": "npm run build:ai && electron-builder --config electron/ai/builder.cjs --win portable --x64"
   },
   "dependencies": {
     "echarts": "^6.1.0",
+    "ipaddr.js": "2.2.0",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.0",
-    "electron": "^33.2.1",
-    "electron-builder": "^25.1.8",
+    "electron": "44.4.2",
+    "electron-builder": "26.15.3",
     "playwright-core": "^1.62.1",
     "vite": "^6.0.5",
     "wait-on": "^8.0.1"

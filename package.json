@@ -10,6 +10,9 @@
     "build": "npm --prefix apps/keyword-rank run build",
     "dist:win": "npm --prefix apps/keyword-rank run dist:win",
     "release:web": "node tools/release-web.cjs",
-    "verify:web": "node tools/verify-web-release.cjs"
+    "verify:web": "node tools/verify-web-release.cjs",
+    "build:ai": "npm --prefix apps/keyword-rank run build:ai",
+    "test:ai": "npm --prefix apps/keyword-rank run test:ai",
+    "dist:ai": "npm --prefix apps/keyword-rank run dist:ai"
   }
 }

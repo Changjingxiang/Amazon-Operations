@@ -39,6 +39,9 @@ pnpm-debug.log*
 dist/
 build/
 apps/keyword-rank/release/
+apps/keyword-rank/release-ai/
+apps/keyword-rank/ai-ui/
+work/ai-*/
 *.zip
 *.exe
 *.msi

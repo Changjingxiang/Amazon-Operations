@@ -1,0 +1,5 @@
+const $=id=>document.getElementById(id);
+async function refresh(){const s=await window.aiSettings.status();$('endpoint').value=s.endpoint||'';$('model').value=s.model||'';$('persist').disabled=!s.encryptionAvailable;$('persist').checked=s.persisted;$('status').textContent=s.configured?'已配置密钥。更改 API 地址必须重新输入密钥。':'尚未配置密钥。'+(!s.encryptionAvailable?'系统加密不可用，只能本次会话使用。':'');}
+$('settings').addEventListener('submit',async e=>{e.preventDefault();const buttons=document.querySelectorAll('button');buttons.forEach(b=>b.disabled=true);try{await window.aiSettings.save({endpoint:$('endpoint').value,model:$('model').value,key:$('key').value,persist:$('persist').checked,confirmed:$('confirm').checked});$('key').value='';$('confirm').checked=false;$('status').textContent='设置已保存，可以返回分析窗口。';}catch(error){$('status').textContent=error.message;}finally{buttons.forEach(b=>b.disabled=false);}});
+$('clear').onclick=async()=>{try{await window.aiSettings.clear();$('key').value='';await refresh();}catch(error){$('status').textContent=error.message;}};
+refresh().catch(error=>$('status').textContent=error.message);

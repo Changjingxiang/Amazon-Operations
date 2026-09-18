@@ -1,0 +1,52 @@
+// Runs in a disposable Electron process/profile. No real API requests or user data.
+const {app,BrowserWindow,ipcMain,dialog,safeStorage}=require('electron');
+const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'keyword-ai-electron-'));
+const resultDir=path.resolve(__dirname,'../../../../work/ai-qa');fs.mkdirSync(resultDir,{recursive:true});
+const report=value=>fs.writeFileSync(path.join(resultDir,'electron-smoke.json'),JSON.stringify(value,null,2));
+app.setPath('appData',root);
+const handlers=new Map(),originalHandle=ipcMain.handle.bind(ipcMain);
+ipcMain.handle=(name,fn)=>{handlers.set(name,fn);originalHandle(name,fn);};
+const targetMain=process.argv[2]?path.resolve(process.argv[2]):require.resolve('../../electron/ai/main.cjs');
+const network=require(path.join(path.dirname(targetMain),'network.cjs'));
+let mode='success',calls=0,body;
+network.chat=async request=>{calls++;body=request.body;if(mode==='error')throw new Error('模拟平台限流');if(mode==='wait')return new Promise((_,reject)=>request.signal.addEventListener('abort',()=>reject(new Error('已取消')),{once:true}));const data=JSON.parse(request.body.messages[1].content);return{content:JSON.stringify({findings:[{title:'本地集成测试',fact:'<img src=x onerror=alert(1)>仅作纯文本显示',hypothesis:'需要人工核查',action:'观察更多日期',evidenceIds:[mode==='invalid'?'E999':data.evidence[0].id]}],limitations:['合成数据测试']}),usage:{input:100,output:100}};};
+const call=async(name,win,payload)=>{const r=await handlers.get('ai:'+name)({sender:win.webContents,senderFrame:win.webContents.mainFrame},payload);if(!r.ok)throw new Error(r.error);return r.data;};
+let started=false;const timeout=setTimeout(()=>{report({ok:false,error:'Electron smoke timed out'});app.exit(1);},60000);
+app.on('browser-window-created',(_e,w)=>{w.hide();w.webContents.on('did-finish-load',()=>{if(!started&&w.webContents.getURL().endsWith('/ai-ui/index.html')){started=true;run(w).catch(error=>{report({ok:false,error:error.stack});app.exit(1);});}});});
+async function run(main){
+  const unauthorized=await handlers.get('ai:config-save')({sender:main.webContents,senderFrame:main.webContents.mainFrame},{key:'untrusted'});assert.equal(unauthorized.ok,false);
+  const otherFrame=await handlers.get('ai:status')({sender:main.webContents,senderFrame:{url:main.webContents.getURL()}},null);assert.equal(otherFrame.ok,false);
+  await call('settings',main);const settings=BrowserWindow.getAllWindows().find(w=>w!==main);
+  if(settings.webContents.isLoading())await new Promise(resolve=>settings.webContents.once('did-finish-load',resolve));
+  const key='synthetic_'+crypto.randomBytes(24).toString('hex');
+  await call('config-save',settings,{endpoint:'https://api.example.com/v1',model:'test-model',key,persist:safeStorage.isEncryptionAvailable(),confirmed:true});
+  assert.ok(!JSON.stringify(await call('status',main)).includes(key));assert.ok(!fs.readFileSync(path.join(root,'KeywordRankAI','connection.json'),'utf8').includes(key));
+  await assert.rejects(call('config-save',settings,{endpoint:'https://other.example.com/v1',model:'test-model',key:'',confirmed:true}),/重新输入/);
+  const input={mode:'product',productId:'sample',start:'2026-09-01',end:'2026-09-07',records:[{keyword:'coat',snapshotDate:'2026-09-01',naturalRank:10,spRank:null}]};
+  let p=await call('prepare',main,input);const result=await call('start',main,p.id);assert.equal(result.result.findings.length,1);assert.equal(calls,1);assert.ok(!JSON.stringify(body).includes(key));
+  await assert.rejects(call('start',main,p.id),/失效/);assert.equal((await call('history',main)).length,1);
+  mode='invalid';p=await call('prepare',main,input);await assert.rejects(call('start',main,p.id),/不存在的证据/);assert.equal((await call('history',main)).length,1);
+  mode='error';p=await call('prepare',main,input);await assert.rejects(call('start',main,p.id),/模拟平台限流/);assert.equal((await call('status',main)).busy,false);
+  mode='wait';p=await call('prepare',main,input);const pending=call('start',main,p.id);await call('cancel',main);await assert.rejects(pending,/已取消/);assert.equal((await call('status',main)).busy,false);
+  const reportFile=path.join(root,'report.csv');fs.writeFileSync(reportFile,'Date,Campaign Name,Ad Group Name,Customer Search Term,Impressions,Clicks,Spend,7 Day Total Orders (#),7 Day Total Sales\n2026-09-01,Campaign,Group,coat,100,10,2,1,20');
+  dialog.showOpenDialog=async()=>({canceled:false,filePaths:[reportFile]});
+  const file=await call('pick-report',main);const reportPreview=await call('preview-report',main,{id:file.id,mapping:file.mapping,metadata:{type:'search',account:'sample',accountType:'seller',marketplace:'CA',currency:'CAD',timezone:'America/Toronto',numberFormat:'dot',asOf:'2026-09-18'}});
+  await call('commit-report',main,reportPreview.id);assert.equal((await call('reports',main)).groups.length,1);
+  await call('prepare',main,{...input,targetAcos:'25'});
+  const backup=path.join(root,'backup.json');dialog.showSaveDialog=async()=>({canceled:false,filePath:backup});await call('backup',main);assert.ok(!fs.readFileSync(backup,'utf8').includes(key));
+  await call('prepare',main,{...input,targetAcos:'40'});
+  dialog.showOpenDialog=async()=>({canceled:false,filePaths:[backup]});dialog.showMessageBox=async()=>({response:1});assert.equal((await call('restore',main)).restored,true);
+  assert.equal((await call('preferences',main)).sample.targetAcos,'25');
+  const malformed=JSON.parse(fs.readFileSync(backup,'utf8'));malformed.preferences.sample.targetAcos=-1;fs.writeFileSync(backup,JSON.stringify(malformed));
+  await assert.rejects(call('restore',main),/目标 ACOS 格式无效/);assert.equal((await call('preferences',main)).sample.targetAcos,'25');
+  await call('config-clear',settings);assert.equal((await call('status',main)).configured,false);assert.equal(fs.existsSync(path.join(root,'KeywordRankAI','connection.json.bak')),false);
+  // Runtime surface checks are read-only; these are not test-only hooks in production.
+  const exposed=await main.webContents.executeJavaScript('({node:typeof require,keyReader:typeof window.keywordAI.getKey,settings:typeof window.aiSettings,bridge:typeof window.keywordTracker.importBackup,body:document.body.innerText})');
+  assert.equal(exposed.node,'undefined');assert.equal(exposed.keyReader,'undefined');assert.equal(exposed.settings,'undefined');assert.equal(exposed.bridge,'function');assert.match(exposed.body,/增强版使用独立数据目录/);
+  assert.equal((await main.webContents.executeJavaScript('window.keywordAI.status()')).configured,false);
+  assert.equal((await settings.webContents.executeJavaScript('window.aiSettings.status()')).configured,false);
+  const output={tests:19,ok:true,electron:process.versions.electron,encryptionAvailable:safeStorage.isEncryptionAvailable(),packagedFiles:targetMain.includes('app.asar'),profile:root};report(output);
+  clearTimeout(timeout);app.exit(0);
+}
+require(targetMain);

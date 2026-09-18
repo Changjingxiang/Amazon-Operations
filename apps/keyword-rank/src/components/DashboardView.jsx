@@ -16,7 +16,7 @@ function keywordKey(value) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
 }
 
-export default function DashboardView({ rows, sourceRows, model, filters, onFiltersChange, onToggleWatch, onManage, onOpenTrend }) {
+export default function DashboardView({ rows, sourceRows, model, filters, onFiltersChange, onToggleWatch, onManage, onOpenTrend, onAI }) {
   const [expanded, setExpanded] = useState(false);
   useEffect(() => { const escape = (event) => { if (event.key === 'Escape') setExpanded(false); }; window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape); }, []);
   const [sort, setSort] = useState({ field: null, direction: 'asc' });
@@ -118,7 +118,7 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
                   onBlur={() => setHovered(null)}
                   onDoubleClick={() => onOpenTrend?.(model.matrixRows?.find((item) => keywordKey(item.keyword) === keywordKey(row.keyword)) || row)}
                   tabIndex="0"
-                >{row.keyword}</td>
+                >{onAI ? <><span className="ai-keyword-label">{row.keyword}</span><button className="ai-row-button" title={`AI 分析 ${row.keyword}`} onClick={e => { e.stopPropagation(); onAI(row.keyword); }}>AI</button></> : row.keyword}</td>
                 <td title={row.translation}>{row.translation || '—'}</td>
                 <td><Sparkline values={row.naturalTrend || []} /></td>
                 <td><Sparkline values={row.spTrend || []} color="#FF6B6B" /></td>

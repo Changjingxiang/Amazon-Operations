@@ -1,0 +1,20 @@
+const fs=require('node:fs');
+const path=require('node:path');
+const {spawnSync}=require('node:child_process');
+const app=path.resolve(__dirname,'..'),root=path.resolve(app,'../..'),out=path.join(app,'ai-ui');
+const vite=spawnSync(process.execPath,[path.join(app,'node_modules/vite/bin/vite.js'),'build'],{cwd:app,stdio:'inherit'});
+if(vite.status!==0)process.exit(vite.status||1);
+// Only this generated directory is replaced, never an existing release or data.
+if(path.relative(app,out)!=='ai-ui')throw new Error('Unexpected output path');
+fs.rmSync(out,{recursive:true,force:true});fs.mkdirSync(out,{recursive:true});
+const files=fs.readdirSync(path.join(app,'dist')).filter(name=>!['index.html','mock-data.json','tracker-data-cache.json'].includes(name));
+for(const name of files)fs.cpSync(path.join(app,'dist',name),path.join(out,name),{recursive:true});
+fs.copyFileSync(path.join(root,'web/browser-bridge/browser-bridge.js'),path.join(out,'browser-bridge.js'));
+fs.copyFileSync(path.join(root,'web/web-settings/web-settings-enhancements.js'),path.join(out,'web-settings-enhancements.js'));
+fs.copyFileSync(path.join(app,'node_modules/xlsx/dist/xlsx.full.min.js'),path.join(out,'xlsx.full.min.js'));
+fs.writeFileSync(path.join(out,'empty-seed.js'),`window.__KEYWORD_TRACKER_SEED__={schemaVersion:4,configs:[],competitors:[],watches:[],histories:{},importedFiles:{},abaMonthly:{},annotations:[],sourceCount:0};\n`);
+const entry=files.find(n=>/^index-.*\.js$/.test(n));
+if(!entry)throw new Error('Missing entry bundle');
+const css=files.filter(n=>n.endsWith('.css')).map(n=>`<link rel="stylesheet" href="./${n}">`).join('');
+fs.writeFileSync(path.join(out,'index.html'),`<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self'; font-src 'self'; worker-src 'self' blob:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"><title>关键词排名每日跟进 · AI 增强版</title>${css}</head><body><div id="root"></div><script src="./xlsx.full.min.js"></script><script src="./empty-seed.js"></script><script src="./browser-bridge.js"></script><script src="./${entry}"></script><script src="./web-settings-enhancements.js"></script></body></html>`);
+console.log('AI UI built from canonical source. No business seed or keys included.');

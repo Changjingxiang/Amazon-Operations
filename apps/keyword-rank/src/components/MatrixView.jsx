@@ -53,7 +53,7 @@ function rankTitle(value, previous, metric, annotation) {
 // Keep row identity stable while the virtual window advances. The parent still
 // recalculates the small visible window, but rows that remain in that window do
 // not rebuild every date cell or icon on each scroll tick.
-const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueField, annotationField, metric, selectedDate, editing, pendingDates, savedDates, onToggleWatch, onBeginAnnotation }) {
+const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueField, annotationField, metric, selectedDate, editing, pendingDates, savedDates, onToggleWatch, onBeginAnnotation, onAI }) {
   const values = row[valueField] || [];
   const annotations = annotationField ? (row[annotationField] || []) : [];
   const editingKey = editing ? `${editing.keyword}|${editing.date}` : '';
@@ -66,7 +66,7 @@ const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueFie
         data-matrix-keyword={row.keyword}
         aria-label={metric === 'natural' ? `${row.keyword}，悬停查看 ABA 对照` : undefined}
         tabIndex={metric === 'natural' ? 0 : undefined}
-      >{row.keyword}</td><td className="sticky-col translation-col" data-text-tooltip={row.translation}>{row.translation || '—'}</td>
+      >{onAI ? <><span className="ai-keyword-label">{row.keyword}</span><button className="ai-row-button" title={`AI 分析 ${row.keyword}`} onClick={e => { e.stopPropagation(); onAI(row.keyword); }}>AI</button></> : row.keyword}</td><td className="sticky-col translation-col" data-text-tooltip={row.translation}>{row.translation || '—'}</td>
       {columns.map((column) => {
         if (column.type !== 'date') return <td key={`${row.keyword}-${column.key}`} className="matrix-placeholder" aria-label="折叠分组" />;
         const index = dateIndexMap.get(column.date);
@@ -112,7 +112,7 @@ const MATRIX_RANGE_MARGIN = 8;
 const MATRIX_RANGE_CHUNK = 48;
 const MATRIX_INITIAL_ROWS = 48;
 
-export default function MatrixView({ model, pendingAnnotationCells, metric, rows: filteredRows, filters, onFiltersChange, selectedDate, onToggleWatch, onSetAnnotation }) {
+export default function MatrixView({ model, pendingAnnotationCells, metric, rows: filteredRows, filters, onFiltersChange, selectedDate, onToggleWatch, onSetAnnotation, onAI }) {
   const valueField = metric === 'natural' ? 'naturalValues' : 'spValues';
   const annotationField = metric === 'natural' ? 'naturalAnnotations' : 'spAnnotations';
   const rows = Array.isArray(filteredRows) ? filteredRows : (model.matrixRows || []);
@@ -406,6 +406,7 @@ export default function MatrixView({ model, pendingAnnotationCells, metric, rows
             savedDates={savedCells[row.keyword]}
             onToggleWatch={onToggleWatch}
             onBeginAnnotation={beginAnnotation}
+            onAI={onAI}
           />)}{renderSpacer(bottomSpacerHeight, 'matrix-virtual-bottom')}</tbody>
         </table>
       </div>

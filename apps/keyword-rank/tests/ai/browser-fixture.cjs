@@ -1,0 +1,26 @@
+// Browser-only QA adapter around the real production UI. Never packaged.
+const fs=require('node:fs'),path=require('node:path'),http=require('node:http');
+const app=path.resolve(__dirname,'../..'),root=path.resolve(app,'../..'),out=path.join(root,'work','ai-browser-fixture');
+fs.mkdirSync(out,{recursive:true});fs.cpSync(path.join(app,'ai-ui'),out,{recursive:true});fs.copyFileSync(path.join(app,'src/ai/core.mjs'),path.join(out,'core.mjs'));
+const terms=['winter coat','womens bomber jacket','lightweight jacket','black jacket women','fall coat women'];
+const histories=[];for(let d=1;d<=18;d++)terms.forEach((keyword,i)=>histories.push({keyword,snapshotDate:`2026-09-${String(d).padStart(2,'0')}`,naturalRank:i===4?null:50+i*5-d,spRank:i===3?0:20+i*2-Math.floor(d/2),translation:['冬季外套','女士飞行夹克','轻便夹克','女士黑色夹克','女士秋季外套'][i],weeklyAbaRank:10000+i*1200,weeklySearchVolume:4000+i*300,trafficShare:.1,trafficRank:i+1}));
+const seed={schemaVersion:4,configs:[{modelName:'示例夹克 · 合成测试数据',parentAsin:'B012345678',countryCode:'CA',site:'加拿大站',historySheet:'example'}],histories:{example:histories},watches:[],annotations:[{modelName:'示例夹克 · 合成测试数据',parentAsin:'B012345678',keyword:'winter coat',metric:'sp',date:'2026-09-10',text:'测试备注：调整投放；不自动发送'}],importedFiles:{},abaMonthly:{},sourceCount:18};
+const raw=terms.map((term,i)=>({Date:'2026-09-01','Campaign Name':'合成测试活动','Ad Group Name':'合成测试广告组','Customer Search Term':term,Targeting:term,'Match Type':'EXACT',Impressions:1200+i*300,Clicks:30+i*4,Spend:22+i*5,Purchases:3,Sales:129}));
+const fixture=`window.__KEYWORD_TRACKER_SEED__=${JSON.stringify(seed)};
+const corePromise=import('./core.mjs');const raw=${JSON.stringify(raw)};
+const meta={type:'search',account:'测试店铺',accountType:'seller',marketplace:'CA',currency:'CAD',timezone:'America/Toronto',numberFormat:'dot',asOf:'2026-09-18'};
+let snapshot,batch,reportPreview,history=[],rejectTask;
+let failure=new URLSearchParams(location.search).has('failure');
+async function getBatch(){const c=await corePromise;if(!batch)batch={...c.normalizeReport(raw,c.suggestMapping(Object.keys(raw[0])),meta),id:'fixture-batch',filename:'合成测试报表.csv',digest:'fixture'};return batch;}
+window.keywordAI={status:async()=>({configured:true,endpoint:'https://api.example.com/v1/chat/completions',model:'QA 模型（不联网）'}),settings:async()=>{},preferences:async()=>({}),history:async()=>history,
+reports:async()=>{const b=await getBatch(),c=await corePromise;return{batches:[{...b,count:b.rows.length}],groups:[{key:c.groupKey(b.meta,b.rows[0]),label:'测试店铺 · CA · CAD · SP 搜索词报表 · 合成测试广告组'}]};},
+prepare:async input=>{const c=await corePromise;snapshot={...c.prepareAnalysis(input,[await getBatch()],{model:'QA 模型（不联网）'}),id:'fixture-preview',endpoint:'https://api.example.com/v1/chat/completions',model:'QA 模型（不联网）'};return snapshot;},
+start:async()=>{await new Promise((resolve,reject)=>{rejectTask=reject;setTimeout(resolve,new URLSearchParams(location.search).has('slow')?30000:1500);});rejectTask=null;if(failure){failure=false;throw new Error('测试：平台限流，未生成报告。请重新预览后手动重试。');}const r={createdAt:new Date().toISOString(),id:'fixture-history',model:snapshot.model,endpoint:'https://api.example.com',payload:snapshot.payload,sources:snapshot.sources,result:{findings:[{title:'排名有所改善，广告成绩需按整组评估',fact:'winter coat 的自然排名在观测期内改善。广告报表为所选广告组整体，不能直接分配给当前 ASIN。',hypothesis:'可能与投放或需求变化有关；需结合价格、库存与竞争状况核查，不能推断因果。',action:'先核对词与商品的相关性及归因完整性，再评估是否需要进一步投放。',evidenceIds:['E1']},{title:'安全渲染检查',fact:'<img src=x onerror=alert(1)> 应作为普通文本呈现。',hypothesis:'这是合成测试内容。',action:'检查页面没有执行脚本。',evidenceIds:['E1']}],limitations:['合成测试数据，不代表真实经营表现。']}};history=[r,...history];return r;},
+cancel:async()=>rejectTask?.(new Error('已取消，可继续操作。')),test:async()=>({message:'测试适配器：未调用真实平台'}),
+pickReport:async()=>({id:'fixture-file',filename:'合成测试报表.csv',headers:Object.keys(raw[0]),mapping:(await corePromise).suggestMapping(Object.keys(raw[0])),sample:raw.slice(0,3),count:raw.length,asOf:'2026-09-18'}),
+previewReport:async p=>{const c=await corePromise;const b=c.normalizeReport(raw,p.mapping,p.metadata);reportPreview=b;return{...b,id:'fixture-import',rows:b.rows,count:b.rows.length,replaced:5};},commitReport:async()=>{},backup:async()=>({saved:true}),restore:async()=>null};`;
+fs.writeFileSync(path.join(out,'empty-seed.js'),fixture);
+if(process.argv.includes('--prepare'))process.exit(0);
+// Test adapter imports a local module. Production CSP remains in effect otherwise.
+const server=http.createServer((req,res)=>{const url=new URL(req.url,'http://localhost');const filename=path.resolve(out,'.'+decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname));const rel=path.relative(out,filename);if(rel.startsWith('..')||path.isAbsolute(rel)||!fs.existsSync(filename)){res.writeHead(404);res.end();return;}res.setHeader('Content-Type',({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.mp4':'video/mp4'})[path.extname(filename)]||'application/octet-stream');fs.createReadStream(filename).pipe(res);});
+server.listen(48761,'127.0.0.1',()=>console.log('QA fixture: http://127.0.0.1:48761/index.html (synthetic data, no API calls)'));

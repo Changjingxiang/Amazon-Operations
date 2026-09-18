@@ -2257,8 +2257,18 @@
   async function importBackup() {
     const files = await chooseFiles('.json,application/json', false);
     if (!files.length) return;
+    if (window.keywordAI && files[0].size > 100 * 1024 * 1024) throw new Error('备份超过 100 MB，请拆分后导入。');
     const parsed = JSON.parse(await files[0].text());
     if (!Array.isArray(parsed.configs) || !parsed.histories || typeof parsed.histories !== 'object') throw new Error('所选文件不是有效的关键词排名数据备份。');
+    if (window.keywordAI) {
+      if (files[0].size > 100 * 1024 * 1024 || parsed.configs.length > 1000 || Array.isArray(parsed.histories)) throw new Error('备份大小或结构超出支持范围。');
+      if (Object.values(parsed.histories).some(rows => !Array.isArray(rows) || rows.some(row => !row || typeof row.keyword !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(row.snapshotDate)))) throw new Error('排名历史记录格式无效，未导入。');
+      const current = clone(await ensureStore());
+      const next = normalizeStore({ ...parsed, updatedAt: new Date().toISOString(), storageRevision: newStorageRevision() });
+      await enqueuePersistence(() => persistMainAndBackup(next, text(current.storageRevision || current.updatedAt) || null, current));
+      location.reload();
+      return;
+    }
     await writeStore(normalizeStore(parsed));
     location.reload();
   }
@@ -2393,6 +2403,7 @@
     },
     retryImportSave: retryPendingSave,
     exportImportBackup: exportBackup,
+    ...(window.keywordAI ? { importBackup } : {}),
     openWorkbook: () => {
       const link = document.createElement('a');
       link.href = new URL('./data/关键词排名每日跟进表.xlsx', document.baseURI).href;
