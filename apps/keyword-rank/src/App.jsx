@@ -162,6 +162,7 @@ export default function App({ onStartupSettled }) {
   }, []);
 
   useEffect(() => api.onSifProgress?.((progress) => {
+    if (['completed', 'failed', 'batch-ended', 'extension-ready'].includes(progress?.status)) { setBusyLabel(''); return; }
     if (progress?.message) setBusyLabel(progress.message);
   }), []);
 

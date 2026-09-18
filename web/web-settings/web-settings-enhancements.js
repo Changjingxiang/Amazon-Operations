@@ -1576,7 +1576,51 @@
   }
 
   let batchImportRunning = false;
-  async function runAllBatchImport({ trigger, peer, status, setStatus, currentOnly = false }) {
+  async function showBatchResult(response, retry) {
+    document.getElementById('sif-batch-result')?.remove();
+    const api = window.keywordTracker;
+    const overlay = document.createElement('div');
+    overlay.id = 'sif-batch-result';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:100002;background:rgba(23,59,100,.32);display:grid;place-items:center;padding:20px';
+    const phases = response.phases || [];
+    const failedItems = phases.flatMap(phase => phase.failedItems || []);
+    const heading = response.ok ? '导入已完成' : phases.length ? '导入已结束，部分任务未完成' : '导入未完成';
+    overlay.innerHTML = `<section role="dialog" aria-modal="true" aria-label="导入结果" style="width:560px;max-width:100%;max-height:85vh;overflow:auto;background:white;border-radius:14px;padding:24px;color:#25354d;box-shadow:0 16px 48px #173b6433;font:13px/1.7 'Microsoft YaHei',sans-serif"><h2 style="margin:0 0 16px;font-size:20px">${heading}</h2>${phases.map(phase => `<div style="padding:10px 0;border-bottom:1px solid #e2eaf0"><b>${escapeHtml(phase.label)}</b><div>${phase.succeeded == null ? '阶段异常，完成数量未确认，请查看详情。' : `成功 ${phase.succeeded} 个 · 失败 ${phase.failed} 个`}</div></div>`).join('')}<p data-save-state role="status">正在核对数据保存状态…</p><details><summary style="cursor:pointer">查看${response.ok ? '导入' : '失败'}详情</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.7 inherit">${escapeHtml(phases.flatMap(phase => phase.errors || []).join('\n') || response.output || '')}</pre></details><div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-top:22px"><button data-export>导出备份</button><button data-save hidden>重试保存</button><button data-retry hidden>仅重试失败项</button><button data-confirm disabled>确定并刷新</button></div></section>`;
+    overlay.querySelectorAll('button').forEach(button => { button.style.cssText = 'padding:8px 14px;border:1px solid #b9cddf;border-radius:7px;background:#f4f8fc;color:#173b64;cursor:pointer;font:inherit'; });
+    document.body.appendChild(overlay);
+    const message = overlay.querySelector('[data-save-state]');
+    const confirm = overlay.querySelector('[data-confirm]');
+    const save = overlay.querySelector('[data-save]');
+    const retryButton = overlay.querySelector('[data-retry]');
+    const inspect = async () => {
+      confirm.disabled = true;
+      retryButton.hidden = true;
+      try {
+        const state = await api.getImportSaveState();
+        confirm.disabled = !state.saved;
+        save.hidden = state.saved;
+        retryButton.hidden = !state.saved || !failedItems.length;
+        message.textContent = state.saved ? (state.persistence?.backup?.ok === false ? '主数据已保存，可以刷新；自动备份未完成，建议先导出备份。' : '数据已保存，可以点击“确定并刷新”返回页面。') : '仍有数据未确认保存，请先重试保存或导出备份。暂时不能刷新。';
+        return state.saved;
+      } catch (error) { save.hidden = false; message.textContent = `无法确认保存状态：${error.message}。请先导出备份。`; return false; }
+    };
+    confirm.onclick = async () => { if (await inspect()) location.reload(); };
+    save.onclick = async () => { save.disabled = true; try { await api.retryImportSave(); await inspect(); } catch (error) { message.textContent = `保存失败：${error.message}。请导出备份后再处理。`; } finally { save.disabled = false; } };
+    overlay.querySelector('[data-export]').onclick = async () => { try { await api.exportImportBackup(); } catch (error) { message.textContent = `导出失败：${error.message}`; } };
+    retryButton.onclick = async () => { if (await inspect()) { overlay.remove(); retry(failedItems); } };
+    overlay.addEventListener('keydown', event => {
+      if (event.key === 'Tab') {
+        const controls = [...overlay.querySelectorAll('button:not([disabled]),summary')].filter(el => !el.hidden);
+        const first = controls[0], last = controls.at(-1);
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }
+    });
+    await inspect();
+    (confirm.disabled ? overlay.querySelector('[data-export]') : confirm).focus();
+  }
+
+  async function runAllBatchImport({ trigger, peer, status, setStatus, currentOnly = false, retryItems = null }) {
     if (batchImportRunning) return;
     if (trigger?.dataset.batchBusy === 'true') return;
     const api = window.keywordTracker;
@@ -1595,20 +1639,21 @@
     if (trigger) trigger.disabled = true;
     if (peer) peer.disabled = true;
     setStatus('正在读取产品、竞品和国家设置……');
+    let outcome;
     try {
       const data = await api.getData();
       sidebarDataCache = data;
       matrixDataCache = data;
-      const items = batchItemsFromData(data, currentAsin);
+      const items = retryItems || batchItemsFromData(data, currentAsin);
       if (!items.length) throw new Error('当前没有已登记产品或竞品。');
       // startSifBatchImport submits one extension job for own products and
       // only after it settles submits the competitor job.  The explicit kind
       // values here also protect the ordering when callers pass custom data.
       const response = await api.startSifBatchImport({ items });
-      if (!response?.ok) throw new Error(response?.output || '批量自动导入失败。');
+      outcome = response;
       setStatus(response?.output || '全部产品已下载并导入。');
-      window.setTimeout(() => window.location.reload(), 900);
     } catch (error) {
+      outcome = { ok: false, output: error?.message || '批量自动导入失败。' };
       setStatus(error?.message || '批量自动导入失败，请重试。', true);
       if (trigger) { trigger.disabled = false; delete trigger.dataset.batchBusy; }
       if (peer) { peer.disabled = false; delete peer.dataset.batchBusy; }
@@ -1619,6 +1664,7 @@
       delete trigger.dataset.batchBusy;
       if (peer) delete peer.dataset.batchBusy;
     }
+    await showBatchResult(outcome, items => runAllBatchImport({ trigger, peer, status, setStatus, currentOnly, retryItems: items }));
   }
 
   function installBatchButton() {

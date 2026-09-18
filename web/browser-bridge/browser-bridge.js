@@ -129,7 +129,7 @@
         const state = data.state;
         if (state) {
           const done = (state.tasks || []).filter((task) => ['done', 'failed', 'cancelled'].includes(task.status)).length;
-          emitSifProgress(data.type === 'WEB_BATCH_COMPLETED' ? 'completed' : 'working',
+          emitSifProgress(data.type === 'WEB_BATCH_COMPLETED' && !sifBatchImportInFlight ? 'completed' : 'working',
             `SIF 自动导入进度：${done}/${(state.tasks || []).length}。`, { state });
         }
       }
@@ -259,6 +259,7 @@
     const output = `${options.phaseLabel ? `${options.phaseLabel}：` : ''}SIF 批量报表已下载并导入：成功 ${imported} 个，失败 ${errors.length} 个。${errors.length ? `\n${errors.slice(0, 8).join('\n')}` : ''}`;
     const resultValue = await result(output);
     resultValue.ok = errors.length === 0 && imported === normalizedItems.length;
+    resultValue.batchSummary = { label: options.phaseLabel || '导入结果', total: normalizedItems.length, succeeded: imported, failed: errors.length, errors, failedItems: normalizedItems.filter(item => errors.some(message => message.startsWith(`${item.asin}：`))) };
     if (options.single && !resultValue.ok) resultValue.output = output;
     return resultValue;
   }
@@ -2199,28 +2200,32 @@
     };
     const runPhases = async () => {
       const outputs = [];
+      const phases = [];
       let allOk = true;
       let firstError = null;
       for (const [items, label] of [[ownItems, '第一阶段（自己产品）'], [competitorItems, '第二阶段（竞品）']]) {
         try {
           const response = await runPhase(items, label);
           outputs.push(response?.output || `${label}完成。`);
+          if (response?.batchSummary) phases.push(response.batchSummary);
           if (!response?.ok) allOk = false;
         } catch (error) {
           allOk = false;
           firstError ||= error;
           outputs.push(`${label}失败：${text(error?.message || error)}`);
+          phases.push({ label, total: items.length, succeeded: null, failed: null, errors: [text(error?.message || error)], failedItems: [] });
         }
       }
       const response = await result(`SIF 分阶段批量导入完成。\n${outputs.join('\n')}`);
       response.ok = allOk;
+      response.phases = phases;
       if (!allOk && firstError) response.error = firstError.message;
       return response;
     };
     sifBatchImportInFlight = runPhases();
     try {
       const response = await sifBatchImportInFlight;
-      if (!response?.ok) throw new Error(response?.output || 'SIF 批量自动导入失败。');
+      emitSifProgress('batch-ended', response.output);
       return response;
     } catch (error) {
       const message = text(error?.message || error) || 'SIF 批量自动导入失败。';
@@ -2382,6 +2387,12 @@
       sifProgressListeners.add(listener);
       return () => sifProgressListeners.delete(listener);
     },
+    getImportSaveState: async () => {
+      await persistenceQueue;
+      return { saved: !pendingSave && indexedDbAvailable, pending: Boolean(pendingSave), persistence: lastPersistenceStatus };
+    },
+    retryImportSave: retryPendingSave,
+    exportImportBackup: exportBackup,
     openWorkbook: () => {
       const link = document.createElement('a');
       link.href = new URL('./data/关键词排名每日跟进表.xlsx', document.baseURI).href;
