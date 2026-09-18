@@ -1,0 +1,9 @@
+module.exports={
+  appId:'com.keywordrank.webconnector',productName:'KeywordRankAIConnector',
+  extraMetadata:{main:'electron/ai/connector-entry.cjs'},
+  directories:{output:'release-connector'},
+  files:['electron/ai/**/*','src/ai/core.mjs','package.json','!electron/ai/*builder.cjs'],
+  asar:true,
+  extraFiles:[{from:'build/KeywordRankAINative.exe',to:'KeywordRankAINative.exe'}],
+  win:{icon:'build/icon.ico',target:[{target:'dir',arch:['x64']}],signAndEditExecutable:true},
+};

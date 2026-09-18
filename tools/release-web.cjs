@@ -182,6 +182,7 @@ function packageRelease(targetDir, packageJson, version) {
   copyFile(path.join(webDir, 'data', '关键词排名每日跟进表.xlsx'), path.join(targetDir, 'data', '关键词排名每日跟进表.xlsx'));
   copyFile(xlsxVendor, path.join(targetDir, 'vendor', 'xlsx.full.min.js'));
   copyDirectory(path.join(webDir, 'extensions', 'sif-batch-reverse-downloader'), path.join(targetDir, 'sif-batch-reverse-downloader'));
+  copyDirectory(path.join(webDir, 'extensions', 'keyword-ai-connector'), path.join(targetDir, 'AI浏览器扩展'));
   for (const filePath of walkFiles(path.join(webDir, 'docs'))) {
     copyFile(filePath, path.join(targetDir, path.relative(path.join(webDir, 'docs'), filePath)));
   }

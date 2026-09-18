@@ -40,6 +40,8 @@ dist/
 build/
 apps/keyword-rank/release/
 apps/keyword-rank/release-ai/
+apps/keyword-rank/release-connector/
+apps/keyword-rank/build/KeywordRankAINative.exe
 apps/keyword-rank/ai-ui/
 work/ai-*/
 *.zip

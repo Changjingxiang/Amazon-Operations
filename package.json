@@ -13,6 +13,8 @@
     "verify:web": "node tools/verify-web-release.cjs",
     "build:ai": "npm --prefix apps/keyword-rank run build:ai",
     "test:ai": "npm --prefix apps/keyword-rank run test:ai",
-    "dist:ai": "npm --prefix apps/keyword-rank run dist:ai"
+    "dist:ai": "npm --prefix apps/keyword-rank run dist:ai",
+    "dist:connector": "npm --prefix apps/keyword-rank run dist:connector",
+    "release:web-ai": "node tools/package-web-ai.cjs"
   }
 }

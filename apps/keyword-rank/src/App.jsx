@@ -15,6 +15,7 @@ import AddModelModal from './components/AddModelModal.jsx';
 import IconPickerModal from './components/IconPickerModal.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
 import AIWorkspace from './components/AIWorkspace.jsx';
+import { installBrowserAI } from './ai/browser-adapter.mjs';
 import { EMPTY_FILTER, filterRows } from './components/FilterCascade.jsx';
 import { BusyOverlay, Toast } from './components/Feedback.jsx';
 import WindowTitlebar from './components/WindowTitlebar.jsx';
@@ -23,6 +24,7 @@ import { buildDateView } from './lib/format.js';
 import { resetAllColumnWidths } from './lib/columnWidths.jsx';
 
 const KNOWN_TABS = new Set(['dashboard', 'natural', 'sp', 'comparison', 'aba', 'history']);
+installBrowserAI();
 
 function initialViewFilters() {
   return {
@@ -444,7 +446,7 @@ export default function App({ onStartupSettled }) {
         <BusyOverlay label={busyLabel} />
           <h1>关键词排名每日跟进</h1>
           <p>{data?.models?.length === 0 ? '“型号配置”中没有启用的型号。' : '正在准备软件数据…'}</p>
-          {window.keywordAI && <><p>增强版使用独立数据目录。请先从原网页版导出 JSON 备份，再在这里导入。</p><div className="ai-onboarding"><button onClick={() => window.keywordTracker?.importBackup?.().catch(error => setToast({ type: 'error', title: '导入失败', message: error.message }))}>导入网页版 JSON 备份</button><button onClick={() => openAI()}>进入 AI 分析与广告报表</button></div></>}
+          {window.keywordAI && <><p>{window.keywordAI.kind==='web-connector'?'AI 分析直接使用本网页中的排名数据。首次请安装随包扩展和本机连接器。':'增强版使用独立数据目录。请先从原网页版导出 JSON 备份，再在这里导入。'}</p><div className="ai-onboarding">{window.keywordAI.kind!=='web-connector'&&<button onClick={() => window.keywordTracker?.importBackup?.().catch(error => setToast({ type: 'error', title: '导入失败', message: error.message }))}>导入网页版 JSON 备份</button>}<button onClick={() => openAI()}>进入 AI 分析与广告报表</button></div></>}
           <Toast toast={toast} onClose={() => setToast(null)} />
         </main>
         {aiContext && <AIWorkspace initialKeyword={aiContext.keyword} onClose={() => setAIContext(null)} />}

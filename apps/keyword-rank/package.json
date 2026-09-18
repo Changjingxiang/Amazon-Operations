@@ -12,7 +12,8 @@
     "build:ai": "node scripts/build-ai.cjs",
     "start:ai": "electron electron/ai/main.cjs",
     "test:ai": "node --test tests/ai/*.test.*",
-    "dist:ai": "npm run build:ai && electron-builder --config electron/ai/builder.cjs --win portable --x64"
+    "dist:ai": "npm run build:ai && electron-builder --config electron/ai/builder.cjs --win portable --x64",
+    "dist:connector": "node scripts/build-native-relay.cjs && electron-builder --config electron/ai/connector-builder.cjs --win --x64 --dir"
   },
   "dependencies": {
     "echarts": "^6.1.0",

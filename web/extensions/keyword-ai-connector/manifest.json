@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "关键词 AI 安全连接",
+  "version": "2.1.0",
+  "description": "在关键词排名网页版使用本机 AI 连接器；不读取或保存 API 密钥。",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6GdiGCcp7QocvsV4xi2kWRaadm+RziFRhn+Yh5+MpBaeKDoj3aGMkwfxduTS9fTqoLXs5iHHU+Y+7qoVhJxWvAr1FXfKjn5cJuQrtYI/9VQRRHdGFgDOUnqwtAcWkiqEkgAt+9Fmob7i4uTn01N/NgQ5gvkJWIdnszskxYzaHsNpCWsZws6TnIgYYborXw6mjKGZz8VEr+yNuCFTwRAZUKOgjlhRs9I63t+KCvA+tCPcfDaudLMK0OCohn4Pr2z65igo54DJQvTN2kgsZGgU4dAJTZgSafRv1uGEDhL2Ch0r3YovqLk9yAKfumA5LMCzNXVV3XWgolxDNdPSDHGbvwIDAQAB",
+  "permissions": [
+    "nativeMessaging",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "file:///*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "关键词 AI 安全连接",
+    "default_popup": "popup.html"
+  }
+}

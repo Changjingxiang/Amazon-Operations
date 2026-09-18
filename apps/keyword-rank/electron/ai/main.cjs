@@ -6,6 +6,12 @@ const {pathToFileURL,fileURLToPath}=require('node:url');
 const {Worker}=require('node:worker_threads');
 const {read,write}=require('./storage.cjs');
 const {endpoint,chat}=require('./network.cjs');
+const {EXTENSION_ID,startNativeHost}=require('./native-host.cjs');
+const nativeOrigin=process.argv.find(arg=>arg.startsWith('chrome-extension://'));
+const connectorApp=process.argv.includes('--connector-app');
+const nativeMode=!!nativeOrigin;
+const mainHandlers=new Map();
+let confirmGeneration=0;
 
 // A separate profile keeps browser/legacy desktop business data untouched.
 app.setName('KeywordRankAI');
@@ -21,14 +27,21 @@ const id=()=>crypto.randomUUID();
 const hash=v=>crypto.createHash('sha256').update(v).digest('hex');
 const reports=()=>read(files.reports,[]);
 const history=()=>read(files.history,[]);
-const publicStatus=()=>({endpoint:config.endpoint,model:config.model,configured:!!sessionKey,persisted:config.persisted,encryptionAvailable:safeStorage.isEncryptionAvailable(),busy:!!currentTask});
+const publicStatus=()=>({transport:nativeMode?'native':'electron',connected:true,endpoint:config.endpoint,model:config.model,configured:!!sessionKey,persisted:config.persisted,encryptionAvailable:safeStorage.isEncryptionAvailable(),busy:!!currentTask});
 function secureWindow(window,url){
   window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   window.webContents.on('will-navigate',(e,next)=>{if(next!==url)e.preventDefault();});
   window.webContents.on('will-attach-webview',e=>e.preventDefault());
 }
 function authorized(event,kind){const w=kind==='settings'?settingsWindow:mainWindow;const expected=kind==='settings'?settingsUrl:indexUrl;return !!w&&!w.isDestroyed()&&event.sender===w.webContents&&event.senderFrame===w.webContents.mainFrame&&event.senderFrame.url===expected;}
-function handle(name,kind,fn){ipcMain.handle('ai:'+name,async(event,payload)=>{if(!authorized(event,kind))return{ok:false,error:'拒绝未授权调用'};try{return{ok:true,data:await fn(payload)};}catch(error){return{ok:false,error:String(error.message||'操作失败').slice(0,500)};}});}
+function handle(name,kind,fn){if(kind==='main')mainHandlers.set(name,fn);ipcMain.handle('ai:'+name,async(event,payload)=>{if(!authorized(event,kind))return{ok:false,error:'拒绝未授权调用'};try{return{ok:true,data:await fn(payload)};}catch(error){return{ok:false,error:String(error.message||'操作失败').slice(0,500)};}});}
+function parentDialog(method,options){return mainWindow?dialog[method](mainWindow,options):dialog[method](options);}
+async function confirmOutbound(body,test=false){
+  if(!nativeMode)return;
+  const generation=confirmGeneration;
+  const answer=await dialog.showMessageBox({type:'question',title:'AI 本机安全连接器',buttons:['取消','确认发送'],defaultId:0,cancelId:0,message:test?'发送一次固定文本连接测试？':'将本次预览内容发送给 AI 平台？',detail:`平台：${new URL(config.endpoint).origin}\n模型：${config.model}\n${test?'只发送固定测试文本，不含业务数据。':`本次请求 ${Buffer.byteLength(JSON.stringify(body))} 字节。请核对网页中的完整请求预览。`}\n请求可能计费，不会自动重试。`,...(test?{}:{checkboxLabel:'我已核对网页中的发送内容',checkboxChecked:false}),noLink:true});
+  if(answer.response!==1||(!test&&!answer.checkboxChecked)||generation!==confirmGeneration)throw new Error('已取消发送');
+}
 function notBusy(){if(currentTask)throw new Error('当前已有请求，请完成或取消后再操作');}
 function ensureConfig(){if(!sessionKey||!config.endpoint||!config.model)throw new Error('请先在安全设置中配置 API 地址、模型和密钥');}
 function showSettings(){if(settingsWindow&&!settingsWindow.isDestroyed()){settingsWindow.focus();return;}settingsWindow=new BrowserWindow({width:700,height:760,minWidth:560,minHeight:620,parent:mainWindow,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'settings-preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true}});secureWindow(settingsWindow,settingsUrl);settingsWindow.loadURL(settingsUrl);settingsWindow.on('closed',()=>{settingsWindow=null;});}
@@ -50,10 +63,10 @@ function installHandlers(){
     config=next;sessionKey=nextKey;prepared=null;return publicStatus();
   });
   handle('config-clear','settings',()=>{notBusy();write(files.config,{endpoint:config.endpoint,model:config.model,persisted:false});if(fs.existsSync(files.config+'.bak'))fs.unlinkSync(files.config+'.bak');sessionKey='';config.persisted=false;prepared=null;return publicStatus();});
-  handle('test','main',async()=>{const r=await task({model:config.model,messages:[{role:'user',content:'Reply with OK. This is a connection test; no business data is included.'}],max_tokens:8,stream:false});return{message:'连接成功，平台返回了兼容响应。',usage:r.usage};});
-  handle('cancel','main',()=>{currentTask?.abort();return{cancelled:true};});
+  handle('test','main',async()=>{ensureConfig();if(nativeMode)await confirmOutbound(null,true);const r=await task({model:config.model,messages:[{role:'user',content:'Reply with OK. This is a connection test; no business data is included.'}],max_tokens:8,stream:false});return{message:'连接成功，平台返回了兼容响应。',usage:r.usage};});
+  handle('cancel','main',()=>{confirmGeneration++;currentTask?.abort();return{cancelled:true};});
   handle('pick-report','main',async()=>{
-    const selected=await dialog.showOpenDialog(mainWindow,{title:'选择 SP 广告报表（原文件不会修改）',properties:['openFile'],filters:[{name:'广告报表',extensions:['csv','xlsx']}]});
+    const selected=await parentDialog('showOpenDialog',{title:'选择 SP 广告报表（原文件不会修改）',properties:['openFile'],filters:[{name:'广告报表',extensions:['csv','xlsx']}]});
     if(selected.canceled)return null;const file=selected.filePaths[0];const stat=fs.statSync(file);if(stat.size>20*1024*1024)throw new Error('文件超过 20 MB');
     const parsed=await parseFile(file);reportFile={...parsed,id:id(),filename:path.basename(file),digest:hash(fs.readFileSync(file)),asOf:stat.mtime.toISOString().slice(0,10)};reportPreview=null;
     return{id:reportFile.id,filename:reportFile.filename,headers:parsed.headers,mapping:core.suggestMapping(parsed.headers),sample:parsed.table.slice(0,3),count:parsed.table.length,asOf:reportFile.asOf};
@@ -88,6 +101,7 @@ function installHandlers(){
   handle('start','main',async token=>{
     if(!prepared||prepared.id!==token||Date.now()-prepared.created>300000)throw new Error('发送预览已失效，请重新生成');
     const snapshot=prepared;prepared=null;
+    if(nativeMode)await confirmOutbound(snapshot.request);
     const response=await task(snapshot.request);
     const result=core.validateResult(response.content,snapshot.payload.evidence.map(e=>e.id));
     // Provider output is untrusted: even accidental key echoes must not persist.
@@ -96,9 +110,9 @@ function installHandlers(){
     const next=[record,...history()].slice(0,50);write(files.history,next);return record;
   });
   handle('history','main',()=>history());
-  handle('backup','main',async()=>{const target=await dialog.showSaveDialog(mainWindow,{title:'导出广告和 AI 分析数据（不含密钥）',defaultPath:'广告与AI分析备份.json',filters:[{name:'JSON',extensions:['json']}]});if(target.canceled)return null;const data={format:'keyword-ai-backup',version:1,reports:reports(),history:history(),preferences:read(files.preferences,{})};write(target.filePath,data);return{saved:true};});
+  handle('backup','main',async()=>{const target=await parentDialog('showSaveDialog',{title:'导出广告和 AI 分析数据（不含密钥）',defaultPath:'广告与AI分析备份.json',filters:[{name:'JSON',extensions:['json']}]});if(target.canceled)return null;const data={format:'keyword-ai-backup',version:1,reports:reports(),history:history(),preferences:read(files.preferences,{})};write(target.filePath,data);return{saved:true};});
   handle('restore','main',async()=>{
-    notBusy();const selected=await dialog.showOpenDialog(mainWindow,{title:'恢复广告与 AI 分析备份',properties:['openFile'],filters:[{name:'JSON',extensions:['json']}]});if(selected.canceled)return null;
+    notBusy();const selected=await parentDialog('showOpenDialog',{title:'恢复广告与 AI 分析备份',properties:['openFile'],filters:[{name:'JSON',extensions:['json']}]});if(selected.canceled)return null;
     const file=selected.filePaths[0];if(fs.statSync(file).size>40*1024*1024)throw new Error('备份过大');const data=read(file,null);
     if(data?.format!=='keyword-ai-backup'||data.version!==1||!Array.isArray(data.reports)||!Array.isArray(data.history)||data.reports.length>1000||data.history.length>50)throw new Error('不支持的备份格式');
     const validated=data.reports.map(b=>{const mapping=Object.fromEntries(Object.keys(core.FIELDS).filter(k=>!['date','adProduct'].includes(k)).map(k=>[k,k]));const normalized=core.normalizeReport(b.rows,mapping,b.meta);return{...normalized,id:id(),filename:String(b.filename||'备份').slice(0,200),digest:hash(JSON.stringify(normalized)),importedAt:new Date().toISOString()};});
@@ -111,12 +125,19 @@ function installHandlers(){
       if(target!==''&&target!=null&&(typeof target!=='string'&&typeof target!=='number'||!Number.isFinite(Number(target))||Number(target)<=0||Number(target)>1000))throw new Error('目标 ACOS 格式无效');
       preferences[product]={targetAcos:target==null?'':target};
     }
-    const answer=await dialog.showMessageBox(mainWindow,{type:'question',buttons:['取消','备份当前数据并恢复'],defaultId:0,cancelId:0,message:`恢复 ${validated.length} 个广告批次、${data.history.length} 份分析？`,detail:'仅替换增强版的广告和分析历史，排名数据与密钥不变。当前数据会另存恢复前备份。'});if(answer.response!==1)return null;
+    const answer=await parentDialog('showMessageBox',{type:'question',buttons:['取消','备份当前数据并恢复'],defaultId:0,cancelId:0,message:`恢复 ${validated.length} 个广告批次、${data.history.length} 份分析？`,detail:'仅替换增强版的广告和分析历史，排名数据与密钥不变。当前数据会另存恢复前备份。'});if(answer.response!==1)return null;
     write(path.join(dataDir,`before-restore-${Date.now()}.json`),{format:'keyword-ai-backup',version:1,reports:reports(),history:history(),preferences:read(files.preferences,{})});
     write(files.reports,validated);write(files.history,data.history);write(files.preferences,preferences);prepared=null;return{restored:true};
   });
 }
-if(!app.requestSingleInstanceLock())app.quit();
+if(connectorApp&&!nativeMode){
+  app.whenReady().then(async()=>{
+    const choice=await dialog.showMessageBox({type:'info',title:'关键词网页版 AI 安全连接器',message:'安装或移除浏览器连接器',detail:'请先把整个连接器文件夹放到固定位置。注册后不要移动或删除本文件夹。仅为当前 Windows 用户注册 Chrome / Edge，不需要管理员权限。密钥和业务数据不会随卸载删除。',buttons:['注册连接器','移除注册','取消'],defaultId:0,cancelId:2,noLink:true});
+    if(choice.response!==2){try{require('./register-native.cjs').register(process.execPath,dataDir,choice.response===1);await dialog.showMessageBox({message:choice.response===0?'连接器已注册。请加载随包浏览器扩展，并在关键词网页点击扩展的“连接当前页面”。':'已移除连接器注册。密钥和业务数据仍保留在本机。'});}catch{dialog.showErrorBox('注册失败','请确认已解压完整程序、文件夹可用，并使用当前 Windows 用户重试。');}}app.quit();
+  });
+}
+else if(nativeMode&&nativeOrigin!==`chrome-extension://${EXTENSION_ID}/`)app.quit();
+else if(!app.requestSingleInstanceLock())app.quit();
 else app.whenReady().then(async()=>{
   core=await import(pathToFileURL(path.join(__dirname,'../../src/ai/core.mjs')).href);
   const disk=read(files.config,{});config={endpoint:disk.endpoint||'',model:disk.model||'',persisted:!!disk.persisted};
@@ -126,8 +147,13 @@ else app.whenReady().then(async()=>{
     let allowed=false;try{const url=new URL(details.url);if(url.protocol==='file:'){const file=fileURLToPath(url);const rel=path.relative(uiRoot,file);const settingRel=path.relative(__dirname,file);allowed=(!rel.startsWith('..')&&!path.isAbsolute(rel))||(!settingRel.startsWith('..')&&!path.isAbsolute(settingRel));}else allowed=['data:','blob:','devtools:'].includes(url.protocol);}catch{}
     callback({cancel:!allowed});
   });
-  installHandlers();mainWindow=new BrowserWindow({width:1440,height:900,minWidth:1100,minHeight:680,title:'关键词排名每日跟进 · AI 增强版',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true}});
+  installHandlers();
+  if(nativeMode){
+    startNativeHost({origin:nativeOrigin,call:async(name,payload)=>{const fn=mainHandlers.get(name);if(!fn)throw new Error('接口不存在');return fn(payload);},confirmPair:async page=>{const answer=await dialog.showMessageBox({type:'question',title:'允许网页版连接 AI？',buttons:['取消','允许此页面本次连接'],defaultId:0,cancelId:0,message:'请确认这是你打开的关键词软件页面',detail:`${page}\n\n允许后，此页面可读取本机广告报表和分析历史、选择文件并发起分析；密钥不会交给网页。分析发送仍需本机确认。关闭/刷新页面后需重新连接。`,noLink:true});return answer.response===1;},onClose:()=>{confirmGeneration++;currentTask?.abort();app.quit();}});
+    return;
+  }
+  mainWindow=new BrowserWindow({width:1440,height:900,minWidth:1100,minHeight:680,title:'关键词排名每日跟进 · AI 增强版',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true}});
   secureWindow(mainWindow,indexUrl);await mainWindow.loadURL(indexUrl);mainWindow.on('closed',()=>{currentTask?.abort();mainWindow=null;});
 }).catch(()=>{dialog.showErrorBox('启动失败','增强版初始化失败。请保留应用数据目录中的文件，检查程序是否完整。');app.quit();});
 app.on('second-instance',()=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.focus();}});
-app.on('window-all-closed',()=>app.quit());
+app.on('window-all-closed',()=>{if(!nativeMode)app.quit();});
