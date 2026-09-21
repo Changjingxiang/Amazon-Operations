@@ -1,6 +1,6 @@
 # 网页版发布源
 
-这里保存独立网页版 v2.1 所需的非 Vite 源文件。发布时，根目录脚本会先从 [`apps/keyword-rank`](../apps/keyword-rank) 重新构建 React/Vite，再把本目录内容组装到 `outputs/` 下的发布目录。
+这里保存独立网页版 v2.2 所需的非 Vite 源文件。发布时，根目录脚本会先从 [`apps/keyword-rank`](../apps/keyword-rank) 重新构建 React/Vite，再把本目录内容组装到 `outputs/` 下的发布目录。
 
 ## 发布输入
 

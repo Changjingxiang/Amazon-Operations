@@ -11,7 +11,6 @@ Keyword rank tracker v2.2: a local-first workspace for daily organic rankings, s
 ## Features
 
 - Double-click an own-product or competitor name in the sidebar to open its Amazon product page in a new tab. Hover to see the hint; single-click still selects the product.
-
 - Daily dashboard with an expandable keyword table, organic and SP matrices, annotations, watched keywords, and import history.
 - Annotation corners preserve rank colors. Click a rank to edit a multiline note in an anchored card; save in the background without blocking other cells.
 - Side-by-side organic/SP comparisons with leading relationships and ranking page indicators.
@@ -113,7 +112,33 @@ The following detailed guides are currently in Chinese:
 <details>
 <summary>Show recent updates</summary>
 
-### Latest updates — September 7, 2026
+### Latest updates — v2.2 · September 21, 2026
+
+- Double-click an owned-product or competitor name in the sidebar to open its Amazon product page in a new tab, using that product's marketplace.
+- Hover displays “双击进入商品页面” (double-click to open the product page). A single click still selects the product and preserves the current matrix tab.
+- Built on the v2.1 import-result fix, preserving annotations, data persistence, and batch-import results.
+- The release and extracted folder are named `关键词排名每日跟进网页版-v2.2`; the download filename is `keyword-rank-web-v2.2.zip`.
+- [Read the v2.2 release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/tag/web-v2.2). Export a JSON backup before upgrading and import it if the new version does not display your existing data.
+
+### Previous updates — v2.1 · September 18, 2026
+
+- Batch imports finish with a result dialog, including partial failures, instead of remaining on the loading screen.
+- View owned-product and competitor stage totals, inspect complete errors, and retry only failed items.
+- Confirm and refresh after data has been saved. Unsaved data requires a save retry or backup export before refreshing.
+
+### Previous updates — September 17, 2026
+
+- Blue annotation corners preserve the original rank colors.
+- Click a rank to open an anchored editor with keyword, date, and ranking type. Save, cancel, clear, or use Enter to save, Shift+Enter for a newline, and Esc to cancel; clicking outside also saves.
+- Hover prioritizes the current annotation and rank, followed by competitor information. Hover bubbles stay hidden while editing.
+- Background saving reports status on the current cell without blocking other cells; failed saves preserve the entered content.
+
+### Previous updates — September 15, 2026
+
+- Local Excel import persistence failures provide retry and backup-export actions.
+- Startup read failures do not overwrite existing data with seed data. Main data and automatic backups report save status separately.
+
+### Previous updates — September 7, 2026
 
 - Shared competitor library: link one competitor to multiple owned products, reuse images and history, and import it only once. Unlinking preserves the shared record.
 - Expand the dashboard keyword table and restore it with the button or Escape. Competitors support custom images.
