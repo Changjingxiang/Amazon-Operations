@@ -6,14 +6,14 @@
 
 **简体中文** · [English](README.en.md)
 
-> 关键词排名每日跟进 v2.1：把自然排名、SP、ABA 与竞品变化，整理成一张可追踪的运营工作台。
+> 关键词排名每日跟进 v2.2：把自然排名、SP、ABA 与竞品变化，整理成一张可追踪的运营工作台。
 
 > [!IMPORTANT]
 > ## 最新版下载（小白直接用这个）
 >
-> **关键词排名每日跟进网页版-v2.1**
+> **关键词排名每日跟进网页版-v2.2**
 >
-> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/keyword-rank-web-v2.1.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/keyword-rank-web-v2.2.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 >
 > 下载后请先“解压全部”，再双击压缩包里的 `打开网页版.cmd`。**不要用 GitHub 的 `Code → Download ZIP`**，那是源码，不是给普通用户直接打开的发布包。
 
@@ -25,6 +25,8 @@
 </p>
 
 ## 先看它能做什么
+
+- **直达商品页**：双击左侧自有产品或竞品名称，在新标签页打开对应站点的亚马逊商品页；悬停显示“双击进入商品页面”。单击仍切换产品。
 
 - **每日跟进**：用看板总览关键词表现，在自然/SP 矩阵中追踪每日排名；关键词表格可放大查看。
 - **对比决策**：按日期并列自然/SP 排名，区分“自然领先”和“SP 领先”，直接定位详情。
@@ -110,7 +112,7 @@ npm run dist:win
 npm run release:web
 
 # 对指定发布目录做浏览器 smoke check
-npm run verify:web -- --dir "outputs/关键词排名每日跟进网页版-v2.1"
+npm run verify:web -- --dir "outputs/关键词排名每日跟进网页版-v2.2"
 ```
 
 `npm run release:web` 始终从 `apps/keyword-rank` 和 `web/` 重新构建，并生成 `outputs/关键词排名每日跟进网页版-v<版本>`。目标目录已存在时命令会安全退出；确认要替换同一版本时才使用：

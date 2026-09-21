@@ -6,9 +6,11 @@
 
 [简体中文](README.md) · **English**
 
-Keyword rank tracker v2.1: a local-first workspace for daily organic rankings, sponsored product (SP) rankings, ABA trends, and competitor comparisons. The application interface is currently in Chinese.
+Keyword rank tracker v2.2: a local-first workspace for daily organic rankings, sponsored product (SP) rankings, ABA trends, and competitor comparisons. The application interface is currently in Chinese.
 
 ## Features
+
+- Double-click an own-product or competitor name in the sidebar to open its Amazon product page in a new tab. Hover to see the hint; single-click still selects the product.
 
 - Daily dashboard with an expandable keyword table, organic and SP matrices, annotations, watched keywords, and import history.
 - Annotation corners preserve rank colors. Click a rank to edit a multiline note in an anchored card; save in the background without blocking other cells.
@@ -23,7 +25,7 @@ Keyword rank tracker v2.1: a local-first workspace for daily organic rankings, s
 
 The complete web package needs no Node.js, Python, or Codex installation. GitHub’s **Code → Download ZIP** downloads source code, not the latest ready-to-use package.
 
-**[Download 关键词排名每日跟进网页版-v2.1.zip](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/keyword-rank-web-v2.1.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+**[Download 关键词排名每日跟进网页版-v2.2.zip](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/keyword-rank-web-v2.2.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 
 Batch imports now end with a result dialog, including partial failures. Review errors, retry failed items, or confirm and refresh after data has been saved. Unsaved data requires a save retry or backup export before refreshing.
 
@@ -69,7 +71,7 @@ npm run dist:win
 npm run release:web
 
 # Check a generated web release
-npm run verify:web -- --dir "outputs/关键词排名每日跟进网页版-v2.1"
+npm run verify:web -- --dir "outputs/关键词排名每日跟进网页版-v2.2"
 ```
 
 Use `npm run release:web -- --output outputs/my-release` for a unique output directory. Existing release directories are not overwritten by default. Use `--force` only when intentionally replacing a release.
