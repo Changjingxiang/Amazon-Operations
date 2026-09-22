@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero-en.jpg" alt="Amazon Operations keyword rank tracker" width="100%" />
+  <img src="./assets/readme/hero-en.png" alt="Amazon Operations keyword rank tracker" width="100%" />
 </p>
 
 # Amazon Operations
