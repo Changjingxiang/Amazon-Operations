@@ -101,9 +101,11 @@ const dateViewCache = new WeakMap();
 const dateViewIndexCache = new WeakMap();
 
 function buildDateViewIndexes(model) {
-  const cached = dateViewIndexCache.get(model);
-  if (cached) return cached;
   const watchMap = new Map((model.watches || []).map((watch, index) => [watch.keyword.toLowerCase(), { ...watch, order: index }]));
+  // Watch edits do not change history. Reuse its immutable indexes while
+  // rebuilding only the small watch map; ranking calculations stay identical.
+  const cached = dateViewIndexCache.get(model.historyRecords);
+  if (cached) return { ...cached, watchMap };
   const recordsByDate = new Map();
   const recordsByKeyword = new Map();
   const recordsByKeywordDate = new Map();
@@ -130,9 +132,9 @@ function buildDateViewIndexes(model) {
       [...list].sort((a, b) => b.snapshotDate.localeCompare(a.snapshotDate)),
     ]),
   );
-  const indexes = { watchMap, recordsByDate, recordsByKeywordDate, sortedRecordsByKeyword };
-  dateViewIndexCache.set(model, indexes);
-  return indexes;
+  const indexes = { recordsByDate, recordsByKeywordDate, sortedRecordsByKeyword };
+  dateViewIndexCache.set(model.historyRecords, indexes);
+  return { ...indexes, watchMap };
 }
 
 export function buildDateView(model, selectedDate) {

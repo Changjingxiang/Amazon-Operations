@@ -124,7 +124,7 @@ const ComparisonRow = memo(function ComparisonRow({ category, row, order, dates,
       <td className="comparison-star-cell">
         <button
           type="button"
-          className={`star-button ${row.watched ? 'watched' : ''}`}
+          className={`star-button ${row.watched ? 'watched' : ''}`} aria-pressed={row.watched} aria-busy={row.watchPending || undefined}
           onClick={() => onToggleWatch?.(row.keyword, !row.watched, row.note)}
           title={row.watched ? '取消关注' : '设为关注'}
           aria-label={row.watched ? `取消关注 ${row.keyword}` : `关注 ${row.keyword}`}

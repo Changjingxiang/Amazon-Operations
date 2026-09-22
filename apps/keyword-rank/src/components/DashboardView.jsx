@@ -101,7 +101,7 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
                 <td>
                   <button
                     type="button"
-                    className={`star-button ${row.watched ? 'watched' : ''}`}
+                    className={`star-button ${row.watched ? 'watched' : ''}`} aria-pressed={row.watched} aria-busy={row.watchPending || undefined}
                     onClick={() => onToggleWatch(row.keyword, !row.watched, row.watchNote)}
                     title={row.watched ? '取消关注' : '设为关注'}
                   ><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button>

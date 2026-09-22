@@ -559,7 +559,7 @@
       request.onsuccess = () => {
         const db = request.result;
         let store;
-        const finishBackup = (backup) => { db.close(); self.postMessage({ ok: true, backup }); };
+        const finishBackup = (backup) => { db.close(); self.postMessage({ ok: true, backup, ...(data.watch ? { watches: store.watches } : {}) }); };
         const writeBackup = () => {
           let transaction;
           let writeError = null;
@@ -597,13 +597,20 @@
               const normalizeKey = (value) => String(value || '').trim().toLocaleLowerCase('en-US');
               const belongs = (item) => item.parentAsin
                 ? data.asins.includes(String(item.parentAsin).trim().toUpperCase())
-                : item.modelName === data.annotation.modelName;
-              store.annotations = (store.annotations || []).filter((item) => !(belongs(item)
+                : item.modelName === (data.watch || data.annotation).modelName;
+              if (data.watch) {
+                if ((store.storageRevision || store.updatedAt || null) !== data.expectedRevision) throw new Error('数据已在其他页面更新，请刷新后重试关注操作。');
+                const match = (store.watches || []).find(item => belongs(item) && normalizeKey(item.keyword) === normalizeKey(data.watch.keyword));
+                if (match) { match.enabled = data.watch.enabled; match.note = data.watch.note; }
+                else if (data.watch.enabled) (store.watches ||= []).push({ ...data.watch, order: store.watches.length });
+              } else {
+                store.annotations = (store.annotations || []).filter((item) => !(belongs(item)
                 && item.metric === data.annotation.metric
                 && normalizeKey(item.keyword) === normalizeKey(data.annotation.keyword)
                 && item.date === data.annotation.date));
-              if (data.annotation.text) store.annotations.push(data.annotation);
-              store.updatedAt = data.annotation.updatedAt;
+                if (data.annotation.text) store.annotations.push(data.annotation);
+              }
+              store.updatedAt = data.updatedAt || data.annotation.updatedAt;
               store.storageRevision = data.storageRevision;
               records.put(store, data.stateKey);
             } catch (error) {
@@ -622,7 +629,7 @@
     };
   }
 
-  function writeAnnotationInWorker(annotation, asins, storageRevision) {
+  function writeAnnotationInWorker(annotation, asins, storageRevision, watch = null, expectedRevision = null, updatedAt = annotation?.updatedAt) {
     return new Promise((resolve, reject) => {
       let worker;
       let url;
@@ -639,7 +646,7 @@
         worker.onerror = (event) => { event.preventDefault(); finish(new Error(event.message || '标注保存线程无法启动。')); };
         worker.onmessageerror = () => finish(new Error('标注保存结果读取失败，请重试。'));
         worker.postMessage({ database: DB_NAME, version: DB_VERSION, objectStore: STORE_NAME,
-          stateKey: STATE_KEY, annotation, asins, storageRevision, backupDate: localBackupDate(), backupPrefix: DAILY_BACKUP_PREFIX });
+          stateKey: STATE_KEY, annotation, asins, storageRevision, watch, expectedRevision, updatedAt, backupDate: localBackupDate(), backupPrefix: DAILY_BACKUP_PREFIX });
       } catch (error) { finish(error); }
     });
   }
@@ -1249,27 +1256,39 @@
   }
 
   async function setWatch(payload) {
-    const store = await ensureStore();
+    if (pendingSave) throw new Error('请先解决未保存数据，再修改关注状态。');
+    const current = await ensureStore();
     const requestedAsin = text(payload.parentAsin || pageAsin()).toUpperCase();
-    const config = [...store.configs, ...store.competitors].find((item) =>
-      item.modelName === payload.modelName
-      || item.parentAsin === requestedAsin
-      || (item.legacyParentAsins || []).includes(requestedAsin));
+    const configs = [...current.configs, ...current.competitors];
+    const config = configs.find(item => item.parentAsin === requestedAsin || (item.legacyParentAsins || []).includes(requestedAsin))
+      || configs.find(item => item.modelName === payload.modelName);
     if (!config) throw new Error('找不到对应产品型号。');
     const keyword = text(payload.keyword);
     if (!keyword) throw new Error('关键词不能为空。');
-    const configAsins = new Set([config.parentAsin, ...(config.legacyParentAsins || [])].map((asin) => text(asin).toUpperCase()));
-    const belongs = (item) => item?.parentAsin
-      ? configAsins.has(text(item.parentAsin).toUpperCase())
-      : item?.modelName === config.modelName;
-    const match = store.watches.find((item) => belongs(item) && key(item.keyword) === key(keyword));
-    if (match) {
-      match.enabled = Boolean(payload.enabled);
-      if (payload.note != null) match.note = text(payload.note);
-    } else if (payload.enabled) {
-      store.watches.push({ parentAsin: config.parentAsin, modelName: config.modelName, keyword, note: text(payload.note), enabled: true, order: store.watches.length });
+    const asins = [config.parentAsin, ...(config.legacyParentAsins || [])].map(asin => text(asin).toUpperCase());
+    const belongs = item => item.parentAsin ? asins.includes(text(item.parentAsin).toUpperCase()) : item.modelName === config.modelName;
+    const previous = current.watches.find(item => belongs(item) && key(item.keyword) === key(keyword));
+    const watch = { parentAsin: config.parentAsin, modelName: config.modelName, keyword, enabled: Boolean(payload.enabled), note: payload.note == null ? text(previous?.note) : text(payload.note) };
+    const next = { ...current, updatedAt: new Date().toISOString(), storageRevision: newStorageRevision() };
+    if (cloudMode) {
+      if (!cloudStorage) throw new Error('云端连接未建立，关注状态尚未保存。');
+      next.watches = current.watches.map(item => item === previous ? { ...item, enabled: watch.enabled, note: watch.note } : item);
+      if (!previous && watch.enabled) next.watches.push({ ...watch, order: current.watches.length });
+      await cloudStorage.write(next);
+      lastPersistenceStatus = { main: { ok: true }, backup: { ok: true } };
+    } else {
+      const saved = await writeAnnotationInWorker(null, asins, next.storageRevision, watch, text(current.storageRevision || current.updatedAt) || null, next.updatedAt);
+      next.watches = saved.watches;
+      indexedDbAvailable = true;
+      lastPersistenceStatus = { main: { ok: true }, backup: saved.backup };
+      if (saved.backup?.ok === false) showBackupNotice(new Error(saved.backup.error));
     }
-    await writeStore(store);
+    // The UI thread publishes only the small watch list after durable success;
+    // the history and backup never cross the worker boundary.
+    memoryStore = next;
+    storageChannel?.postMessage({ updatedAt: next.updatedAt, storageRevision: next.storageRevision });
+    const record = next.watches.find(item => belongs(item) && key(item.keyword) === key(keyword));
+    if (payload.lightweight) return { ok: true, watch: { ...watch, ...(record || {}) }, persistence: lastPersistenceStatus };
     return result('关注词已保存到浏览器。');
   }
 
@@ -2446,7 +2465,7 @@
     importAbaMonthlyCsv,
     startSifImport,
     startSifBatchImport,
-    setWatch,
+    setWatch: payload => enqueuePersistence(() => setWatch(payload)),
     replaceWatches,
     setAnnotation: payload => enqueuePersistence(() => setAnnotation(payload)),
     getAdReviews: async () => (await ensureStore()).adReviews,

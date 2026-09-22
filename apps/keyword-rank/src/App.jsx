@@ -21,6 +21,7 @@ import UsageGuide from './components/UsageGuide.jsx';
 import { api } from './lib/api.js';
 import { buildDateView } from './lib/format.js';
 import { resetAllColumnWidths } from './lib/columnWidths.jsx';
+import { patchWatchData, watchKey } from './lib/watchUpdates.js';
 
 import AdReview from './components/AdReview.jsx';
 import { EMPTY_REVIEWS } from './lib/adReview.js';
@@ -111,6 +112,10 @@ export default function App({ onStartupSettled, startupReady = true }) {
     updateReviews(await window.keywordTracker.setAdReviewAccepted({ runId, itemId, accepted }));
   };
   const annotationQueue = useRef(Promise.resolve());
+  const watchQueue = useRef(Promise.resolve());
+  const watchJobs = useRef(new Map());
+  const activeModelRef = useRef(null);
+  const [pendingWatches, setPendingWatches] = useState(0);
   const [pendingAnnotations, setPendingAnnotations] = useState(0);
   const [pendingAnnotationCells, setPendingAnnotationCells] = useState({});
   const [activeIndex, setActiveIndex] = useState(0);
@@ -158,6 +163,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
   const load = async () => {
     setBusyLabel('正在读取关键词数据…');
     try {
+      await watchQueue.current;
       const result = await api.getData();
       setData(result);
       onStartupSettled?.('ready');
@@ -188,6 +194,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
   }), []);
 
   const model = data?.models?.[activeIndex];
+  activeModelRef.current = model;
   const guide = window.keywordTracker?.isWeb ? <UsageGuide ready={startupReady && Boolean(data)} blocked={Boolean(busyLabel || pendingAnnotations || watchOpen || addModelOpen || iconModel || settingsOpen)} hasModel={Boolean(model)} onPrepare={prepareGuide} onRestore={restoreGuide} onCloseTools={closeWebTools} /> : null;
   useEffect(() => {
     if (!model) return;
@@ -270,6 +277,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
   const runAction = async (label, action, successTitle) => {
     setBusyLabel(label);
     try {
+      await watchQueue.current;
       const result = await action();
       applyResult(result, successTitle);
       return true;
@@ -281,11 +289,49 @@ export default function App({ onStartupSettled, startupReady = true }) {
     }
   };
 
-  const toggleWatch = (keyword, enabled, note = '') => runAction(
-    enabled ? `正在关注“${keyword}”…` : `正在取消关注“${keyword}”…`,
-    () => api.setWatch({ modelName: model.modelName, keyword, enabled, note }),
-    enabled ? '已设为关注' : '已取消关注',
-  );
+  const toggleWatch = (keyword, enabled, note = '') => {
+    const active = activeModelRef.current;
+    if (!active) return Promise.resolve(false);
+    const target = { modelName: active.modelName, parentAsin: active.parentAsin, keyword, enabled, note };
+    const id = JSON.stringify([target.parentAsin, watchKey(keyword)]);
+    let job = watchJobs.current.get(id);
+    if (!job) {
+      const previous = active.watches?.find(item => watchKey(item.keyword) === watchKey(keyword));
+      job = { count: 0, revision: 0, confirmed: { ...target, ...(previous || {}), enabled: Boolean(previous), note: previous?.note || '' } };
+      watchJobs.current.set(id, job);
+    }
+    const revision = ++job.revision;
+    job.count++;
+    setPendingWatches(count => count + 1);
+    setData(current => patchWatchData(current, target, true));
+    const save = async () => {
+      try {
+        const result = await api.setWatch({ ...target, lightweight: true });
+        if (result?.ok === false) throw new Error(result.error || '关注状态未保存');
+        job.confirmed = { ...target, ...(result.watch || {}) };
+        if (revision === job.revision) setData(current => patchWatchData(current, job.confirmed));
+        if (result.persistence?.backup?.ok === false) setToast({ type: 'warning', title: '关注已保存，自动备份失败', message: result.persistence.backup.error });
+        return true;
+      } catch (error) {
+        if (revision === job.revision) setData(current => patchWatchData(current, job.confirmed));
+        setToast({ type: 'error', title: revision === job.revision ? '关注保存失败，已恢复原状态' : '一次关注操作保存失败，后续操作继续处理', message: `${target.keyword}：${error.message}` });
+        return false;
+      } finally {
+        job.count--;
+        if (!job.count) watchJobs.current.delete(id);
+        setPendingWatches(count => count - 1);
+      }
+    };
+    watchQueue.current = watchQueue.current.then(save, save);
+    return watchQueue.current;
+  };
+
+  useEffect(() => {
+    if (!pendingWatches) return;
+    const warn = event => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [pendingWatches > 0]);
 
   const saveWatch = async (items) => {
     const ok = await runAction('正在一次性保存关注词…', () => api.replaceWatches({
@@ -524,7 +570,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
             {!trendRow && activeTab === 'history' && <HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} />}
           </div>
           <footer className="statusbar">
-            <span role="status">{pendingAnnotations > 0 ? `正在后台保存标注（${pendingAnnotations}）…` : '本地数据已同步'} · {activeViewCount} 个关键词 · 源文件 {data.sourceCount} 个</span>
+            <span role="status">{pendingWatches > 0 ? `正在后台保存关注（${pendingWatches}）…` : pendingAnnotations > 0 ? `正在后台保存标注（${pendingAnnotations}）…` : '本地数据已同步'} · {activeViewCount} 个关键词 · 源文件 {data.sourceCount} 个</span>
             <span><b className="legend-up">红色＝上升</b><b className="legend-down">绿色＝下降</b><b className="legend-none">灰色＝未上榜</b></span>
           </footer>
         </main>

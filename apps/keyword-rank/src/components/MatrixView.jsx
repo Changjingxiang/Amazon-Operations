@@ -60,7 +60,7 @@ const MatrixRow = memo(function MatrixRow({ row, reviewCells, columns, dateIndex
   const editingKey = editing ? `${editing.keyword}|${editing.date}` : '';
   return (
     <tr data-matrix-keyword={row.keyword} className={row.watched ? 'watched-row' : ''}>
-      <td className="sticky-col star-col"><button type="button" className={`star-button ${row.watched ? 'watched' : ''}`} title={row.watched ? '取消关注' : '设为关注'} onClick={() => onToggleWatch(row.keyword, !row.watched, row.note)}><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button></td>
+      <td className="sticky-col star-col"><button type="button" className={`star-button ${row.watched ? 'watched' : ''}`} aria-pressed={row.watched} aria-busy={row.watchPending || undefined} title={row.watched ? '取消关注' : '设为关注'} onClick={() => onToggleWatch(row.keyword, !row.watched, row.note)}><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button></td>
       <td
         className={`sticky-col keyword-col ${metric === 'natural' ? 'matrix-keyword-aba-cell' : ''}`}
         data-text-tooltip={metric === 'sp' ? row.keyword : undefined}
@@ -118,7 +118,7 @@ const MATRIX_RANGE_CHUNK = 48;
 const MATRIX_INITIAL_ROWS = 48;
 
 export default function MatrixView({ reviewState = EMPTY_REVIEWS, onAcceptReview, model, pendingAnnotationCells, metric, rows: filteredRows, filters, onFiltersChange, selectedDate, onToggleWatch, onSetAnnotation, onAI }) {
-  const reviewEntries = useMemo(() => metric === 'natural' ? reviewCore.entries(reviewState, model) : [], [reviewState, model, metric]);
+  const reviewEntries = useMemo(() => metric === 'natural' ? reviewCore.entries(reviewState, model) : [], [reviewState, model.parentAsin, model.legacyParentAsins, model.countryCode, model.kind, metric]);
   const reviewCells = useMemo(() => {
     const cells = Object.create(null);
     for (const entry of reviewEntries) {
