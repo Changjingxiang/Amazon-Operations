@@ -625,11 +625,11 @@
       || table.classList.contains('aba-table')
       || table.hasAttribute(MATRIX_LATEST_SCROLL_ATTR)) return;
     const scroll = table.closest('.matrix-scroll');
-    if (!(scroll instanceof HTMLElement) || matrixScrollJobs.has(table)) return;
+    if (!(scroll instanceof HTMLElement) || scroll.hasAttribute('data-guide-scroll-restored') || matrixScrollJobs.has(table)) return;
     const job = { attempts: 0 };
     matrixScrollJobs.set(table, job);
     const run = () => {
-      if (!table.isConnected) { matrixScrollJobs.delete(table); return; }
+      if (!table.isConnected || scroll.hasAttribute('data-guide-scroll-restored')) { matrixScrollJobs.delete(table); return; }
       const hasRows = table.querySelector('tbody tr');
       const hasDateHeaders = table.querySelectorAll('thead tr:last-child th').length > 3;
       if (!scroll.clientWidth || !scroll.clientHeight || !hasRows || !hasDateHeaders) {

@@ -184,10 +184,8 @@ function packageRelease(targetDir, packageJson, version) {
   copyFile(xlsxVendor, path.join(targetDir, 'vendor', 'xlsx.full.min.js'));
   copyDirectory(path.join(webDir, 'extensions', 'sif-batch-reverse-downloader'), path.join(targetDir, 'sif-batch-reverse-downloader'));
   require('./package-sif-extension.cjs')(path.join(webDir, 'extensions', 'sif-batch-reverse-downloader'), targetDir);
-  copyDirectory(path.join(webDir, 'skills', 'amazon-keyword-ad-review'), path.join(targetDir, 'skills', 'amazon-keyword-ad-review'));
-  copyFile(path.join(webDir, 'ad-review', 'review-core.js'), path.join(targetDir, 'skills', 'amazon-keyword-ad-review', 'scripts', 'review-core.cjs'));
   for (const filePath of walkFiles(path.join(webDir, 'docs'))) {
-    if (path.basename(filePath) === '网页版AI使用说明.md') continue;
+    if (['网页版AI使用说明.md', '每周广告关注词分析-使用说明.md'].includes(path.basename(filePath))) continue;
     copyFile(filePath, path.join(targetDir, path.relative(path.join(webDir, 'docs'), filePath)));
   }
   writeIndex(targetDir, entryBundle, cssBundles, version);

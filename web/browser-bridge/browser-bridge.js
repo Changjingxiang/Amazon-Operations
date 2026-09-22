@@ -2348,13 +2348,8 @@
           <button data-action="download-sif">下载 SIF 在线版扩展</button>
           <button data-action="install-sif">不会安装？查看安装教程</button>
           <small data-sif-download-status role="status" hidden></small>
-          <button class="danger" data-action="reset">恢复上周的数据</button>
         </div>
-        <div class="weekly-restore" hidden>
-          <p class="weekly-status" role="status"></p>
-          <div class="weekly-confirm" hidden><p>将替换全部产品、竞品、排名历史、关注词、标注及 ABA 数据。恢复前会自动保存当前数据。布局和关键词组合不变。</p><label>请输入「恢复上周」确认<input class="weekly-confirm-input" aria-label="恢复确认文字" autocomplete="off" /></label><button class="weekly-confirm-button" disabled>确认恢复</button></div>
-        </div>
-        <small>打开网页及保存数据时自动备份，保留最近 21 个有记录的日期。上周按本地周一至周日计算。</small>
+        <small>建议定期导出 JSON 备份，换电脑或浏览器时可通过「导入数据备份」迁移。</small>
         <small>${storageStatusLabel()}</small>
       </div>`;
     const style = document.createElement('style');
@@ -2371,9 +2366,6 @@
       .browser-manager-card{position:absolute;top:8px;right:12px;width:min(480px,calc(100vw - 24px));max-height:calc(100dvh - 66px);overflow:auto;padding:20px;border:1px solid #b6c9d8;border-radius:10px;box-shadow:0 12px 32px #173b6430;animation:web-tool-enter 180ms ease-out}
       .browser-manager-card h2{font-size:18px;color:#173b64}.browser-manager-card p{font-size:12px}
       .browser-manager-actions button,.browser-manager-actions a{border-width:1px;border-radius:7px;padding:9px 12px;font-size:12px}
-      .weekly-restore{margin-top:16px;padding:12px;background:#fff8ed;border:1px solid #ead6b4;border-radius:7px}
-      .weekly-restore[hidden],.weekly-confirm[hidden]{display:none}.weekly-confirm label{display:grid;gap:7px;font-size:12px}.weekly-confirm input{padding:8px;border:1px solid #b6c9d8;border-radius:6px}
-      .weekly-confirm-button{margin-top:10px;padding:8px 12px;background:#173b64;color:white;border:0;border-radius:6px}.weekly-confirm-button:disabled{opacity:.4}
       @media(prefers-reduced-motion:reduce){.browser-manager-card{animation:none}}
     `;
     overlay.appendChild(style);
@@ -2391,40 +2383,6 @@
       overlay.remove();
       window.dispatchEvent(new Event('web-data-manager-closed'));
       window.dispatchEvent(new CustomEvent('keyword-guide-open', { detail: { install: true } }));
-    };
-    overlay.querySelector('[data-action="reset"]').onclick = async () => {
-      const section = overlay.querySelector('.weekly-restore');
-      const status = overlay.querySelector('.weekly-status');
-      const confirmArea = overlay.querySelector('.weekly-confirm');
-      section.hidden = false;
-      confirmArea.hidden = true;
-      status.textContent = '正在查找上周备份…';
-      try {
-        const backup = await previousWeekBackup();
-        if (!backup) { status.textContent = '没有上周的可用备份。自动备份已从本次使用开始记录，当前数据不会改变。'; return; }
-        status.textContent = '将恢复上周最后一份备份：' + new Date(backup.savedAt).toLocaleString('zh-CN', { hour12: false });
-        confirmArea.hidden = false;
-        const input = overlay.querySelector('.weekly-confirm-input');
-        const button = overlay.querySelector('.weekly-confirm-button');
-        input.value = ''; button.disabled = true;
-        input.oninput = () => { button.disabled = input.value !== '恢复上周'; };
-        button.onclick = async () => {
-          if (input.value !== '恢复上周') return;
-          button.disabled = true;
-          try {
-            const current = clone(await ensureStore());
-            const restored = normalizeStore(clone(backup.store));
-            if (cloudMode) await writeStore(restored);
-            else {
-              const next = normalizeStore({ ...restored, updatedAt: new Date().toISOString(), storageRevision: newStorageRevision() });
-              await persistMainAndBackup(next, text(current.storageRevision || current.updatedAt) || null, current);
-              memoryStore = next;
-            }
-            location.reload();
-          } catch (error) { status.textContent = '恢复失败：' + error.message; button.disabled = false; }
-        };
-        input.focus();
-      } catch (error) { status.textContent = '无法读取备份：' + error.message; }
     };
     const controller = new AbortController();
     const close = () => { controller.abort(); overlay.remove(); window.dispatchEvent(new Event('web-data-manager-closed')); };

@@ -846,3 +846,8 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .star-button[aria-busy="true"]::after { content: ''; position: absolute; right: 1px; bottom: 1px; width: 7px; height: 7px; border: 1.5px solid #a1dce5; border-top-color: #167c92; border-radius: 50%; animation: watch-save-spin 650ms linear infinite; }
 @keyframes watch-save-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .star-button[aria-busy="true"]::after { animation: none; } }
+
+/* The watch dialog must remain above a dashboard portalled to body. */
+.watch-modal-layer { position:fixed; inset:0; z-index:2000; background:rgba(23,59,100,.18); }
+.watch-modal-layer .watch-drawer { z-index:1; max-width:calc(100vw - 16px); }
+.guide-preview-label { padding:8px 10px; margin:8px 0; border:1px solid #c6e8ed; border-radius:6px; background:#effafb; color:#187c8d; font-size:12px; }

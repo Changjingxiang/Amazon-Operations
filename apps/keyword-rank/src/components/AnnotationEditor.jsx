@@ -5,7 +5,7 @@ import { MessageSquareText, X } from 'lucide-react';
 import { AdReviewDetails } from './AdReview.jsx';
 
 // A non-modal editor: the rank remains visible and other cells stay usable.
-export default function AnnotationEditor({ editor, metric, onSave, onCancel, reviewEntries = [], onAcceptReview }) {
+export default function AnnotationEditor({ editor, metric, onSave, onCancel, reviewEntries = [], onAcceptReview, preview = false }) {
   const [draft, setDraft] = useState(editor.original);
   const [position, setPosition] = useState({ left: 8, top: 8, visibility: 'hidden' });
   const cardRef = useRef(null);
@@ -16,6 +16,7 @@ export default function AnnotationEditor({ editor, metric, onSave, onCancel, rev
   actionsRef.current = { onSave, onCancel };
 
   const finish = (save, text, restoreFocus = true) => {
+    if (preview) return;
     if (finished.current) return;
     finished.current = true;
     if (save) actionsRef.current.onSave(text ?? draftRef.current);
@@ -48,13 +49,14 @@ export default function AnnotationEditor({ editor, metric, onSave, onCancel, rev
   }, [editor.anchor]);
 
   useEffect(() => {
+    if (preview) return;
     const outside = (event) => {
       if (cardRef.current?.contains(event.target) || editor.anchor?.contains(event.target)) return;
       finish(true, undefined, false);
     };
     document.addEventListener('pointerdown', outside, true);
     return () => document.removeEventListener('pointerdown', outside, true);
-  }, [editor.anchor]);
+  }, [editor.anchor, preview]);
 
   return createPortal(
     <div ref={cardRef} className={`annotation-editor ${reviewEntries.length ? 'annotation-with-review' : ''}`} role="dialog" aria-label="编辑排名标注" style={position}
@@ -66,7 +68,8 @@ export default function AnnotationEditor({ editor, metric, onSave, onCancel, rev
       <div className="annotation-editor-context"><span>{editor.date}</span><span>{metric === 'natural' ? '自然排名' : 'SP排名'} · <b>{Number(editor.rank) > 0 ? editor.rank : '未上榜'}</b></span></div>
       {reviewEntries.length > 0 && <AdReviewDetails entries={reviewEntries} onAccept={onAcceptReview} />}
       <label className="annotation-editor-label" htmlFor="matrix-annotation-draft">标注内容</label>
-      <textarea id="matrix-annotation-draft" autoFocus={!reviewEntries.length} value={draft} placeholder="记录出价调整、观察原因或后续安排…" onChange={(event) => setDraft(event.target.value)}
+      {preview && <div className="guide-preview-label">教学示例 · 不会写入数据</div>}
+      <textarea id="matrix-annotation-draft" readOnly={preview} autoFocus={!preview && !reviewEntries.length} value={draft} placeholder="记录出价调整、观察原因或后续安排…" onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) { event.preventDefault(); finish(true); }
         }} />

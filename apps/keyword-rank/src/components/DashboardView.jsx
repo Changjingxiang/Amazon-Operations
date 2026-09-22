@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDownAZ, ArrowUpAZ, Star, Maximize2, Minimize2 } from 'lucide-react';
 import Sparkline from './Sparkline.jsx';
@@ -14,6 +14,26 @@ function RankCell({ value, direction }) {
 
 function keywordKey(value) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
+}
+
+function TrendPreview({ point, children }) {
+  const ref = useRef(null);
+  const [position, setPosition] = useState(point);
+  useLayoutEffect(() => {
+    const place = () => {
+      const box = ref.current.getBoundingClientRect();
+      const top = point.top + box.height <= innerHeight - 10 ? point.top : point.top - box.height - 28;
+      setPosition({ left: Math.max(10, Math.min(point.left, innerWidth - box.width - 10)), top: Math.max(10, Math.min(top, innerHeight - box.height - 10)) });
+    };
+    place(); window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [point]);
+  return <div ref={ref} className="keyword-trend-thumbnail-portal" style={position}>{children}</div>;
+}
+
+function previewPoint(event) {
+  const box = event.currentTarget.getBoundingClientRect();
+  return { left: (Number.isFinite(event.clientX) ? event.clientX : box.left) + 14, top: (Number.isFinite(event.clientY) ? event.clientY : box.bottom) + 14 };
 }
 
 export default function DashboardView({ rows, sourceRows, model, filters, onFiltersChange, onToggleWatch, onManage, onOpenTrend, onAI }) {
@@ -53,8 +73,8 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
   const chooseSort = (field, direction) => setSort({ field, direction });
   const widthStyle = (column) => ({ width: widths[column], minWidth: widths[column] });
   const resizeHandle = (column, label) => <ResizeHandle columnKey={column} onResize={startResize} onNudge={nudgeWidth} label={label} />;
-  const showTrend = (row, event) => setHovered({ keyword: row.keyword, style: { left: event.clientX + 14, top: event.clientY + 14 } });
-  const updateTrend = (row, event) => setHovered((current) => current?.keyword === row.keyword ? { ...current, style: { left: event.clientX + 14, top: event.clientY + 14 } } : current);
+  const showTrend = (row, event) => setHovered({ keyword: row.keyword, style: previewPoint(event) });
+  const updateTrend = (row, event) => { const point = previewPoint(event); setHovered((current) => current?.keyword === row.keyword ? { ...current, style: point } : current); };
   const sortButton = (field, direction, label, Icon) => (
     <button
       type="button"
@@ -134,7 +154,7 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
         </table>
       </div>
       {hovered && createPortal(
-        <div className="keyword-trend-thumbnail-portal" style={hovered.style}><KeywordTrendThumbnail model={model} keyword={hovered.keyword} onDoubleClick={() => onOpenTrend?.(model.matrixRows?.find((item) => keywordKey(item.keyword) === keywordKey(hovered.keyword)) || { keyword: hovered.keyword })} /></div>,
+        <TrendPreview point={hovered.style}><KeywordTrendThumbnail model={model} keyword={hovered.keyword} onDoubleClick={() => onOpenTrend?.(model.matrixRows?.find((item) => keywordKey(item.keyword) === keywordKey(hovered.keyword)) || { keyword: hovered.keyword })} /></TrendPreview>,
         document.body,
       )}
     </section>

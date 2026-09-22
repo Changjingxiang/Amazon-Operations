@@ -392,7 +392,6 @@ export default function MatrixView({ reviewState = EMPTY_REVIEWS, onAcceptReview
           placeholder="搜索矩阵关键词…"
         />
       </div>
-      {metric === "natural" && <p className="ad-review-hint">红色角标：双击查看分析；紫框 ✓：已采纳。角标定位到数据截止日前最近的矩阵日期，同格以最新批次为准。</p>}
       <MatrixPeriodSelect dates={model.dates || []} filter={filters} onChange={onFiltersChange} />
       <div ref={scrollRef} className="matrix-scroll">
         <div ref={columnOverlayRef} className="matrix-column-hover-overlay" hidden aria-hidden="true" />

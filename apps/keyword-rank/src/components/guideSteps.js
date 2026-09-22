@@ -1,0 +1,33 @@
+// Each lesson owns its destination; topics jump straight into the live UI.
+export const GUIDE_STEPS = [
+  { title: '先选一个要查看的产品', tab: 'natural', selectors: ['.model-item.active .model-copy', '.sidebar-action'], text: '单击左侧名称切换产品。双击名称或 ASIN，会打开对应站点的亚马逊商品页。', hint: '点击产品图片更换图标；「新增型号」添加产品。' },
+  { title: '把每天的数据导进来', tab: 'natural', selectors: ['.sif-import-button', '.sif-all-import-button', '.manual-import-button'], text: '「导入当前产品」更新当前产品及关联竞品；「导入全部产品」更新所有已配置产品；「本地导入」选择已有报表。', hint: '先安装 SIF 插件并登录 SIF。批量导入先完成自有产品，再处理竞品。' },
+  { title: '看板：每天先看重点词', tab: 'dashboard', selectors: ['.dashboard-panel .table-toolbar', '.dashboard-table'], text: '已切换到看板。这里把关键词的自然排名、SP排名、趋势和流量集中展示。星星可关注或取消关注；右上角可搜索、筛选、排序。', hint: '「放大表格」增加阅读空间；点击「恢复看板」收回。关注词优先展示。' },
+  { title: '没有流量的词，也能提前关注', tab: 'dashboard', panel: 'watches', selectors: ['.watch-drawer'], text: '从看板右上角「管理关注词」打开这个表单。即使产品尚未获得这个词的流量，也可以手动添加；每行一个词，最后点击「保存并同步」。', hint: '已填入教学示例，不会保存。未出现在当天报表的词仍可保留在关注列表；没有排名时显示未上榜或缺失，不代表已有流量。拖动左侧手柄可排序。' },
+  { title: '悬停关键词，快速看趋势', tab: 'dashboard', hover: '.dashboard-table .keyword-cell', selectors: ['[data-guide-demo-target]', '.keyword-trend-thumbnail-portal'], text: '已演示把鼠标停在看板的关键词上：会弹出该词的趋势预览。移开鼠标后浮窗收起。', hint: '双击关键词可以进入完整趋势页。以下演示使用当前产品的数据。' },
+  { title: '自然矩阵：按日期看排名', tab: 'natural', selectors: ['.matrix-period-select', '.matrix-table .matrix-rank-cell'], text: '已切换到自然矩阵。每行一个关键词，每列一个日期。数字越小排名越靠前；红色表示上升，绿色表示下降，灰色 0 表示未上榜。', hint: '表格上方选择年份、月份，顶部日期选择当前查看日。空缺表示没有对应记录。' },
+  { title: '关注与筛选，缩小查看范围', tab: 'natural', selectors: ['.matrix-table .star-button', '.matrix-panel .cascade-filter-bar'], text: '点击星星即可关注，再点一次取消。星标立即变化，后台保存时有小提示。搜索框查找关键词，筛选可只看关注词或指定范围。', hint: '关注会同步到看板、自然矩阵和 SP矩阵；保存期间可以继续操作。' },
+  { title: '自然矩阵：悬停关键词看 ABA', tab: 'natural', hover: '.matrix-keyword-aba-cell', selectors: ['[data-guide-demo-target]', '.aba-trend-popover'], text: '已演示悬停在关键词文字上：弹出 ABA 趋势对照，帮助你把排名变化和搜索热度一起看。', hint: '这里使用 SIF 报表中的 ABA 数据；没有记录时显示暂无数据。移开鼠标即可收起。' },
+  { title: '悬停排名格，查看当天详情', tab: 'natural', hover: '.matrix-rank-cell', selectors: ['[data-guide-demo-target]', '.matrix-competitor-bubble'], text: '已演示悬停在排名数字上：查看该日期的排名详情、已有标注，以及已关联竞品的同词表现。', hint: '蓝色折角表示这格已有标注。没有关联竞品或对应日期数据时，会显示暂无数据。点击数字可以添加标注。' },
+  { title: '点击排名格，记录当天操作', tab: 'natural', demo: 'annotation', selectors: ['[data-guide-demo-target]', '.annotation-editor'], text: '这就是点击自然排名数字后打开的标注框。可记录「调整竞价」「更换主图」等操作；保存后，这个日期的格子会出现蓝色折角。', hint: 'Enter 保存，Shift + Enter 换行，Esc 取消；点击编辑框外也会保存。教学框是只读示例，不写入真实标注。再次点有标注的格子可编辑或清除。' },
+  { title: 'SP矩阵：单独记录广告操作', tab: 'sp', demo: 'annotation', selectors: ['.tabs .active', '[data-guide-demo-target]', '.annotation-editor'], text: '已切换到 SP矩阵并打开标注示例。这里查看广告排名，也可以点击排名格记录广告调整。', hint: '同一个关键词、同一天，自然排名与 SP排名的标注分开保存。悬停排名格可查看该格详情。' },
+  { title: '对比矩阵：自然与广告一起看', tab: 'comparison', selectors: ['.comparison-panel'], text: '已切换到对比矩阵。每个日期并排展示自然与 SP排名，可以观察广告排名与自然排名的变化关系。', hint: '双击关键词打开完整趋势图；搜索和筛选可缩小范围。下一步直接带你看趋势页。' },
+  { title: '完整趋势：查看一段时间的变化', tab: 'comparison', demo: 'trend', selectors: ['.keyword-trend-panel'], text: '已打开当前产品一个关键词的趋势页。这里按时间查看自然与 SP排名走势，观察操作前后的变化。', hint: '日常使用时双击看板或对比矩阵的关键词进入；点击返回按钮回到原表格。' },
+  { title: 'ABA月榜：悬停查看热度变化', tab: 'aba', hover: '.aba-keyword-cell', selectors: ['.tabs .active', '[data-guide-demo-target]', '.aba-trend-popover'], text: '已切换到 ABA月榜，并演示悬停关键词的趋势浮窗。月度排名数字越小，搜索热度排名越靠前。', hint: '缺少月份会显示空缺，需要导入对应国家与月份的月度 CSV。' },
+  { title: '导入 ABA 月度数据', tab: 'aba', panel: 'settings', reveal: '[data-aba-monthly-import]', selectors: ['[data-aba-monthly-import]'], text: '已打开设置中的月 ABA CSV 导入区域。选择国家、年份和月份，再选择对应月度报表并导入。', hint: '同一国家、同一月份再次导入会提示覆盖确认。教学只展示入口，不会导入或覆盖数据。' },
+  { title: '添加并查看关联竞品', tab: 'natural', panel: 'settings', reveal: '[data-competitor-settings]', selectors: ['[data-competitor-settings]'], text: '已打开竞品设置。先选自有产品，再填写竞品名称、父体 ASIN 和国家。添加后，在左侧产品箭头下查看关联竞品。', hint: '关键词旁的「竞品」可比较同词表现；自有产品与竞品使用相同的详情页。' },
+  { title: '历史记录：核对导入情况', tab: 'history', selectors: ['.history-panel'], text: '已切换到历史记录。这里核对导入日期和源文件，确认每日数据是否到齐。右上角「导入日志」也可以查看导入情况。', hint: '导入结束后先核对结果；失败项目可从导入结果中重试。' },
+  { title: '备份数据，教学随时重看', tab: 'history', panel: 'files', selectors: ['.browser-manager-card'], text: '已打开工具文件夹。「导出数据备份」保存 JSON；需要迁移时，再用「导入数据备份」选择文件。这里也能下载 SIF 插件和查看安装教程。', hint: '换电脑、浏览器或软件目录前先导出备份。以后忘记操作，点击右上角「使用指南」重看。' },
+];
+
+export const GUIDE_TOPICS = [
+  { title: '产品与导入', sub: '选择产品 · 导入报表', step: 0 },
+  { title: '添加无流量关键词', sub: '看板 · 管理关注词 · 手动添加', step: 3 },
+  { title: '看板悬停与趋势', sub: '现场展示趋势浮窗', step: 4 },
+  { title: '排名与筛选', sub: '自然矩阵 · 星标 · 搜索', step: 5 },
+  { title: '悬停与标注', sub: 'ABA 浮窗 · 排名详情 · 标注框', step: 7 },
+  { title: 'SP 与对比矩阵', sub: '广告标注 · 完整趋势', step: 10 },
+  { title: 'ABA 月榜与导入', sub: '月度热度 · CSV 导入入口', step: 13 },
+  { title: '竞品设置', sub: '关联自有产品 · 同词比较', step: 15 },
+  { title: '历史与备份', sub: '历史记录 · JSON 备份', step: 16 },
+];

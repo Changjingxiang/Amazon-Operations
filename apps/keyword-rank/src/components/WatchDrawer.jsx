@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { ArrowDown, ArrowUp, GripVertical, Lightbulb, Star, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -19,7 +20,7 @@ function dedupe(items) {
   });
 }
 
-export default function WatchDrawer({ open, model, onClose, onSave, initialKeyword = '' }) {
+export default function WatchDrawer({ open, model, onClose, onSave, initialKeyword = '', preview = false }) {
   const [keywords, setKeywords] = useState('');
   const [note, setNote] = useState('');
   const [draft, setDraft] = useState([]);
@@ -27,6 +28,21 @@ export default function WatchDrawer({ open, model, onClose, onSave, initialKeywo
   const [dropIndex, setDropIndex] = useState(null);
   const [keyboardGrabbed, setKeyboardGrabbed] = useState(null);
   const pointerRef = useRef({ id: null, index: null });
+  const drawerRef = useRef(null);
+
+  useEffect(() => {
+    if (!open || preview) return;
+    const previous = document.activeElement;
+    drawerRef.current?.querySelector('.watch-keywords-input')?.focus({ preventScroll: true });
+    const trap = event => {
+      if (event.key !== 'Tab') return;
+      const nodes = [...drawerRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea')];
+      if (event.shiftKey && (document.activeElement === nodes[0] || !drawerRef.current.contains(document.activeElement))) { event.preventDefault(); nodes.at(-1)?.focus(); }
+      else if (!event.shiftKey && (document.activeElement === nodes.at(-1) || !drawerRef.current.contains(document.activeElement))) { event.preventDefault(); nodes[0]?.focus(); }
+    };
+    window.addEventListener('keydown', trap);
+    return () => { window.removeEventListener('keydown', trap); if (previous?.isConnected) previous.focus({ preventScroll: true }); };
+  }, [open, preview]);
 
   useEffect(() => {
     if (open) {
@@ -39,11 +55,11 @@ export default function WatchDrawer({ open, model, onClose, onSave, initialKeywo
     }
   }, [open, initialKeyword, model?.parentAsin]);
   useEffect(() => {
-    if (!open) return undefined;
-    const handleKeyDown = (event) => { if (event.key === 'Escape') onClose?.(); };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+    if (!open || preview) return undefined;
+    const handleKeyDown = (event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); onClose?.(); } };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [open, onClose, preview]);
 
   const pendingKeywords = useMemo(
     () => keywords.split(/[\r\n,，;；]+/).map((value) => value.trim()).filter(Boolean),
@@ -119,16 +135,18 @@ export default function WatchDrawer({ open, model, onClose, onSave, initialKeywo
   };
 
   if (!open) return null;
-  return (
-    <aside className="watch-drawer" aria-label="关注关键词">
+  return createPortal(
+    <div className="watch-modal-layer" onMouseDown={event => { if (event.target === event.currentTarget && !preview) onClose?.(); }}>
+    <aside ref={drawerRef} className="watch-drawer" role="dialog" aria-modal="true" aria-label="关注关键词">
       <div className="drawer-header"><h2>关注关键词</h2><button type="button" onClick={onClose} aria-label="关闭关注关键词"><X /></button></div>
-      <p className="drawer-intro">支持批量导入；拖拽手柄、触屏或键盘都能调整同一张卡片的顺序。</p>
+      {preview && <div className="guide-preview-label">教学示例 · 不会保存新增关键词</div>}
+      <p className="drawer-intro">尚未有流量的词也可手动添加。支持批量导入；拖拽手柄、触屏或键盘都能调整同一张卡片的顺序。</p>
       <label>所属产品<input value={model.modelName} disabled /></label>
       <label>新增关键词（可批量填写）<textarea className="watch-keywords-input" value={keywords} onChange={(event) => setKeywords(event.target.value)} placeholder="每行一个关键词，也支持逗号、分号分隔" /></label>
       <label>新增词备注（可选）<textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={100} placeholder="例如：重点观察" /></label>
       <div className="watch-save-row">
         <span><Star size={24} fill="currentColor" />待保存 {saveItems.length} 个</span>
-        <button type="button" className="primary-button" onClick={() => onSave(saveItems)}>{saveItems.length ? '保存并同步' : '清空并同步'}</button>
+        <button type="button" className="primary-button" disabled={preview} onClick={() => onSave(saveItems)}>{saveItems.length ? '保存并同步' : '清空并同步'}</button>
       </div>
       <div className="current-watches">
         <h3>当前关注词 <span>{draft.length}</span></h3>
@@ -157,5 +175,6 @@ export default function WatchDrawer({ open, model, onClose, onSave, initialKeywo
       </div>
       <div className="drawer-note"><Lightbulb size={21} /><span>鼠标/触屏：只拖左侧手柄；键盘：聚焦手柄后按空格，再按 ↑/↓。上移、下移按钮与拖拽使用同一排序结果。</span></div>
     </aside>
+    </div>, document.body
   );
 }

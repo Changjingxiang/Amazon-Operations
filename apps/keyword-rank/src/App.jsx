@@ -23,10 +23,8 @@ import { buildDateView } from './lib/format.js';
 import { resetAllColumnWidths } from './lib/columnWidths.jsx';
 import { patchWatchData, watchKey } from './lib/watchUpdates.js';
 
-import AdReview from './components/AdReview.jsx';
-import { EMPTY_REVIEWS } from './lib/adReview.js';
 
-const KNOWN_TABS = new Set(['dashboard', 'natural', 'sp', 'comparison', 'aba', 'history', 'ad-review']);
+const KNOWN_TABS = new Set(['dashboard', 'natural', 'sp', 'comparison', 'aba', 'history']);
 
 function initialViewFilters() {
   return {
@@ -56,7 +54,6 @@ function nearestDate(target, dates) {
 }
 
 function supportsTab(targetModel, tab) {
-  if (tab === 'ad-review' && (targetModel?.kind === 'competitor' || !window.keywordTracker?.getAdReviews)) return false;
   // Current model-shaped records support all views.  Respect an
   // explicitly supplied capability list for future/imported model types so a
   // product switch can fall back only when the target truly lacks a view.
@@ -107,10 +104,6 @@ function syncWebBridgeData(data) {
 
 export default function App({ onStartupSettled, startupReady = true }) {
   const [data, setData] = useState(null);
-  const updateReviews = adReviews => setData(current => ({ ...current, adReviews }));
-  const acceptReview = async (runId, itemId, accepted) => {
-    updateReviews(await window.keywordTracker.setAdReviewAccepted({ runId, itemId, accepted }));
-  };
   const annotationQueue = useRef(Promise.resolve());
   const watchQueue = useRef(Promise.resolve());
   const watchJobs = useRef(new Map());
@@ -148,13 +141,24 @@ export default function App({ onStartupSettled, startupReady = true }) {
   const [busyLabel, setBusyLabel] = useState('正在读取关键词数据…');
   const [toast, setToast] = useState(null);
   const guideView = useRef(null);
-  const prepareGuide = () => {
-    if (!guideView.current) guideView.current = { activeTab, trendRow };
-    setTrendRow(null);
-    setActiveTab('natural');
+  const [guideScene, setGuideScene] = useState(null);
+  const prepareGuide = (scene) => {
+    if (!guideView.current) guideView.current = { activeTab, trendRow, viewFilters };
+    closeWebTools();
+    setGuideScene(scene);
+    setViewFilters(initialViewFilters());
+    setWatchOpen(scene.panel === 'watches');
+    setTrendRow(scene.demo === 'trend' ? activeModelRef.current?.matrixRows?.[0] || null : null);
+    setActiveTab(scene.tab);
+    if (scene.panel === 'settings') { setWebTool('settings'); setSettingsOpen(true); }
+    if (scene.panel === 'files') { setWebTool('files'); api.openToolFolder(); }
   };
   const restoreGuide = () => {
     if (!guideView.current) return;
+    closeWebTools();
+    setWatchOpen(false);
+    setGuideScene(null);
+    setViewFilters(guideView.current.viewFilters);
     setActiveTab(guideView.current.activeTab);
     setTrendRow(guideView.current.trendRow);
     guideView.current = null;
@@ -195,7 +199,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
 
   const model = data?.models?.[activeIndex];
   activeModelRef.current = model;
-  const guide = window.keywordTracker?.isWeb ? <UsageGuide ready={startupReady && Boolean(data)} blocked={Boolean(busyLabel || pendingAnnotations || watchOpen || addModelOpen || iconModel || settingsOpen)} hasModel={Boolean(model)} onPrepare={prepareGuide} onRestore={restoreGuide} onCloseTools={closeWebTools} /> : null;
+  const guide = window.keywordTracker?.isWeb ? <UsageGuide ready={startupReady && Boolean(data)} blocked={Boolean(busyLabel || pendingWatches || pendingAnnotations || watchOpen || addModelOpen || iconModel || settingsOpen)} hasModel={Boolean(model)} onPrepare={prepareGuide} onRestore={restoreGuide} onCloseTools={closeWebTools} /> : null;
   useEffect(() => {
     if (!model) return;
     setSelectedDate((currentDate) => {
@@ -548,7 +552,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
           {data.workbookOpen && data.storage !== 'local-json' && (
             <div className="workbook-alert"><AlertTriangle size={18} /><span>检测到跟进表可能正在 WPS 中打开。首次迁移完成后，软件将使用本地数据运行，不再依赖工作簿。</span></div>
           )}
-          {!trendRow && activeTab !== 'history' && activeTab !== 'aba' && activeTab !== 'ad-review' && (
+          {!trendRow && activeTab !== 'history' && activeTab !== 'aba' && (
             <>
               <SummaryBand
                 metrics={activeTab === 'dashboard' ? filteredMetrics : dateView.metrics}
@@ -562,8 +566,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
           <div className={`content-area view-transition ${trendRow ? 'content-area-trend' : ''}`}>
             {trendRow && <KeywordTrendView model={model} row={model.matrixRows.find((row) => row.keyword === trendRow.keyword) || trendRow} onBack={closeKeywordTrend} />}
             {!trendRow && activeTab === 'dashboard' && <DashboardView  rows={dashboardRows} sourceRows={dateView.rows} model={model} filters={viewFilters.dashboard} onFiltersChange={(next) => updateViewFilter('dashboard', next)} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} onOpenTrend={openKeywordTrend} />}
-            {!trendRow && activeTab === 'ad-review' && <AdReview key={model.parentAsin} model={model} state={data.adReviews || EMPTY_REVIEWS} onState={updateReviews} onAccept={acceptReview} />}
-            {!trendRow && activeTab === 'natural' && <MatrixView reviewState={data.adReviews || EMPTY_REVIEWS} onAcceptReview={acceptReview}  model={model} pendingAnnotationCells={pendingAnnotationCells} metric="natural" rows={naturalRows} filters={viewFilters.natural} onFiltersChange={(next) => updateViewFilter('natural', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
+            {!trendRow && activeTab === 'natural' && <MatrixView model={model} pendingAnnotationCells={pendingAnnotationCells} metric="natural" rows={naturalRows} filters={viewFilters.natural} onFiltersChange={(next) => updateViewFilter('natural', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
             {!trendRow && activeTab === 'sp' && <MatrixView  model={model} pendingAnnotationCells={pendingAnnotationCells} metric="sp" rows={spRows} filters={viewFilters.sp} onFiltersChange={(next) => updateViewFilter('sp', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
             {!trendRow && activeTab === 'comparison' && <ComparisonMatrixView model={model} rows={model.matrixRows} filters={viewFilters.comparison} onFiltersChange={(next) => updateViewFilter('comparison', next)} selectedDate={selectedDate} focusSection={comparisonFocus} onFocusHandled={() => setComparisonFocus(null)} onToggleWatch={toggleWatch} onOpenTrend={openKeywordTrend} restoreScroll={comparisonScroll} />}
             {!trendRow && activeTab === 'aba' && <ABAView model={abaModel} rows={abaRows} filters={viewFilters.aba} onFiltersChange={(next) => updateViewFilter('aba', next)} onToggleWatch={toggleWatch} />}
@@ -576,6 +579,8 @@ export default function App({ onStartupSettled, startupReady = true }) {
         </main>
         <WatchDrawer
           open={watchOpen}
+          preview={guideScene?.panel === 'watches'}
+          initialKeyword={guideScene?.panel === 'watches' ? 'new product keyword' : ''}
           model={model}
           onClose={() => setWatchOpen(false)}
           onSave={saveWatch}

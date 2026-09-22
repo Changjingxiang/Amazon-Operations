@@ -8,7 +8,6 @@ const tabs = [
   ['comparison', '对比矩阵'],
   ['aba', 'ABA月榜'],
   ['history', '历史记录'],
-  ['ad-review', '每周广告关注词分析'],
 ];
 
 export default function Header({ model, activeTab, onTab, selectedDate, onDate, onRefresh, onImport, onSifImport, busy }) {
@@ -44,7 +43,7 @@ export default function Header({ model, activeTab, onTab, selectedDate, onDate, 
         </div>
       </header>
       <nav className="tabs" aria-label="功能页面">
-        {tabs.filter(([key]) => key !== 'ad-review' || (window.keywordTracker?.getAdReviews && model.kind !== 'competitor')).map(([key, label]) => (
+        {tabs.map(([key, label]) => (
           <button
             type="button"
             key={key}

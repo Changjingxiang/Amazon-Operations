@@ -34,15 +34,15 @@ fs.mkdirSync(output, { recursive: true });
       }
     });
     await click('使用指南'); await click('重新开始完整引导');
-    for (let step = 0; step < 8; step++) {
-      await page.locator('.guide-kicker').filter({ hasText: `第 ${step + 1} / 8 步` }).waitFor();
+    for (let step = 0; step < 18; step++) {
+      await page.locator('.guide-kicker').filter({ hasText: `第 ${step + 1} / 18 步` }).waitFor();
       await page.waitForTimeout(460); await bounds();
       if ([0, 3, 4, 5, 7].includes(step)) await shot(`tour-${step + 1}`);
-      if (step < 7) await click('下一步 →'); else await click('完成');
+      if (step < 17) await click('下一步 →'); else await click('完成');
     }
     await click('开始使用');
     assert.deepEqual(await page.evaluate(() => window.__guideWrites), [], 'teaching does not mutate business data');
-    results.tourSteps = 8;
+    results.tourSteps = 18;
     await click('SP矩阵');
     await page.locator('.cascade-search input').fill('men');
     await page.locator('.matrix-scroll').evaluate(e => { e.scrollLeft = 450; e.scrollTop = 150; });
@@ -111,7 +111,7 @@ fs.mkdirSync(output, { recursive: true });
     await empty.getByRole('button', { name: '开始引导', exact: true }).click();
     await empty.getByRole('heading', { name: '先添加你的第一个产品', exact: true }).waitFor();
     for (let i = 0; i < 3; i++) await empty.getByRole('button', { name: '下一步 →', exact: true }).click();
-    await empty.getByText('教学示例 · 不写入真实数据', { exact: true }).waitFor();
+    await empty.getByText('当前产品暂无可演示的数据', { exact: true }).waitFor();
     await empty.getByRole('button', { name: '退出使用指南', exact: true }).click();
     await empty.locator('[data-guide-add-model]').click();
     await empty.getByRole('dialog', { name: '新增型号', exact: true }).waitFor();
