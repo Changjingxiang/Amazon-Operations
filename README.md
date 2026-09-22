@@ -8,8 +8,15 @@
 
 > 关键词排名每日跟进 v3.0：把自然排名、SP、ABA 与竞品变化，整理成一张可追踪的运营工作台。
 
+> [!TIP]
+> ## v3.0 在线体验 · ChatGPT 站点版
+>
+> **[立即打开关键词跟进工作台 →](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**
+>
+> 无需下载发布包，打开网页即可体验：每日看板、自然/SP 排名矩阵、竞品对比、ABA 月榜与使用指南。建议在电脑端使用 Chrome 或 Edge，先用示例数据熟悉操作。
+
 > [!IMPORTANT]
-> ## 最新版下载（小白直接用这个）
+> ## 下载到本机使用
 >
 > **Amazon关键词每日跟进-v3.0-迁移教学版-正式版**
 >
@@ -18,6 +25,7 @@
 > 下载后请先“解压全部”，再双击压缩包里的 `打开网页版.cmd`。**不要用 GitHub 的 `Code → Download ZIP`**，那是源码，不是给普通用户直接打开的发布包。
 
 <p align="center">
+  <a href="https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/">在线体验 v3.0</a> ·
   <a href="web/docs/使用说明.md">网页版使用说明</a> ·
   <a href="#快速开始">快速开始</a> ·
   <a href="web/extensions/sif-batch-reverse-downloader/README.md">SIF 扩展</a> ·
@@ -37,9 +45,17 @@
 
 ## 快速开始
 
+### 直接在线体验（推荐先看这里）
+
+1. 打开 **[v3.0 ChatGPT 站点版](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**，无需下载或启动本地程序。
+2. 从「使用指南」熟悉操作，查看示例产品的自然/SP 矩阵、竞品排名与 ABA 月榜。
+3. 日常使用前检查产品与站点设置；需要从旧版本迁移时，先导出 JSON 备份，再参考「使用指南 → 从老版本迁移数据」。
+
+在线站点与本地打开的网页版使用不同的网站存储，数据不会自动互通；更换入口、浏览器或电脑时，请使用 JSON 备份迁移。导入备份会替换当前数据，不会合并。SIF 自动导入仍需安装扩展并在同一浏览器登录 SIF。
+
 ### 使用网页版发布包
 
-拿到上方“最新版下载”的完整网页版压缩包后即可使用，无需安装 Node.js、Python 或 Codex。
+拿到上方“下载到本机使用”的完整网页版压缩包后即可使用，无需安装 Node.js、Python 或 Codex。
 
 ### 从下载到第一次导入（一步一步照做）
 
@@ -156,6 +172,11 @@ npm run release:web -- --force
 
 <details>
 <summary>展开查看近期更新</summary>
+
+### 在线站点上线（2026-09-22）
+
+- 新增 [v3.0 ChatGPT 站点版](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)：浏览器直接体验关键词跟进工作台。
+- 首页提供在线体验与本地发布包两个入口，并说明跨入口的数据迁移方式。
 
 ### 最新更新 · v3.0（2026-09-22）
 

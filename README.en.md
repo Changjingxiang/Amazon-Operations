@@ -8,6 +8,13 @@
 
 Keyword rank tracker v3.0: a local-first workspace for daily organic rankings, sponsored product (SP) rankings, ABA trends, and competitor comparisons. The application interface is currently in Chinese.
 
+> [!TIP]
+> ## Try v3.0 online · Hosted on ChatGPT Sites
+>
+> **[Open the keyword tracking workspace →](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**
+>
+> Explore the daily dashboard, organic/SP matrices, competitor comparisons, monthly ABA rankings, and usage guide without downloading the release package. Desktop Chrome or Edge is recommended; start with the example data.
+
 ## Features
 
 - Double-click an own-product or competitor name in the sidebar to open its Amazon product page in a new tab. Hover to see the hint; single-click still selects the product.
@@ -20,7 +27,15 @@ Keyword rank tracker v3.0: a local-first workspace for daily organic rankings, s
 - Product settings for the US, Germany, UK, Japan, Canada, France, Spain, and Italy.
 - Web data stored in browser IndexedDB; desktop data stored locally through the Electron bridge.
 
-## Use a web release
+## Quick start: try it online
+
+1. Open the **[v3.0 ChatGPT-hosted site](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**. No download or local launcher is needed.
+2. Use the Chinese-language usage guide and explore the example product, ranking matrices, competitors, and ABA monthly view.
+3. Before using your own data, check product and marketplace settings. To migrate, export a JSON backup from your existing version and follow the migration guide.
+
+The hosted site and a locally opened web release use separate site storage; data does not sync automatically. Use JSON backups when switching URLs, browsers, or computers. Importing a backup replaces the current data rather than merging it. Automatic SIF imports still require the extension and a signed-in SIF session in the same browser.
+
+## Download a web release
 
 The complete web package needs no Node.js, Python, or Codex installation. GitHub’s **Code → Download ZIP** downloads source code, not the latest ready-to-use package.
 
@@ -111,6 +126,11 @@ The following detailed guides are currently in Chinese:
 
 <details>
 <summary>Show recent updates</summary>
+
+### Online site launch — September 22, 2026
+
+- Try the [v3.0 ChatGPT-hosted site](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/) directly in your browser.
+- The README now offers online and downloadable entry points, with backup guidance for moving between them.
 
 ### Latest updates — v3.0 · September 22, 2026
 
