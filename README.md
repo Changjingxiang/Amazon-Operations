@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero.png" alt="Amazon Operations 关键词排名每日跟进工作台" width="100%" />
+  <img src="./assets/readme/hero-zh.jpg" alt="Amazon Operations 关键词排名每日跟进工作台" width="100%" />
 </p>
 
 # Amazon Operations
