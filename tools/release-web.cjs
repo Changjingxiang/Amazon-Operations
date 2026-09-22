@@ -69,7 +69,7 @@ function parseArgs(argv) {
       if (!args.output) fail(`${value} 需要目录参数`);
     } else if (value === '--help' || value === '-h') {
       console.log('用法: npm run release:web [-- --force] [--output <目录>]');
-      console.log('默认输出 outputs/关键词排名每日跟进网页版-v<major.minor>。');
+      console.log('默认输出 outputs/Amazon关键词每日跟进-v<major.minor>。');
       console.log('已有版本目录不会被覆盖；更新同一版本时显式传 --force。');
       process.exit(0);
     } else {
@@ -142,9 +142,9 @@ function writeIndex(targetDir, entryBundle, cssBundles, version) {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light" />
-    <meta name="application-name" content="关键词排名每日跟进" />
+    <meta name="application-name" content="Amazon关键词每日跟进-v${version}" />
     <link rel="icon" type="image/png" href="./favicon.png" />
-${cssBlock}    <title>关键词排名每日跟进｜网页版 v${version}</title>
+${cssBlock}    <title>Amazon关键词每日跟进-v${version}</title>
   </head>
   <body>
     <div id="root"></div>
@@ -171,7 +171,7 @@ function packageRelease(targetDir, packageJson, version) {
   requiredFile(path.join(webDir, 'browser-bridge', 'browser-bridge.js'), 'browser bridge 源文件');
   requiredFile(path.join(webDir, 'web-settings', 'web-settings-enhancements.js'), 'web-settings 源文件');
   requiredFile(path.join(webDir, 'data', 'initial-data.js'), '初始数据源文件');
-  requiredFile(path.join(webDir, 'data', '关键词排名每日跟进表.xlsx'), '随包 Excel 数据源');
+  requiredFile(path.join(webDir, 'data', 'Amazon关键词每日跟进-v3.0-示例参考.xlsx'), '随包 Excel 数据源');
   requiredDirectory(path.join(webDir, 'extensions', 'sif-batch-reverse-downloader'), 'SIF 扩展源目录');
   requiredDirectory(path.join(webDir, 'docs'), '网页版说明文档源目录');
   const xlsxVendor = path.join(appDir, 'node_modules', 'xlsx', 'dist', 'xlsx.full.min.js');
@@ -180,13 +180,15 @@ function packageRelease(targetDir, packageJson, version) {
   copyFile(path.join(webDir, 'browser-bridge', 'browser-bridge.js'), path.join(targetDir, 'browser-bridge.js'));
   copyFile(path.join(webDir, 'web-settings', 'web-settings-enhancements.js'), path.join(targetDir, 'web-settings-enhancements.js'));
   copyFile(path.join(webDir, 'data', 'initial-data.js'), path.join(targetDir, 'data', 'initial-data.js'));
-  copyFile(path.join(webDir, 'data', '关键词排名每日跟进表.xlsx'), path.join(targetDir, 'data', '关键词排名每日跟进表.xlsx'));
+  copyFile(path.join(webDir, 'data', 'Amazon关键词每日跟进-v3.0-示例参考.xlsx'), path.join(targetDir, 'data', 'Amazon关键词每日跟进-v3.0-示例参考.xlsx'));
+  copyFile(path.join(webDir, 'data', 'Amazon关键词每日跟进-v3.0-示例数据.json'), path.join(targetDir, 'data', 'Amazon关键词每日跟进-v3.0-示例数据.json'));
+  copyFile(path.join(webDir, 'data', 'example-summary.json'), path.join(targetDir, 'data', 'example-summary.json'));
   copyFile(xlsxVendor, path.join(targetDir, 'vendor', 'xlsx.full.min.js'));
   copyDirectory(path.join(webDir, 'extensions', 'sif-batch-reverse-downloader'), path.join(targetDir, 'sif-batch-reverse-downloader'));
   require('./package-sif-extension.cjs')(path.join(webDir, 'extensions', 'sif-batch-reverse-downloader'), targetDir);
   for (const filePath of walkFiles(path.join(webDir, 'docs'))) {
     if (['网页版AI使用说明.md', '每周广告关注词分析-使用说明.md'].includes(path.basename(filePath))) continue;
-    copyFile(filePath, path.join(targetDir, path.relative(path.join(webDir, 'docs'), filePath)));
+    copyFile(filePath, path.join(targetDir, path.relative(path.join(webDir, 'docs'), filePath).replace('关键词排名每日跟进网页版-使用SOP.md', 'Amazon关键词每日跟进-v3.0-使用SOP.md')));
   }
   writeIndex(targetDir, entryBundle, cssBundles, version);
   writeLauncher(targetDir);
@@ -216,7 +218,7 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   const packageJson = JSON.parse(fs.readFileSync(path.join(appDir, 'package.json'), 'utf8'));
   const version = releaseVersion(packageJson.version);
-  const defaultTarget = path.join(outputsDir, `关键词排名每日跟进网页版-v${version}`);
+  const defaultTarget = path.join(outputsDir, `Amazon关键词每日跟进-v${version}`);
   const targetDir = path.resolve(root, args.output || defaultTarget);
   if (!args.output) assertSafeOutput(targetDir);
   if (fs.existsSync(targetDir)) {

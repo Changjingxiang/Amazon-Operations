@@ -4,9 +4,9 @@ import { api } from '../lib/api.js';
 
 export default function WindowTitlebar({ onTool, activeTool }) {
   return (
-    <header className="window-titlebar" aria-label="关键词排名每日跟进软件标题栏">
+    <header className="window-titlebar" aria-label="Amazon关键词每日跟进-v3.0软件标题栏">
       <img src={appShellIcon} alt="" />
-      <strong>关键词排名每日跟进</strong>
+      <strong>Amazon关键词每日跟进-v3.0</strong>
       <span className="window-drag-space" aria-hidden="true" />
       {window.keywordTracker?.isWeb ? <div className="web-tools" aria-label="网页工具"><button type="button" data-guide-entry aria-haspopup="dialog" onClick={() => window.dispatchEvent(new CustomEvent('keyword-guide-open'))}><BookOpen size={16} />使用指南</button>{[['history', '导入日志', Download], ['files', '工具文件夹', FolderOpen], ['settings', '设置', Settings]].map(([key, label, Icon]) => <button key={key} data-web-tool={key} type="button" aria-expanded={activeTool === key} aria-haspopup="dialog" onClick={() => onTool?.(key)}><Icon size={16} />{label}<ChevronDown size={13} /></button>)}</div> : <div className="window-controls" aria-label="窗口控制">
         <button type="button" onClick={() => api.minimizeWindow()} aria-label="最小化"><Minus size={18} /></button>

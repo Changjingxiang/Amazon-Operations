@@ -11,7 +11,7 @@ const { URL } = require('url');
 const { chromium } = require(path.join(__dirname, '..', 'apps', 'keyword-rank', 'node_modules', 'playwright-core'));
 
 const root = path.resolve(__dirname, '..');
-const defaultRelease = path.join(root, 'outputs', '关键词排名每日跟进网页版-v2.0');
+const defaultRelease = path.join(root, 'outputs', 'Amazon关键词每日跟进-v3.0');
 
 function parseArgs(argv) {
   let directory = defaultRelease;
@@ -102,6 +102,7 @@ async function main() {
       methods: ['getData', 'setWatch', 'addModel', 'addCompetitor', 'renameModel', 'changeModelAsin', 'releaseModelAlias', 'importAbaMonthlyCsv']
         .filter((name) => typeof window.keywordTracker?.[name] === 'function'),
       seedConfigs: window.__KEYWORD_TRACKER_SEED__?.configs?.length || 0,
+      seedModels: (window.__KEYWORD_TRACKER_SEED__?.configs?.length || 0) + (window.__KEYWORD_TRACKER_SEED__?.competitors?.length || 0),
     }));
 
     const tabChecks = {};
@@ -142,14 +143,14 @@ async function main() {
       scrollWidth: document.body.scrollWidth,
       clientWidth: document.body.clientWidth,
     }));
-    result.ok = result.models >= 6
+    result.ok = result.models === result.bridgeFunctions.seedModels
       && result.tabs.length >= 5
       && Object.values(tabChecks).every(Boolean)
       && result.bridgeFunctions.hasBridge
-      && result.bridgeFunctions.seedConfigs >= 6
+      && result.bridgeFunctions.seedConfigs >= 1
       && result.settings.modal
       && result.settings.asinEditors >= 1
-      && result.settings.nameEditors >= result.models
+      && result.settings.nameEditors >= result.bridgeFunctions.seedConfigs
       && result.bridgeFunctions.methods.includes('renameModel')
       && result.bridgeFunctions.methods.includes('releaseModelAlias')
       && result.settings.competitorSettings >= 1

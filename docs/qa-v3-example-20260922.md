@@ -1,0 +1,19 @@
+# Amazon关键词每日跟进-v3.0 验收记录
+
+- 正式源码：`apps/keyword-rank/` 与 `web/`；通过 `npm run release:web -- --output outputs/Amazon关键词每日跟进-v3.0` 构建。
+- 修改前 checkpoint：`abafe70`，tag `checkpoint/before-v3-example-20260922-163427-168dc0`。
+- 输入备份：`关键词排名每日跟进数据_2026-09-22.json`，SHA256 `6735c8e14cb2b0c47a32c8b560f58dc12016af60c0f615a17708b88e1852efb9`。完成后重新核验一致，原文件未修改。
+- 初始数据仅含 L23M911薄夹克、BGOWATU、MAG 911、Rdruko。共享竞品移除其他自有产品关联。43,453 条历史记录与原备份逐条一致；21 条关注记录（20 条启用）、34 条标注和四个产品图标保留。
+- 月度 ABA 保留相关关键词的 20 个月、3,766 条关键词/月记录，数值与备份一致；随包说明标明这是示例子集。
+- Excel 参考文件包含最新排名 1,880 行、关注词 21 行、标注 34 行；三张表实际渲染检查通过。完整历史保存在 JSON 中。
+
+## 正式发布目录验收
+
+- `node tests/usage-guide/v3-example-qa.cjs outputs/Amazon关键词每日跟进-v3.0 <原始备份>`：通过。核对 JSON/JS 种子一致、历史及标注等原始数值、Excel 范围、构建清单 SHA256、首次教学、产品与竞品切换、Excel 下载及刷新后持久化。
+- `node tests/usage-guide/contextual-qa.cjs outputs/Amazon关键词每日跟进-v3.0`：通过。18 步实际页面定位、悬停与标注示范、无流量关键词、放大表格后管理弹窗、插件下载与安装入口、退出后恢复上下文。教学前后业务数据摘要一致。
+- `node tests/usage-guide/qa.cjs outputs/Amazon关键词每日跟进-v3.0`：通过。首次打开/跳过/重播、离线插件 ZIP、安装教学、编辑中保护、空数据兼容、双击商品。连接检查包含真实未安装超时和模拟成功握手，不代表在新电脑完成插件安装或登录 SIF。
+- `tools/verify-web-release.cjs` 在同源码候选构建上通过：4 个产品对象、6 个栏目、设置管理入口、无横向溢出、无页面或控制台错误。
+- 正式包上述三个自动浏览器验收均无页面错误。欢迎界面及产品/竞品界面截图已人工查看。
+- 初始数据仅在浏览器无已保存数据时载入；保留原有存储标识，避免覆盖老用户的数据。
+
+产物：`outputs/Amazon关键词每日跟进-v3.0/` 及同名 ZIP。使用者完整解压后双击 `打开网页版.cmd` 或 `index.html`，无需 Node/Codex；在线导入另需安装随包插件并登录 SIF。

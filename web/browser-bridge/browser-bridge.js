@@ -1238,7 +1238,7 @@
     return {
       toolRoot: '浏览器本地存储',
       adReviews: store.adReviews,
-      workbookPath: 'data/关键词排名每日跟进表.xlsx',
+      workbookPath: 'data/Amazon关键词每日跟进-v3.0-示例参考.xlsx',
       workbookModifiedAt: store.updatedAt || store.migratedFromWorkbookAt || new Date().toISOString(),
       workbookOpen: false,
       sourceCount: store.sourceCount,
@@ -2273,7 +2273,7 @@
   async function exportBackup() {
     const store = pendingSave?.store || await ensureStore();
     const date = new Date().toISOString().slice(0, 10);
-    downloadBlob(`${JSON.stringify(store)}\n`, `关键词排名每日跟进数据_${date}.json`, 'application/json;charset=utf-8');
+    downloadBlob(`${JSON.stringify(store)}\n`, `Amazon关键词每日跟进-v3.0-数据_${date}.json`, 'application/json;charset=utf-8');
   }
 
   async function importBackup() {
@@ -2344,7 +2344,7 @@
         <div class="browser-manager-actions">
           <button data-action="export">导出数据备份</button>
           <button data-action="import">导入数据备份</button>
-          <a href="./data/关键词排名每日跟进表.xlsx" download>下载原始 Excel</a>
+          <a href="./data/Amazon关键词每日跟进-v3.0-示例参考.xlsx" download>下载示例参考 Excel</a>
           <button data-action="download-sif">下载 SIF 在线版扩展</button>
           <button data-action="install-sif">不会安装？查看安装教程</button>
           <small data-sif-download-status role="status" hidden></small>
@@ -2467,8 +2467,8 @@
     ...(window.keywordAI ? { importBackup } : {}),
     openWorkbook: () => {
       const link = document.createElement('a');
-      link.href = new URL('./data/关键词排名每日跟进表.xlsx', document.baseURI).href;
-      link.download = '关键词排名每日跟进表.xlsx';
+      link.href = new URL('./data/Amazon关键词每日跟进-v3.0-示例参考.xlsx', document.baseURI).href;
+      link.download = 'Amazon关键词每日跟进-v3.0-示例参考.xlsx';
       link.click();
     },
     openSourceFolder: async () => {

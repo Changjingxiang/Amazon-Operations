@@ -511,7 +511,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
         <WindowTitlebar onTool={toggleWebTool} activeTool={webTool} />
         <main className="empty-app">
         <BusyOverlay label={busyLabel} />
-          <h1>关键词排名每日跟进</h1>
+          <h1>Amazon关键词每日跟进-v3.0</h1>
           <p>{data?.models?.length === 0 ? '“型号配置”中没有启用的型号。' : '正在准备软件数据…'}</p>
           {data?.models?.length === 0 && <button className="secondary-button" data-guide-add-model onClick={() => setAddModelOpen(true)}>＋ 新增型号</button>}
           <Toast toast={toast} onClose={() => setToast(null)} />

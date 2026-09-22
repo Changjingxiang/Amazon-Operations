@@ -80,3 +80,4 @@ outputs/Sif*.xlsx
 !apps/keyword-rank/build/app-icon-source.png
 !web/data/
 !web/data/关键词排名每日跟进表.xlsx
+!web/data/Amazon关键词每日跟进-v3.0-示例参考.xlsx

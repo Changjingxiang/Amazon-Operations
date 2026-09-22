@@ -1,0 +1,41 @@
+{
+  "sourceBackup": "关键词排名每日跟进数据_2026-09-22.json",
+  "sourceSha256": "6735c8e14cb2b0c47a32c8b560f58dc12016af60c0f615a17708b88e1852efb9",
+  "sourceUpdatedAt": "2026-09-22T08:26:48.203Z",
+  "ownProductCount": 1,
+  "competitorCount": 3,
+  "products": [
+    {
+      "name": "L23M911薄夹克",
+      "asin": "B0C1YF9FWH",
+      "rows": 13600,
+      "watches": 21,
+      "annotations": 34
+    },
+    {
+      "name": "BGOWATU",
+      "asin": "B0D7HQDP6Y",
+      "rows": 9791,
+      "watches": 0,
+      "annotations": 0
+    },
+    {
+      "name": "MAG 911",
+      "asin": "B0BVKGGWLY",
+      "rows": 10579,
+      "watches": 0,
+      "annotations": 0
+    },
+    {
+      "name": "Rdruko",
+      "asin": "B0BZJ6FSQM",
+      "rows": 9483,
+      "watches": 0,
+      "annotations": 0
+    }
+  ],
+  "historyRows": 43453,
+  "sourceCount": 104,
+  "abaMonths": 20,
+  "abaKeywordRows": 3766
+}
