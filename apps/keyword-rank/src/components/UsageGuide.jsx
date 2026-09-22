@@ -33,7 +33,7 @@ function visibleRect(selector, includeElement = false) {
 }
 const SCROLL_SELECTORS = ['.dashboard-scroll', '.aba-scroll', '.settings-modal', '.matrix-scroll', '.comparison-scroll', '.content-area', '.model-list', '.main-area'];
 
-export default function UsageGuide({ ready, blocked, hasModel, onPrepare, onRestore, onCloseTools }) {
+export default function UsageGuide({ ready, blocked, hasModel, onPrepare, onRestore, onCloseTools, onOpenBackup }) {
   const [screen, setScreen] = useState(null);
   const [step, setStep] = useState(0);
   const [demoEditor, setDemoEditor] = useState(null);
@@ -77,7 +77,7 @@ export default function UsageGuide({ ready, blocked, hasModel, onPrepare, onRest
   const tour = (index = 0) => {
     rememberScroll(); setStep(index); setScreen('tour');
     saveProgress({ seen: true, step: index, completed: false });
-    if (hasModel) props.current.onPrepare(STEPS[index]);
+    if (hasModel || STEPS[index].panel === 'files') props.current.onPrepare(STEPS[index]);
   };
   const install = (from = 'hub') => { setInstallReturn(from); setInstallStep(0); setScreen('install'); setMessage(''); setConnection('idle'); };
 
@@ -138,7 +138,7 @@ export default function UsageGuide({ ready, blocked, hasModel, onPrepare, onRest
   useEffect(() => {
     setDemoEditor(null); setDemoMissing(false);
     if (screen !== 'tour') return;
-    if (!hasModel) { setDemoMissing(true); return; }
+    if (!hasModel && STEPS[step].panel !== 'files') { setDemoMissing(true); return; }
     const lesson = STEPS[step];
     let target, attempts = 0, revealed = false;
     const timer = setInterval(() => {
@@ -234,7 +234,7 @@ export default function UsageGuide({ ready, blocked, hasModel, onPrepare, onRest
         <button className="guide-close" onClick={close} aria-label="退出使用指南"><X size={19} /></button>
         {screen === 'welcome' && <><span className="guide-symbol"><BookOpen /></span><div className="guide-kicker">欢迎使用 · Amazon关键词每日跟进-v3.0</div><h1 id="guide-title">一步一演示，<br />跟着页面，学会日常操作。</h1><p>从选择产品到看排名，一步一步带你熟悉常用功能。</p><div className="guide-mini"><span>① 选择产品</span><span>② 导入数据</span><span>③ 查看排名</span></div><div className="guide-tip">共 {STEPS.length} 步，可以随时退出。以后点击右上角「使用指南」重看。</div><div className="guide-actions"><button onClick={close}>暂时跳过</button><button className="guide-primary" onClick={() => tour()}>开始引导 <ArrowRight size={16} /></button></div></>}
         {screen === 'hub' && <><div className="guide-kicker">需要时，随时回来</div><h1 id="guide-title">使用指南</h1><p>从头学习，或只看你现在需要的内容。</p><div className="guide-start-row"><button className="guide-primary" onClick={() => tour()}>重新开始完整引导 <span>{STEPS.length} 步 →</span></button>{!progress.completed && Number.isInteger(progress.step) && progress.step > 0 && <button onClick={() => tour(Math.min(STEPS.length - 1, progress.step))}>继续第 {progress.step + 1} 步</button>}</div><div className="guide-plugin"><strong><Puzzle size={17} />下载与安装 SIF 插件</strong><p>自动导入前先安装 · Chrome / Edge · 6 步完成{window.__SIF_EXTENSION_PACKAGE__?.version ? ` · v${window.__SIF_EXTENSION_PACKAGE__.version}` : ''}</p><button onClick={download}><Download size={14} />下载插件 ZIP</button><button onClick={() => install()}>查看安装教程 →</button>{Number.isInteger(progress.installStep) && progress.installStep > 0 && <button onClick={() => { setInstallReturn('hub'); setInstallStep(Math.min(5, progress.installStep)); setConnection('idle'); setMessage(''); setScreen('install'); }}>继续安装第 {progress.installStep + 1} 步</button>}</div><div className="guide-topics">{TOPICS.map((item, i) => <button key={item.title} onClick={() => tour(item.step)}><strong>{item.title} →</strong><small>{item.sub}</small></button>)}</div><div className="guide-tip">日常顺序：选择产品 → 导入数据 → 查看排名 → 记录操作。</div></>}
-        {screen === 'tour' && <><div className="guide-kicker">快速上手 · 第 {step + 1} / {STEPS.length} 步</div><h2 id="guide-title">{!hasModel && step === 0 ? '先添加你的第一个产品' : current.title}</h2><p>{!hasModel && step === 0 ? '目前没有启用的产品。结束教学后，点击「新增型号」填写产品名称、父体 ASIN 和站点。' : current.text}</p>{noRank && <div className="guide-example"><small>当前产品暂无可演示的数据</small><div>已定位到对应页面。导入报表后，可从使用指南重看本步骤。</div></div>}<div className="guide-tip">{current.hint}{step === 1 && <button className="guide-inline" onClick={() => install('tour')}>还没安装？先看安装教程 →</button>}</div><div className="guide-dots" aria-hidden="true">{STEPS.map((_, i) => <i key={i} className={i <= step ? 'is-done' : ''} />)}</div><div className="guide-footer"><button className="guide-text" onClick={close}>退出引导</button><div>{step > 0 && <button onClick={() => tour(step - 1)}>上一步</button>}<button className="guide-primary" onClick={() => step === STEPS.length - 1 ? finish() : tour(step + 1)}>{step === STEPS.length - 1 ? '完成' : '下一步 →'}</button></div></div></>}
+        {screen === 'tour' && <><div className="guide-kicker">快速上手 · 第 {step + 1} / {STEPS.length} 步</div><h2 id="guide-title">{!hasModel && step === 0 ? '先添加你的第一个产品' : current.title}</h2><p>{!hasModel && step === 0 ? '目前没有启用的产品。结束教学后，点击「新增型号」填写产品名称、父体 ASIN 和站点。' : current.text}</p>{noRank && <div className="guide-example"><small>当前产品暂无可演示的数据</small><div>已定位到对应页面。导入报表后，可从使用指南重看本步骤。</div></div>}<div className="guide-tip">{current.hint}{current.action === 'importBackup' && <button className="guide-inline" onClick={() => { saveProgress({ completed: true, step: 0 }); close(); onOpenBackup(); }}>结束教学，前往导入 →</button>}{step === 1 && <button className="guide-inline" onClick={() => install('tour')}>还没安装？先看安装教程 →</button>}</div><div className="guide-dots" aria-hidden="true">{STEPS.map((_, i) => <i key={i} className={i <= step ? 'is-done' : ''} />)}</div><div className="guide-footer"><button className="guide-text" onClick={close}>退出引导</button><div>{step > 0 && <button onClick={() => tour(step - 1)}>上一步</button>}<button className="guide-primary" onClick={() => step === STEPS.length - 1 ? finish() : tour(step + 1)}>{step === STEPS.length - 1 ? '完成' : '下一步 →'}</button></div></div></>}
         {screen === 'install' && <><div className="guide-kicker">插件安装 · 第 {installStep + 1} / 6 步</div><div className="guide-browsers">{['Chrome', 'Edge'].map(value => <button key={value} aria-pressed={browser === value} onClick={() => { setBrowser(value); setMessage(''); }}>{value}</button>)}</div><h1 id="guide-title">{installTitles[installStep]}</h1>
           {installStep === 0 && <><p>下载与当前软件配套的 SIF 在线版扩展 ZIP。也可以从「工具文件夹 → 下载 SIF 在线版扩展」下载。</p><button className="guide-primary" onClick={download}><Download size={16} />下载插件 ZIP</button><div className="guide-tip">已有随包的 sif-batch-reverse-downloader 文件夹？<button className="guide-inline" onClick={() => setInstallStep(2)}>直接看第 3 步：加载插件 →</button></div></>}
           {installStep === 1 && <><p>在下载目录中找到 ZIP，右键选择「全部解压」。安装时要选择解压后的文件夹。</p><div className="guide-folder">📁 sif-batch-reverse-downloader<br />　├ manifest.json <b>← 选择这一层文件夹</b><br />　├ background.js<br />　└ content.js …</div><div className="guide-tip">不要直接选择 ZIP。安装后保留这个文件夹，不要移动或删除。</div></>}

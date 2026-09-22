@@ -34,15 +34,15 @@ fs.mkdirSync(output, { recursive: true });
       }
     });
     await click('使用指南'); await click('重新开始完整引导');
-    for (let step = 0; step < 18; step++) {
-      await page.locator('.guide-kicker').filter({ hasText: `第 ${step + 1} / 18 步` }).waitFor();
+    for (let step = 0; step < 20; step++) {
+      await page.locator('.guide-kicker').filter({ hasText: `第 ${step + 1} / 20 步` }).waitFor();
       await page.waitForTimeout(460); await bounds();
       if ([0, 3, 4, 5, 7].includes(step)) await shot(`tour-${step + 1}`);
-      if (step < 17) await click('下一步 →'); else await click('完成');
+      if (step < 19) await click('下一步 →'); else await click('完成');
     }
     await click('开始使用');
     assert.deepEqual(await page.evaluate(() => window.__guideWrites), [], 'teaching does not mutate business data');
-    results.tourSteps = 18;
+    results.tourSteps = 20;
     await click('SP矩阵');
     await page.locator('.cascade-search input').fill('men');
     await page.locator('.matrix-scroll').evaluate(e => { e.scrollLeft = 450; e.scrollTop = 150; });
@@ -113,6 +113,16 @@ fs.mkdirSync(output, { recursive: true });
     for (let i = 0; i < 3; i++) await empty.getByRole('button', { name: '下一步 →', exact: true }).click();
     await empty.getByText('当前产品暂无可演示的数据', { exact: true }).waitFor();
     await empty.getByRole('button', { name: '退出使用指南', exact: true }).click();
+    await empty.getByRole('button', { name: '使用指南', exact: true }).click();
+    await empty.getByRole('button', { name: /从老版本迁移数据/ }).click();
+    await empty.locator('.browser-manager-card [data-action="export"]').waitFor();
+    assert.equal(await empty.getByText('当前产品暂无可演示的数据', { exact: true }).count(), 0);
+    await empty.getByRole('button', { name: '下一步 →', exact: true }).click();
+    await empty.getByRole('button', { name: '结束教学，前往导入 →', exact: true }).click();
+    await empty.locator('.browser-manager-card [data-action="import"]').waitFor();
+    await empty.getByRole('button', { name: '关闭', exact: true }).click();
+    await empty.screenshot({ path: path.join(output, 'empty-migration.png'), animations: 'disabled' });
+    results.emptyWorkspaceMigration = true;
     await empty.locator('[data-guide-add-model]').click();
     await empty.getByRole('dialog', { name: '新增型号', exact: true }).waitFor();
     results.emptyWorkspace = true;

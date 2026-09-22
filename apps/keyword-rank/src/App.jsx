@@ -199,7 +199,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
 
   const model = data?.models?.[activeIndex];
   activeModelRef.current = model;
-  const guide = window.keywordTracker?.isWeb ? <UsageGuide ready={startupReady && Boolean(data)} blocked={Boolean(busyLabel || pendingWatches || pendingAnnotations || watchOpen || addModelOpen || iconModel || settingsOpen)} hasModel={Boolean(model)} onPrepare={prepareGuide} onRestore={restoreGuide} onCloseTools={closeWebTools} /> : null;
+  const guide = window.keywordTracker?.isWeb ? <UsageGuide ready={startupReady && Boolean(data)} blocked={Boolean(busyLabel || pendingWatches || pendingAnnotations || watchOpen || addModelOpen || iconModel || settingsOpen)} hasModel={Boolean(model)} onPrepare={prepareGuide} onRestore={restoreGuide} onCloseTools={closeWebTools} onOpenBackup={() => { setWebTool('files'); api.openToolFolder(); }} /> : null;
   useEffect(() => {
     if (!model) return;
     setSelectedDate((currentDate) => {
@@ -214,7 +214,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
   // all snapshot records even though the result is not consumed.
   const needsDateView = activeTab !== 'aba' && activeTab !== 'history';
   const dateView = useMemo(() => {
-    if (!needsDateView) return { rows: model.dashboardRows || [], metrics: model.metrics || {} };
+    if (!needsDateView) return { rows: model?.dashboardRows || [], metrics: model?.metrics || {} };
     return buildDateView(model, selectedDate);
   }, [model?.historyRecords, model?.watches, model?.dashboardRows, model?.metrics, selectedDate, needsDateView]);
 

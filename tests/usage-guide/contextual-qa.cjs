@@ -21,7 +21,7 @@ const output = path.resolve('work/contextual-guide-qa-20260922'); fs.mkdirSync(o
     assert(b.x >= 0 && b.y >= 0 && b.x + b.width <= viewport.width + 1 && b.y + b.height <= viewport.height + 1, 'guide card stays in viewport');
   };
   const destinations = ['自然矩阵', '自然矩阵', '看板', '看板', '看板', '自然矩阵', '自然矩阵', '自然矩阵', '自然矩阵', 'SP矩阵', '对比矩阵', '对比矩阵', 'ABA月榜', 'ABA月榜', '自然矩阵', '历史记录', '历史记录'];
-  const targets = { 3: '.watch-drawer .watch-keywords-input', 4: '.keyword-trend-thumbnail-portal', 7: '.aba-trend-popover', 8: '.matrix-competitor-bubble', 9: '.annotation-editor', 10: '.annotation-editor', 12: '.keyword-trend-panel', 13: '.aba-trend-popover', 14: '[data-aba-monthly-import]', 15: '[data-competitor-settings]', 16: '.history-panel', 17: '.browser-manager-card' };
+  const targets = { 3: '.watch-drawer .watch-keywords-input', 4: '.keyword-trend-thumbnail-portal', 7: '.aba-trend-popover', 8: '.matrix-competitor-bubble', 9: '.annotation-editor', 10: '.annotation-editor', 12: '.keyword-trend-panel', 13: '.aba-trend-popover', 14: '[data-aba-monthly-import]', 15: '[data-competitor-settings]', 16: '.history-panel', 17: '.browser-manager-card', 18: '.browser-manager-card [data-action="export"]', 19: '.browser-manager-card [data-action="import"]' };
   try {
     await page.goto(pathToFileURL(path.join(release, 'index.html')).href); await ready();
     await click('暂时跳过'); await page.reload(); await ready(); await page.waitForTimeout(600);
@@ -30,11 +30,11 @@ const output = path.resolve('work/contextual-guide-qa-20260922'); fs.mkdirSync(o
     assert.equal(await page.locator('.ad-review-hint').count(), 0);
     const initial = await digest();
     await click('使用指南'); await page.getByRole('button', { name: /^重新开始完整引导/ }).click();
-    for (let i = 0; i < 18; i++) {
-      await page.getByText(`快速上手 · 第 ${i + 1} / 18 步`, { exact: true }).waitFor();
+    for (let i = 0; i < 20; i++) {
+      await page.getByText(`快速上手 · 第 ${i + 1} / 20 步`, { exact: true }).waitFor();
       await page.waitForTimeout(850);
       await bounds();
-      const expected = i < 9 ? destinations[i] : destinations[i - 1];
+      const expected = i >= 18 ? '历史记录' : i < 9 ? destinations[i] : destinations[i - 1];
       assert.equal(await page.locator('.tabs .active').textContent(), expected, `step ${i + 1} destination`);
       if (targets[i]) await page.locator(targets[i]).first().waitFor({ state: 'visible', timeout: 6000 });
       if (i === 4) {
@@ -45,9 +45,9 @@ const output = path.resolve('work/contextual-guide-qa-20260922'); fs.mkdirSync(o
       assert(spotlightCount > 0, `step ${i + 1} has a live spotlight`);
       if (i === 3) { assert.equal(await page.locator('.watch-keywords-input').inputValue(), 'new product keyword'); assert(await page.locator('.watch-save-row button').isDisabled()); }
       if ([9, 10].includes(i)) assert(await page.locator('#matrix-annotation-draft').getAttribute('readonly') !== null);
-      if ([2, 3, 4, 7, 8, 9, 10, 12, 13, 14, 15, 17].includes(i)) await shot(`step-${i + 1}`);
+      if ([2, 3, 4, 7, 8, 9, 10, 12, 13, 14, 15, 17, 18, 19].includes(i)) await shot(`step-${i + 1}`);
       result.steps.push({ step: i + 1, title: await page.locator('#guide-title').textContent(), destination: expected, spotlightCount });
-      await click(i === 17 ? '完成' : '下一步 →');
+      await click(i === 19 ? '完成' : '下一步 →');
     }
     await click('开始使用'); await page.waitForTimeout(350);
     assert.equal(await digest(), initial, 'all tutorial scenes leave business data unchanged');
@@ -59,6 +59,20 @@ const output = path.resolve('work/contextual-guide-qa-20260922'); fs.mkdirSync(o
       await click('使用指南'); await page.getByRole('button', { name: new RegExp(name) }).click();
       await page.locator(selector).first().waitFor(); await page.waitForTimeout(650); await bounds(); await shot(`compact-${name}`); await click('退出使用指南');
     }
+    await click('使用指南'); await page.getByRole('button', { name: /从老版本迁移数据/ }).click();
+    await page.getByRole('heading', { name: '迁移第 1 步：在老版本导出备份' }).waitFor();
+    await page.waitForTimeout(650); await bounds(); await shot('migration-export-compact');
+    assert((await page.locator('.guide-card').textContent()).includes('同名按钮'));
+    await click('下一步 →'); await page.getByRole('heading', { name: '迁移第 2 步：在新版本导入备份' }).waitFor();
+    await page.waitForTimeout(650); await bounds(); await shot('migration-import-compact');
+    assert((await page.locator('.guide-card').textContent()).includes('不会追加合并'));
+    await click('结束教学，前往导入 →');
+    await page.waitForSelector('[data-usage-guide]', { state: 'detached' });
+    await page.locator('.browser-manager-card [data-action="import"]').waitFor();
+    const usable = await page.locator('.browser-manager-card [data-action="import"]').evaluate(e => { const r=e.getBoundingClientRect(); return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===e; });
+    assert(usable, 'migration ends with a reachable real import button');
+    assert.equal(await digest(), initial, 'migration handoff never imports or mutates data');
+    await click('关闭'); result.migrationTeachingAndHandoff = true;
     await page.setViewportSize({ width: 1536, height: 960 });
     // Opening management from the expanded dashboard must produce a reachable topmost dialog.
     await click('看板'); await click('放大表格'); await click('管理关注词');

@@ -18,6 +18,8 @@ export const GUIDE_STEPS = [
   { title: '添加并查看关联竞品', tab: 'natural', panel: 'settings', reveal: '[data-competitor-settings]', selectors: ['[data-competitor-settings]'], text: '已打开竞品设置。先选自有产品，再填写竞品名称、父体 ASIN 和国家。添加后，在左侧产品箭头下查看关联竞品。', hint: '关键词旁的「竞品」可比较同词表现；自有产品与竞品使用相同的详情页。' },
   { title: '历史记录：核对导入情况', tab: 'history', selectors: ['.history-panel'], text: '已切换到历史记录。这里核对导入日期和源文件，确认每日数据是否到齐。右上角「导入日志」也可以查看导入情况。', hint: '导入结束后先核对结果；失败项目可从导入结果中重试。' },
   { title: '备份数据，教学随时重看', tab: 'history', panel: 'files', selectors: ['.browser-manager-card'], text: '已打开工具文件夹。「导出数据备份」保存 JSON；需要迁移时，再用「导入数据备份」选择文件。这里也能下载 SIF 插件和查看安装教程。', hint: '换电脑、浏览器或软件目录前先导出备份。以后忘记操作，点击右上角「使用指南」重看。' },
+  { title: '迁移第 1 步：在老版本导出备份', tab: 'history', panel: 'files', selectors: ['.browser-manager-card [data-action="export"]'], text: '请先打开仍有自己数据的老版本，点击右上角「工具文件夹 → 导出数据备份」，保存下载的 .json 文件。这里高亮的是新版中的同名按钮，帮助你认准入口。', hint: '一定要从老版本导出自己的数据，不要把新版的 L23M911 示例当成旧数据备份。保存好文件后，再回到新版继续下一步。' },
+  { title: '迁移第 2 步：在新版本导入备份', tab: 'history', panel: 'files', action: 'importBackup', selectors: ['.browser-manager-card [data-action="import"]'], text: '已打开新版「工具文件夹」，并高亮「导入数据备份」。结束教学后，点击它，选择刚从老版本导出的 .json 文件。导入成功后页面会自动刷新；核对产品列表、最新日期、关注词和标注，就可以继续跟进。', hint: '导入会替换新版当前的数据，不会追加合并；如果新版已有需要保留的数据，请先导出备份。请选择 JSON 备份，不是 Excel 报表或软件 ZIP。教学只展示入口，不会自动导入。' },
 ];
 
 export const GUIDE_TOPICS = [
@@ -30,4 +32,5 @@ export const GUIDE_TOPICS = [
   { title: 'ABA 月榜与导入', sub: '月度热度 · CSV 导入入口', step: 13 },
   { title: '竞品设置', sub: '关联自有产品 · 同词比较', step: 15 },
   { title: '历史与备份', sub: '历史记录 · JSON 备份', step: 16 },
+  { title: '从老版本迁移数据', sub: '老版导出 JSON · 新版导入备份', step: 18 },
 ];
