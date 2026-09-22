@@ -95,7 +95,7 @@ export function downloadExtension(item = {}) {
   for (const candidate of candidates) {
     const clean = String(candidate || "").split(/[?#]/, 1)[0];
     const match = clean.match(/\.([a-z0-9]{1,8})$/i);
-    if (match && ["xlsx", "xls", "csv", "zip"].includes(match[1].toLowerCase())) {
+    if (match) {
       return match[1].toLowerCase();
     }
   }

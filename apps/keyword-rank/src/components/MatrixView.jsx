@@ -7,6 +7,7 @@ import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
 import FilterCascade, { WATCH_FILTER_OPTIONS, filterDates } from './FilterCascade.jsx';
 import AnnotationEditor from './AnnotationEditor.jsx';
+import { reviewCore, EMPTY_REVIEWS } from '../lib/adReview.js';
 
 function keywordKey(value) {
   return String(value || '').trim().toLocaleLowerCase('en-US');
@@ -53,7 +54,7 @@ function rankTitle(value, previous, metric, annotation) {
 // Keep row identity stable while the virtual window advances. The parent still
 // recalculates the small visible window, but rows that remain in that window do
 // not rebuild every date cell or icon on each scroll tick.
-const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueField, annotationField, metric, selectedDate, editing, pendingDates, savedDates, onToggleWatch, onBeginAnnotation, onAI }) {
+const MatrixRow = memo(function MatrixRow({ row, reviewCells, columns, dateIndexMap, valueField, annotationField, metric, selectedDate, editing, pendingDates, savedDates, onToggleWatch, onBeginAnnotation, onAI }) {
   const values = row[valueField] || [];
   const annotations = annotationField ? (row[annotationField] || []) : [];
   const editingKey = editing ? `${editing.keyword}|${editing.date}` : '';
@@ -73,14 +74,17 @@ const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueFie
         const value = values[index];
         const visibleValue = displayRank(value);
         const annotation = annotations[index] || '';
+        const review = reviewCells?.[reviewCore.key(row.keyword)]?.[column.date];
         const previous = index ? values[index - 1] : null;
         const isSaving = Boolean(pendingDates?.[column.date]);
         const isEditing = editingKey === `${row.keyword}|${column.date}`;
         const openEditor = (event) => { if (!isSaving && !isEditing) onBeginAnnotation(row, column.date, annotation, event.currentTarget, visibleValue); };
-        return <td key={`${row.keyword}-${column.date}`} className={`${rankClass(value, previous)} matrix-annotation-cell matrix-rank-cell ${isSaving ? 'annotation-saving' : ''} ${isEditing ? 'annotation-editing' : ''} ${annotation ? 'matrix-annotated-cell' : ''} ${metric === 'sp' ? 'sp-annotation-cell' : ''} ${annotation ? 'sp-annotated-cell' : ''} ${column.date === selectedDate ? 'selected-date' : ''}`}
-          tabIndex={0} aria-haspopup="dialog" aria-expanded={isEditing} aria-busy={isSaving || undefined} data-rank={visibleValue} data-annotation={annotation} data-matrix-date={column.date} data-matrix-keyword={row.keyword} aria-label={rankTitle(value, previous, metric, annotation)} onFocus={(event) => revealRankCell(event.currentTarget)} onClick={openEditor}
+        return <td key={`${row.keyword}-${column.date}`} className={`${rankClass(value, previous)} matrix-annotation-cell matrix-rank-cell ${review?.accepted ? 'ad-review-accepted' : ''} ${isSaving ? 'annotation-saving' : ''} ${isEditing ? 'annotation-editing' : ''} ${annotation ? 'matrix-annotated-cell' : ''} ${metric === 'sp' ? 'sp-annotation-cell' : ''} ${annotation ? 'sp-annotated-cell' : ''} ${column.date === selectedDate ? 'selected-date' : ''}`}
+          tabIndex={0} aria-haspopup="dialog" aria-expanded={isEditing} aria-busy={isSaving || undefined} data-rank={visibleValue} data-annotation={annotation} data-matrix-date={column.date} data-matrix-keyword={row.keyword} aria-label={rankTitle(value, previous, metric, annotation)} onFocus={(event) => revealRankCell(event.currentTarget)} onClick={openEditor} onDoubleClick={openEditor} data-ad-review={review ? "true" : undefined} data-ad-accepted={review?.accepted ? "true" : undefined}
           onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openEditor(event); } }}>
           <span className="sp-rank-value">{visibleValue}</span>
+          {review && <span className="ad-review-corner" title="双击查看广告分析" />}
+          {review?.accepted && <span className="ad-review-check" aria-label="已采纳">✓</span>}
           {annotation && <span className="annotation-corner" aria-hidden="true" />}
           {isSaving ? <span className="annotation-save-indicator" role="status" aria-label="正在保存标注" title="正在保存标注"><LoaderCircle size={12} className="spin" aria-hidden="true" /></span>
             : savedDates?.[column.date] && <span className="annotation-saved-indicator" role="status">已保存</span>}
@@ -90,6 +94,7 @@ const MatrixRow = memo(function MatrixRow({ row, columns, dateIndexMap, valueFie
   );
 }, (previous, next) => (
   previous.row === next.row
+  && previous.reviewCells === next.reviewCells
   && previous.columns === next.columns
   && previous.dateIndexMap === next.dateIndexMap
   && previous.valueField === next.valueField
@@ -112,7 +117,19 @@ const MATRIX_RANGE_MARGIN = 8;
 const MATRIX_RANGE_CHUNK = 48;
 const MATRIX_INITIAL_ROWS = 48;
 
-export default function MatrixView({ model, pendingAnnotationCells, metric, rows: filteredRows, filters, onFiltersChange, selectedDate, onToggleWatch, onSetAnnotation, onAI }) {
+export default function MatrixView({ reviewState = EMPTY_REVIEWS, onAcceptReview, model, pendingAnnotationCells, metric, rows: filteredRows, filters, onFiltersChange, selectedDate, onToggleWatch, onSetAnnotation, onAI }) {
+  const reviewEntries = useMemo(() => metric === 'natural' ? reviewCore.entries(reviewState, model) : [], [reviewState, model, metric]);
+  const reviewCells = useMemo(() => {
+    const cells = Object.create(null);
+    for (const entry of reviewEntries) {
+      const date = reviewCore.anchor(entry.report, model.dates || []);
+      if (!date) continue;
+      const keyword = reviewCore.key(entry.item.keyword);
+      cells[keyword] ||= Object.create(null);
+      cells[keyword][date] ||= entry;
+    }
+    return cells;
+  }, [reviewEntries, model.dates]);
   const valueField = metric === 'natural' ? 'naturalValues' : 'spValues';
   const annotationField = metric === 'natural' ? 'naturalAnnotations' : 'spAnnotations';
   const rows = Array.isArray(filteredRows) ? filteredRows : (model.matrixRows || []);
@@ -375,6 +392,7 @@ export default function MatrixView({ model, pendingAnnotationCells, metric, rows
           placeholder="搜索矩阵关键词…"
         />
       </div>
+      {metric === "natural" && <p className="ad-review-hint">红色角标：双击查看分析；紫框 ✓：已采纳。角标定位到数据截止日前最近的矩阵日期，同格以最新批次为准。</p>}
       <MatrixPeriodSelect dates={model.dates || []} filter={filters} onChange={onFiltersChange} />
       <div ref={scrollRef} className="matrix-scroll">
         <div ref={columnOverlayRef} className="matrix-column-hover-overlay" hidden aria-hidden="true" />
@@ -395,6 +413,7 @@ export default function MatrixView({ model, pendingAnnotationCells, metric, rows
           <tbody>{renderSpacer(topSpacerHeight, 'matrix-virtual-top')}{visibleRows.map((row) => <MatrixRow
             key={row.keyword}
             row={row}
+            reviewCells={reviewCells}
             columns={columns}
             dateIndexMap={dateIndexMap}
             valueField={valueField}
@@ -411,7 +430,7 @@ export default function MatrixView({ model, pendingAnnotationCells, metric, rows
         </table>
       </div>
       {!columns.length && <div className="matrix-period-empty">当前条件下没有日期，请选择月份或调整日期筛选。</div>}
-      {editing && <AnnotationEditor key={`${editing.keyword}|${editing.date}`} editor={editing} metric={metric} onSave={commitAnnotation} onCancel={() => setEditing(null)} />}
+      {editing && <AnnotationEditor key={`${editing.keyword}|${editing.date}`} editor={editing} metric={metric} reviewEntries={reviewEntries.filter(e => reviewCore.key(e.item.keyword) === reviewCore.key(editing.keyword))} onAcceptReview={onAcceptReview} onSave={commitAnnotation} onCancel={() => setEditing(null)} />}
       {hovered && createPortal(
         <AbaTrendPopover
           keyword={hovered.keyword}

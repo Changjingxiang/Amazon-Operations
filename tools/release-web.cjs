@@ -182,8 +182,10 @@ function packageRelease(targetDir, packageJson, version) {
   copyFile(path.join(webDir, 'data', '关键词排名每日跟进表.xlsx'), path.join(targetDir, 'data', '关键词排名每日跟进表.xlsx'));
   copyFile(xlsxVendor, path.join(targetDir, 'vendor', 'xlsx.full.min.js'));
   copyDirectory(path.join(webDir, 'extensions', 'sif-batch-reverse-downloader'), path.join(targetDir, 'sif-batch-reverse-downloader'));
-  copyDirectory(path.join(webDir, 'extensions', 'keyword-ai-connector'), path.join(targetDir, 'AI浏览器扩展'));
+  copyDirectory(path.join(webDir, 'skills', 'amazon-keyword-ad-review'), path.join(targetDir, 'skills', 'amazon-keyword-ad-review'));
+  copyFile(path.join(webDir, 'ad-review', 'review-core.js'), path.join(targetDir, 'skills', 'amazon-keyword-ad-review', 'scripts', 'review-core.cjs'));
   for (const filePath of walkFiles(path.join(webDir, 'docs'))) {
+    if (path.basename(filePath) === '网页版AI使用说明.md') continue;
     copyFile(filePath, path.join(targetDir, path.relative(path.join(webDir, 'docs'), filePath)));
   }
   writeIndex(targetDir, entryBundle, cssBundles, version);

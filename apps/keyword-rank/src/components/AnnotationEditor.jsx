@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MessageSquareText, X } from 'lucide-react';
 
+import { AdReviewDetails } from './AdReview.jsx';
+
 // A non-modal editor: the rank remains visible and other cells stay usable.
-export default function AnnotationEditor({ editor, metric, onSave, onCancel }) {
+export default function AnnotationEditor({ editor, metric, onSave, onCancel, reviewEntries = [], onAcceptReview }) {
   const [draft, setDraft] = useState(editor.original);
   const [position, setPosition] = useState({ left: 8, top: 8, visibility: 'hidden' });
   const cardRef = useRef(null);
@@ -55,15 +57,16 @@ export default function AnnotationEditor({ editor, metric, onSave, onCancel }) {
   }, [editor.anchor]);
 
   return createPortal(
-    <div ref={cardRef} className="annotation-editor" role="dialog" aria-label="编辑排名标注" style={position}
+    <div ref={cardRef} className={`annotation-editor ${reviewEntries.length ? 'annotation-with-review' : ''}`} role="dialog" aria-label="编辑排名标注" style={position}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); finish(false); }
       }}>
       <div className="annotation-editor-heading"><span><MessageSquareText size={15} />{editor.original ? '编辑标注' : '添加标注'}</span><button type="button" className="annotation-editor-close" aria-label="取消并关闭标注" onClick={() => finish(false)}><X size={16} /></button></div>
       <div className="annotation-editor-keyword" title={editor.keyword}>{editor.keyword}</div>
       <div className="annotation-editor-context"><span>{editor.date}</span><span>{metric === 'natural' ? '自然排名' : 'SP排名'} · <b>{Number(editor.rank) > 0 ? editor.rank : '未上榜'}</b></span></div>
+      {reviewEntries.length > 0 && <AdReviewDetails entries={reviewEntries} onAccept={onAcceptReview} />}
       <label className="annotation-editor-label" htmlFor="matrix-annotation-draft">标注内容</label>
-      <textarea id="matrix-annotation-draft" autoFocus value={draft} placeholder="记录出价调整、观察原因或后续安排…" onChange={(event) => setDraft(event.target.value)}
+      <textarea id="matrix-annotation-draft" autoFocus={!reviewEntries.length} value={draft} placeholder="记录出价调整、观察原因或后续安排…" onChange={(event) => setDraft(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && event.keyCode !== 229) { event.preventDefault(); finish(true); }
         }} />

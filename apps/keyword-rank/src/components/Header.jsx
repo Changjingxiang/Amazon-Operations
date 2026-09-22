@@ -8,9 +8,10 @@ const tabs = [
   ['comparison', '对比矩阵'],
   ['aba', 'ABA月榜'],
   ['history', '历史记录'],
+  ['ad-review', '每周广告关注词分析'],
 ];
 
-export default function Header({ model, activeTab, onTab, selectedDate, onDate, onRefresh, onImport, onSifImport, busy, onAI }) {
+export default function Header({ model, activeTab, onTab, selectedDate, onDate, onRefresh, onImport, onSifImport, busy }) {
   return (
     <>
       <header className="topbar">
@@ -19,7 +20,6 @@ export default function Header({ model, activeTab, onTab, selectedDate, onDate, 
           <p>ASIN：{model.parentAsin} · 站点：{model.site || '加拿大站'}（{model.countryCode || 'CA'}）</p>
         </div>
         <div className="header-actions">
-          {onAI && <button className="secondary-button" onClick={() => onAI()} disabled={busy}>AI 分析</button>}
           <label className="date-control">
             <CalendarDays size={18} />
             <input
@@ -35,16 +35,16 @@ export default function Header({ model, activeTab, onTab, selectedDate, onDate, 
           <button type="button" className="secondary-button" disabled={busy} onClick={onRefresh}>
             <RefreshCw size={19} className={busy ? 'spin' : ''} />刷新
           </button>
-          {window.keywordAI?.kind!=='electron' && <button type="button" className="primary-button sif-import-button" disabled={busy} onClick={onSifImport} title={`自动打开 SIF ${model.site || '加拿大站'}并下载后导入`}>
+          <button type="button" className="primary-button sif-import-button" disabled={busy} onClick={onSifImport} title={`自动打开 SIF ${model.site || '加拿大站'}并下载后导入`}>
             <img src={importIcon} alt="" /><span>{window.keywordTracker?.isWeb ? '导入当前产品' : '自动导入今日报表'}</span>
-          </button>}
+          </button>
           <button type="button" className="secondary-button manual-import-button" disabled={busy} onClick={onImport} title="扫描工具文件夹中的本地报表">
             <FileInput size={18} />本地导入
           </button>
         </div>
       </header>
       <nav className="tabs" aria-label="功能页面">
-        {tabs.map(([key, label]) => (
+        {tabs.filter(([key]) => key !== 'ad-review' || (window.keywordTracker?.getAdReviews && model.kind !== 'competitor')).map(([key, label]) => (
           <button
             type="button"
             key={key}

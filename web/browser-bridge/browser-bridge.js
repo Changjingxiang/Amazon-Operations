@@ -383,6 +383,8 @@
       // thousands of CSV rows on every save.
       abaMonthly: store.abaMonthly && typeof store.abaMonthly === 'object' ? store.abaMonthly : {},
       annotations: normalizeAnnotations(store.annotations),
+      adReviews: store.adReviews && Array.isArray(store.adReviews.reports) && Array.isArray(store.adReviews.decisions)
+        ? store.adReviews : { reports: [], decisions: [] },
       iconSelections: store.iconSelections && typeof store.iconSelections === 'object'
         ? store.iconSelections
         : { ...INITIAL_ICONS },
@@ -1228,6 +1230,7 @@
     const models = [...ownModels, ...competitors];
     return {
       toolRoot: '浏览器本地存储',
+      adReviews: store.adReviews,
       workbookPath: 'data/关键词排名每日跟进表.xlsx',
       workbookModifiedAt: store.updatedAt || store.migratedFromWorkbookAt || new Date().toISOString(),
       workbookOpen: false,
@@ -2259,6 +2262,13 @@
     if (!files.length) return;
     if (window.keywordAI?.kind === 'electron' && files[0].size > 100 * 1024 * 1024) throw new Error('备份超过 100 MB，请拆分后导入。');
     const parsed = JSON.parse(await files[0].text());
+    if (parsed.adReviews) {
+      if (!Array.isArray(parsed.adReviews.reports) || !Array.isArray(parsed.adReviews.decisions)) throw new Error('广告分析备份结构无效');
+      parsed.adReviews.reports = parsed.adReviews.reports.map(report => reviewCore().validate(report));
+      const ids = parsed.adReviews.reports.map(report => report.runId);
+      if (new Set(ids).size !== ids.length) throw new Error('广告分析备份存在重复批次');
+      if (parsed.adReviews.decisions.some(d => !d || typeof d.accepted !== 'boolean' || !parsed.adReviews.reports.some(r => r.runId === d.runId && r.items.some(i => i.itemId === d.itemId)))) throw new Error('广告分析采纳记录无效');
+    }
     if (!Array.isArray(parsed.configs) || !parsed.histories || typeof parsed.histories !== 'object') throw new Error('所选文件不是有效的关键词排名数据备份。');
     if (window.keywordAI?.kind === 'electron') {
       if (files[0].size > 100 * 1024 * 1024 || parsed.configs.length > 1000 || Array.isArray(parsed.histories)) throw new Error('备份大小或结构超出支持范围。');
@@ -2269,7 +2279,14 @@
       location.reload();
       return;
     }
-    await writeStore(normalizeStore(parsed));
+    await enqueuePersistence(async () => {
+      if (pendingSave) throw new Error('当前有未保存数据，请先导出或解决后再恢复备份。');
+      const current = clone(await ensureStore());
+      const next = normalizeStore({ ...parsed, updatedAt: new Date().toISOString(), storageRevision: newStorageRevision() });
+      if (cloudMode) await cloudStorage.write(next);
+      else await persistMainAndBackup(next, text(current.storageRevision || current.updatedAt) || null, current);
+      memoryStore = next;
+    });
     location.reload();
   }
 
@@ -2373,6 +2390,27 @@
     document.body.appendChild(overlay);
   }
 
+  // Share the persistence queue with cell annotations. Publish only after the
+  // transaction succeeds; a failed acceptance must never look saved in memory.
+  const reviewCore = () => window.AdReviewCore;
+  function mutateAdReviews(change) {
+    return enqueuePersistence(async () => {
+      if (pendingSave) throw new Error('请先解决未保存的数据，再导入或采纳分析。');
+      const current = await ensureStore();
+      const adReviews = change(current);
+      const next = { ...current, adReviews, updatedAt: new Date().toISOString(), storageRevision: newStorageRevision() };
+      if (cloudMode) await cloudStorage.write(next);
+      else await writeIndexedState(next, text(current.storageRevision || current.updatedAt) || null);
+      memoryStore = next;
+      if (!cloudMode) {
+        storageChannel?.postMessage({ updatedAt: next.updatedAt, storageRevision: next.storageRevision });
+        try { await writeDailyBackup(next); } catch (error) { showBackupNotice(error); }
+      }
+      const cache = window.keywordTracker?.__keywordRankGetDataCache;
+      if (cache?.value) cache.value = { ...cache.value, adReviews };
+      return adReviews;
+    });
+  }
   window.keywordTracker = {
     isWeb: true,
     getData: readData,
@@ -2382,7 +2420,25 @@
     startSifBatchImport,
     setWatch,
     replaceWatches,
-    setAnnotation,
+    setAnnotation: payload => enqueuePersistence(() => setAnnotation(payload)),
+    getAdReviews: async () => (await ensureStore()).adReviews,
+    previewAdReview: async input => {
+      const store = await ensureStore();
+      return reviewCore().preview(input, store.configs, store.watches, store.adReviews.reports);
+    },
+    importAdReview: input => mutateAdReviews(store => {
+      const check = reviewCore().preview(input, store.configs, store.watches, store.adReviews.reports);
+      if (!check.valid) throw new Error('存在未匹配词条，请修正后重新导入；未写入任何结果。');
+      if (check.duplicate) return store.adReviews;
+      return { ...store.adReviews, reports: [...store.adReviews.reports, check.report] };
+    }),
+    setAdReviewAccepted: ({ runId, itemId, accepted }) => mutateAdReviews(store => {
+      if (typeof accepted !== 'boolean') throw new Error('采纳状态无效');
+      if (!store.adReviews.reports.some(r => r.runId === runId && r.items.some(i => i.itemId === itemId))) throw new Error('分析词条已不存在，请刷新后重试');
+      const decisions = store.adReviews.decisions.filter(d => !(d.runId === runId && d.itemId === itemId));
+      decisions.push({ runId, itemId, accepted, updatedAt: new Date().toISOString() });
+      return { ...store.adReviews, decisions };
+    }),
     addModel,
     addCompetitor,
     deleteModel,

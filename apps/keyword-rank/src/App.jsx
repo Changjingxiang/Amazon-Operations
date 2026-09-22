@@ -14,8 +14,6 @@ import HistoryView from './components/HistoryView.jsx';
 import AddModelModal from './components/AddModelModal.jsx';
 import IconPickerModal from './components/IconPickerModal.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
-import AIWorkspace from './components/AIWorkspace.jsx';
-import { installBrowserAI } from './ai/browser-adapter.mjs';
 import { EMPTY_FILTER, filterRows } from './components/FilterCascade.jsx';
 import { BusyOverlay, Toast } from './components/Feedback.jsx';
 import WindowTitlebar from './components/WindowTitlebar.jsx';
@@ -23,8 +21,10 @@ import { api } from './lib/api.js';
 import { buildDateView } from './lib/format.js';
 import { resetAllColumnWidths } from './lib/columnWidths.jsx';
 
-const KNOWN_TABS = new Set(['dashboard', 'natural', 'sp', 'comparison', 'aba', 'history']);
-installBrowserAI();
+import AdReview from './components/AdReview.jsx';
+import { EMPTY_REVIEWS } from './lib/adReview.js';
+
+const KNOWN_TABS = new Set(['dashboard', 'natural', 'sp', 'comparison', 'aba', 'history', 'ad-review']);
 
 function initialViewFilters() {
   return {
@@ -54,6 +54,7 @@ function nearestDate(target, dates) {
 }
 
 function supportsTab(targetModel, tab) {
+  if (tab === 'ad-review' && (targetModel?.kind === 'competitor' || !window.keywordTracker?.getAdReviews)) return false;
   // Current model-shaped records support all views.  Respect an
   // explicitly supplied capability list for future/imported model types so a
   // product switch can fall back only when the target truly lacks a view.
@@ -103,9 +104,11 @@ function syncWebBridgeData(data) {
 }
 
 export default function App({ onStartupSettled }) {
-  const [aiContext, setAIContext] = useState(null);
-  const openAI = window.keywordAI ? (keyword = '') => setAIContext({ keyword }) : undefined;
   const [data, setData] = useState(null);
+  const updateReviews = adReviews => setData(current => ({ ...current, adReviews }));
+  const acceptReview = async (runId, itemId, accepted) => {
+    updateReviews(await window.keywordTracker.setAdReviewAccepted({ runId, itemId, accepted }));
+  };
   const annotationQueue = useRef(Promise.resolve());
   const [pendingAnnotations, setPendingAnnotations] = useState(0);
   const [pendingAnnotationCells, setPendingAnnotationCells] = useState({});
@@ -446,10 +449,8 @@ export default function App({ onStartupSettled }) {
         <BusyOverlay label={busyLabel} />
           <h1>关键词排名每日跟进</h1>
           <p>{data?.models?.length === 0 ? '“型号配置”中没有启用的型号。' : '正在准备软件数据…'}</p>
-          {window.keywordAI && <><p>{window.keywordAI.kind==='web-connector'?'AI 分析直接使用本网页中的排名数据。首次请安装随包扩展和本机连接器。':'增强版使用独立数据目录。请先从原网页版导出 JSON 备份，再在这里导入。'}</p><div className="ai-onboarding">{window.keywordAI.kind!=='web-connector'&&<button onClick={() => window.keywordTracker?.importBackup?.().catch(error => setToast({ type: 'error', title: '导入失败', message: error.message }))}>导入网页版 JSON 备份</button>}<button onClick={() => openAI()}>进入 AI 分析与广告报表</button></div></>}
           <Toast toast={toast} onClose={() => setToast(null)} />
         </main>
-        {aiContext && <AIWorkspace initialKeyword={aiContext.keyword} onClose={() => setAIContext(null)} />}
       </div>
     );
   }
@@ -479,12 +480,12 @@ export default function App({ onStartupSettled }) {
             onRefresh={() => runAction('正在刷新看板和矩阵…', () => api.runImport('refresh'), '刷新完成')}
             onImport={() => runAction('正在导入每日关键词报表…', () => api.runImport('normal'), '导入完成')}
             onSifImport={startSifImport}
-            onAI={openAI}
+
           />
           {data.workbookOpen && data.storage !== 'local-json' && (
             <div className="workbook-alert"><AlertTriangle size={18} /><span>检测到跟进表可能正在 WPS 中打开。首次迁移完成后，软件将使用本地数据运行，不再依赖工作簿。</span></div>
           )}
-          {!trendRow && activeTab !== 'history' && activeTab !== 'aba' && (
+          {!trendRow && activeTab !== 'history' && activeTab !== 'aba' && activeTab !== 'ad-review' && (
             <>
               <SummaryBand
                 metrics={activeTab === 'dashboard' ? filteredMetrics : dateView.metrics}
@@ -497,9 +498,10 @@ export default function App({ onStartupSettled }) {
           )}
           <div className={`content-area view-transition ${trendRow ? 'content-area-trend' : ''}`}>
             {trendRow && <KeywordTrendView model={model} row={model.matrixRows.find((row) => row.keyword === trendRow.keyword) || trendRow} onBack={closeKeywordTrend} />}
-            {!trendRow && activeTab === 'dashboard' && <DashboardView onAI={openAI} rows={dashboardRows} sourceRows={dateView.rows} model={model} filters={viewFilters.dashboard} onFiltersChange={(next) => updateViewFilter('dashboard', next)} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} onOpenTrend={openKeywordTrend} />}
-            {!trendRow && activeTab === 'natural' && <MatrixView onAI={openAI} model={model} pendingAnnotationCells={pendingAnnotationCells} metric="natural" rows={naturalRows} filters={viewFilters.natural} onFiltersChange={(next) => updateViewFilter('natural', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
-            {!trendRow && activeTab === 'sp' && <MatrixView onAI={openAI} model={model} pendingAnnotationCells={pendingAnnotationCells} metric="sp" rows={spRows} filters={viewFilters.sp} onFiltersChange={(next) => updateViewFilter('sp', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
+            {!trendRow && activeTab === 'dashboard' && <DashboardView  rows={dashboardRows} sourceRows={dateView.rows} model={model} filters={viewFilters.dashboard} onFiltersChange={(next) => updateViewFilter('dashboard', next)} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} onOpenTrend={openKeywordTrend} />}
+            {!trendRow && activeTab === 'ad-review' && <AdReview key={model.parentAsin} model={model} state={data.adReviews || EMPTY_REVIEWS} onState={updateReviews} onAccept={acceptReview} />}
+            {!trendRow && activeTab === 'natural' && <MatrixView reviewState={data.adReviews || EMPTY_REVIEWS} onAcceptReview={acceptReview}  model={model} pendingAnnotationCells={pendingAnnotationCells} metric="natural" rows={naturalRows} filters={viewFilters.natural} onFiltersChange={(next) => updateViewFilter('natural', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
+            {!trendRow && activeTab === 'sp' && <MatrixView  model={model} pendingAnnotationCells={pendingAnnotationCells} metric="sp" rows={spRows} filters={viewFilters.sp} onFiltersChange={(next) => updateViewFilter('sp', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
             {!trendRow && activeTab === 'comparison' && <ComparisonMatrixView model={model} rows={model.matrixRows} filters={viewFilters.comparison} onFiltersChange={(next) => updateViewFilter('comparison', next)} selectedDate={selectedDate} focusSection={comparisonFocus} onFocusHandled={() => setComparisonFocus(null)} onToggleWatch={toggleWatch} onOpenTrend={openKeywordTrend} restoreScroll={comparisonScroll} />}
             {!trendRow && activeTab === 'aba' && <ABAView model={abaModel} rows={abaRows} filters={viewFilters.aba} onFiltersChange={(next) => updateViewFilter('aba', next)} onToggleWatch={toggleWatch} />}
             {!trendRow && activeTab === 'history' && <HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} />}
@@ -521,7 +523,6 @@ export default function App({ onStartupSettled }) {
         <SettingsModal open={settingsOpen} onClose={closeWebTools} onResetWidths={resetWidths} models={data.models} activeModel={model} onDeleteModel={deleteModel} onAddModel={() => setAddModelOpen(true)} onSetCountry={setModelCountry} onRenameModel={renameModel} onChangeModelAsin={changeModelAsin} onReleaseModelAlias={releaseModelAlias} abaMonthlyImports={data.abaMonthlyImports} onImportAba={importAbaMonthlyCsv} />
         <BusyOverlay label={busyLabel} />
         <Toast toast={toast} onClose={() => setToast(null)} />
-        {aiContext && <AIWorkspace model={model} initialKeyword={aiContext.keyword} onClose={() => setAIContext(null)} />}
       </div>
     </div>
   );
