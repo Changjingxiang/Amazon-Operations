@@ -113,7 +113,7 @@ npm run dist:win
 npm run release:web
 
 # 对指定发布目录做浏览器 smoke check
-npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0-迁移教学版-正式版"
+npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0"
 ```
 
 `npm run release:web` 始终从 `apps/keyword-rank` 和 `web/` 重新构建，并生成 `outputs/关键词排名每日跟进网页版-v<版本>`。目标目录已存在时命令会安全退出；确认要替换同一版本时才使用：

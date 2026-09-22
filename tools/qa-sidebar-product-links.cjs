@@ -1,0 +1,56 @@
+const { chromium } = require('../apps/keyword-rank/node_modules/playwright-core');
+const { pathToFileURL } = require('url');
+const path = require('path');
+const fs = require('fs');
+const assert = require('assert/strict');
+
+(async () => {
+  const directory = path.resolve(process.argv[2]);
+  const evidence = path.resolve('work/sidebar-product-links-qa');
+  fs.mkdirSync(evidence, { recursive: true });
+  const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true });
+  try {
+    const context = await browser.newContext({ viewport: { width: 1536, height: 960 } });
+    await context.route('https://www.amazon.*/**', route => route.fulfill({ body: '<title>Product destination verified</title>' }));
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.goto(pathToFileURL(path.join(directory, 'index.html')).href);
+    await page.locator('.model-copy').first().waitFor();
+    const model = await page.evaluate(async () => (await window.keywordTracker.getData()).models[0]);
+    await page.evaluate(async owner => window.keywordTracker.addCompetitor({ ownerParentAsin: owner, competitorName: 'QA UK competitor', parentAsin: 'B012345678', countryCode: 'UK' }), model.parentAsin);
+    await page.reload();
+    const own = page.locator('.model-copy').first();
+    await own.waitFor();
+    await own.hover();
+    assert.equal(await own.getAttribute('title'), '双击进入商品页面');
+    await own.click();
+    assert.equal(context.pages().length, 1, 'single click must not open product');
+    await page.getByRole('button', { name: '自然矩阵', exact: true }).click();
+    const popupPromise = context.waitForEvent('page');
+    await own.dblclick();
+    const popup = await popupPromise;
+    await popup.waitForLoadState();
+    assert.equal(popup.url(), `https://www.amazon.ca/dp/${model.parentAsin}`);
+    assert.equal(await popup.evaluate(() => window.opener === null), true);
+    await popup.close();
+    await page.locator('.model-dropdown').first().click();
+    const competitor = page.locator('.competitor-sidebar-copy').filter({ hasText: 'QA UK competitor' });
+    await competitor.waitFor({ state: 'visible' });
+    assert.equal(await competitor.getAttribute('title'), '双击进入商品页面');
+    const competitorPopupPromise = context.waitForEvent('page');
+    await competitor.dblclick();
+    const competitorPopup = await competitorPopupPromise;
+    await competitorPopup.waitForLoadState();
+    assert.equal(competitorPopup.url(), 'https://www.amazon.co.uk/dp/B012345678');
+    await competitorPopup.close();
+    assert.equal(await page.locator('.tabs button.active').textContent(), '自然矩阵');
+    await own.click();
+    await own.hover();
+    await page.screenshot({ path: path.join(evidence, 'sidebar.png'), fullPage: true });
+    assert.deepEqual(errors, []);
+    const result = { ok: true, own: model.parentAsin, competitor: 'B012345678', countryRouting: ['CA', 'UK'], singleClick: 'no popup', doubleClick: 'actual new tab', tooltip: '双击进入商品页面', preservedTab: '自然矩阵', errors };
+    fs.writeFileSync(path.join(evidence, 'result.json'), JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(result, null, 2));
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

@@ -70,7 +70,7 @@ npm run dist:win
 npm run release:web
 
 # Check a generated web release
-npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0-迁移教学版-正式版"
+npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0"
 ```
 
 Use `npm run release:web -- --output outputs/my-release` for a unique output directory. Existing release directories are not overwritten by default. Use `--force` only when intentionally replacing a release.
