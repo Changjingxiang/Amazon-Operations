@@ -1,6 +1,6 @@
 # 关键词排名每日跟进 · 正式源码
 
-这是 Amazon Operations v2.1 的 React/Vite + Electron 正式源码。这里维护产品页面、排名矩阵、ABA 月榜、历史记录和桌面壳；网页版发布所需的 bridge、竞品/ABA 增强和 SIF 扩展位于仓库根目录的 [`web`](../../web)。
+这是 Amazon Operations v3.0 的 React/Vite + Electron 正式源码。这里维护产品页面、排名矩阵、ABA 月榜、历史记录和桌面壳；网页版发布所需的 bridge、竞品/ABA 增强和 SIF 扩展位于仓库根目录的 [`web`](../../web)。
 
 ## 源码范围
 
