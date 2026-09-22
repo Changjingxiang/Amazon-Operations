@@ -17,6 +17,7 @@ import SettingsModal from './components/SettingsModal.jsx';
 import { EMPTY_FILTER, filterRows } from './components/FilterCascade.jsx';
 import { BusyOverlay, Toast } from './components/Feedback.jsx';
 import WindowTitlebar from './components/WindowTitlebar.jsx';
+import UsageGuide from './components/UsageGuide.jsx';
 import { api } from './lib/api.js';
 import { buildDateView } from './lib/format.js';
 import { resetAllColumnWidths } from './lib/columnWidths.jsx';
@@ -103,7 +104,7 @@ function syncWebBridgeData(data) {
   cache.value = data;
 }
 
-export default function App({ onStartupSettled }) {
+export default function App({ onStartupSettled, startupReady = true }) {
   const [data, setData] = useState(null);
   const updateReviews = adReviews => setData(current => ({ ...current, adReviews }));
   const acceptReview = async (runId, itemId, accepted) => {
@@ -141,6 +142,18 @@ export default function App({ onStartupSettled }) {
   }, []);
   const [busyLabel, setBusyLabel] = useState('正在读取关键词数据…');
   const [toast, setToast] = useState(null);
+  const guideView = useRef(null);
+  const prepareGuide = () => {
+    if (!guideView.current) guideView.current = { activeTab, trendRow };
+    setTrendRow(null);
+    setActiveTab('natural');
+  };
+  const restoreGuide = () => {
+    if (!guideView.current) return;
+    setActiveTab(guideView.current.activeTab);
+    setTrendRow(guideView.current.trendRow);
+    guideView.current = null;
+  };
 
   const load = async () => {
     setBusyLabel('正在读取关键词数据…');
@@ -175,6 +188,7 @@ export default function App({ onStartupSettled }) {
   }), []);
 
   const model = data?.models?.[activeIndex];
+  const guide = window.keywordTracker?.isWeb ? <UsageGuide ready={startupReady && Boolean(data)} blocked={Boolean(busyLabel || pendingAnnotations || watchOpen || addModelOpen || iconModel || settingsOpen)} hasModel={Boolean(model)} onPrepare={prepareGuide} onRestore={restoreGuide} onCloseTools={closeWebTools} /> : null;
   useEffect(() => {
     if (!model) return;
     setSelectedDate((currentDate) => {
@@ -449,8 +463,11 @@ export default function App({ onStartupSettled }) {
         <BusyOverlay label={busyLabel} />
           <h1>关键词排名每日跟进</h1>
           <p>{data?.models?.length === 0 ? '“型号配置”中没有启用的型号。' : '正在准备软件数据…'}</p>
+          {data?.models?.length === 0 && <button className="secondary-button" data-guide-add-model onClick={() => setAddModelOpen(true)}>＋ 新增型号</button>}
           <Toast toast={toast} onClose={() => setToast(null)} />
         </main>
+        <AddModelModal open={addModelOpen} onClose={() => setAddModelOpen(false)} onSubmit={addModel} />
+        {guide}
       </div>
     );
   }
@@ -524,6 +541,7 @@ export default function App({ onStartupSettled }) {
         <BusyOverlay label={busyLabel} />
         <Toast toast={toast} onClose={() => setToast(null)} />
       </div>
+      {guide}
     </div>
   );
 }

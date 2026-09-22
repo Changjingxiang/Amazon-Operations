@@ -2291,6 +2291,18 @@
   }
 
   let dataManagerGeneration = 0;
+  function downloadSifExtension() {
+    const pack = window.__SIF_EXTENSION_PACKAGE__;
+    if (!pack?.base64 || !pack.filename) throw new Error('插件下载包未加载。请刷新重试，或使用软件目录内的 sif-batch-reverse-downloader 文件夹。');
+    const bytes = Uint8Array.from(atob(pack.base64), (character) => character.charCodeAt(0));
+    if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error('插件下载包损坏，请重新解压完整软件包。');
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = pack.filename;
+    document.body.appendChild(anchor); anchor.click(); anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return { filename: pack.filename, version: pack.version };
+  }
   window.addEventListener('close-web-data-manager', () => { dataManagerGeneration += 1; });
   function storageStatusLabel() {
     if (pendingSave) return '当前：有未保存数据（刷新会丢失）';
@@ -2314,6 +2326,9 @@
           <button data-action="export">导出数据备份</button>
           <button data-action="import">导入数据备份</button>
           <a href="./data/关键词排名每日跟进表.xlsx" download>下载原始 Excel</a>
+          <button data-action="download-sif">下载 SIF 在线版扩展</button>
+          <button data-action="install-sif">不会安装？查看安装教程</button>
+          <small data-sif-download-status role="status" hidden></small>
           <button class="danger" data-action="reset">恢复上周的数据</button>
         </div>
         <div class="weekly-restore" hidden>
@@ -2347,6 +2362,17 @@
     overlay.onclick = (event) => { if (event.target === overlay) overlay.remove(); };
     overlay.querySelector('[data-action="export"]').onclick = () => exportBackup().catch((error) => alert(error.message));
     overlay.querySelector('[data-action="import"]').onclick = () => importBackup().catch((error) => alert(error.message));
+    overlay.querySelector('[data-action="download-sif"]').onclick = () => {
+      const status = overlay.querySelector('[data-sif-download-status]');
+      status.hidden = false;
+      try { const result = downloadSifExtension(); status.textContent = `已发起下载：${result.filename}。下载完成后，先全部解压，再查看安装教程。`; }
+      catch (error) { status.textContent = `下载失败：${error.message}`; }
+    };
+    overlay.querySelector('[data-action="install-sif"]').onclick = () => {
+      overlay.remove();
+      window.dispatchEvent(new Event('web-data-manager-closed'));
+      window.dispatchEvent(new CustomEvent('keyword-guide-open', { detail: { install: true } }));
+    };
     overlay.querySelector('[data-action="reset"]').onclick = async () => {
       const section = overlay.querySelector('.weekly-restore');
       const status = overlay.querySelector('.weekly-status');
@@ -2413,6 +2439,8 @@
   }
   window.keywordTracker = {
     isWeb: true,
+    downloadSifExtension,
+    checkSifExtension: async () => ({ connected: Boolean(await pingWebExtension()) }),
     getData: readData,
     runImport: (mode = 'normal') => importReports(mode),
     importAbaMonthlyCsv,

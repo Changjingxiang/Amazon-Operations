@@ -1454,6 +1454,14 @@
             imageButton.addEventListener('click', () => sourceRow?.querySelector('.model-icon')?.click());
             line.querySelector('.competitor-sidebar-branch')?.replaceWith(imageButton);
             const copy = line.querySelector('.competitor-sidebar-copy');
+            copy.title = '双击进入商品页面';
+            copy.addEventListener('dblclick', (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              const productRow = [...modelList.querySelectorAll(':scope > .model-item')]
+                .find((candidate) => sidebarRowDetails(candidate).asin === competitorAsin);
+              productRow?.querySelector('.model-copy')?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+            });
             copy?.addEventListener('click', (event) => {
               event.preventDefault();
               event.stopPropagation();

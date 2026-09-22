@@ -55,5 +55,5 @@ export default function StartupExperience() {
   const [visible, setVisible] = useState(() => Boolean(window.keywordTracker?.isWeb));
   const settle = useCallback((result) => setStatus(result), []);
   const done = useCallback(() => setVisible(false), []);
-  return <><div className="startup-app-host" inert={visible ? '' : undefined}><App onStartupSettled={settle} /></div>{visible && <RunningK status={status} onDone={done} />}</>;
+  return <><div className="startup-app-host" inert={visible ? '' : undefined}><App onStartupSettled={settle} startupReady={!visible} /></div>{visible && <RunningK status={status} onDone={done} />}</>;
 }

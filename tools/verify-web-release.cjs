@@ -80,6 +80,9 @@ async function main() {
   const { server, port } = await startServer(directory);
   const browser = await chromium.launch({ executablePath: findBrowser(), headless: true });
   const page = await browser.newPage({ viewport: { width: 1536, height: 1024 }, deviceScaleFactor: 1 });
+  // This smoke check exercises the returning-user workspace. First-run and
+  // replay behavior are covered separately in tests/usage-guide/qa.cjs.
+  await page.addInitScript(() => { try { localStorage.setItem('keyword-tracker:usage-guide:v1', JSON.stringify({ seen: true })); } catch {} });
   const consoleErrors = [];
   const pageErrors = [];
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });

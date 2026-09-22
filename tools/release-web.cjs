@@ -151,6 +151,7 @@ ${cssBlock}    <title>关键词排名每日跟进｜网页版 v${version}</title
     <script src="./vendor/xlsx.full.min.js"></script>
     <script src="./data/initial-data.js"></script>
     <script src="./browser-bridge.js"></script>
+    <script src="./sif-extension-download.js"></script>
     <script src="./assets/${entryBundle}"></script>
     <script src="./web-settings-enhancements.js"></script>
   </body>
@@ -182,6 +183,7 @@ function packageRelease(targetDir, packageJson, version) {
   copyFile(path.join(webDir, 'data', '关键词排名每日跟进表.xlsx'), path.join(targetDir, 'data', '关键词排名每日跟进表.xlsx'));
   copyFile(xlsxVendor, path.join(targetDir, 'vendor', 'xlsx.full.min.js'));
   copyDirectory(path.join(webDir, 'extensions', 'sif-batch-reverse-downloader'), path.join(targetDir, 'sif-batch-reverse-downloader'));
+  require('./package-sif-extension.cjs')(path.join(webDir, 'extensions', 'sif-batch-reverse-downloader'), targetDir);
   copyDirectory(path.join(webDir, 'skills', 'amazon-keyword-ad-review'), path.join(targetDir, 'skills', 'amazon-keyword-ad-review'));
   copyFile(path.join(webDir, 'ad-review', 'review-core.js'), path.join(targetDir, 'skills', 'amazon-keyword-ad-review', 'scripts', 'review-core.cjs'));
   for (const filePath of walkFiles(path.join(webDir, 'docs'))) {
