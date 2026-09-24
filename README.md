@@ -1,31 +1,42 @@
 <p align="center">
-  <img src="./assets/readme/hero.png" alt="Amazon Operations 关键词排名每日跟进工作台" width="100%" />
+  <img src="./assets/readme/hero-zh.png" alt="Amazon Operations 关键词排名每日跟进工作台" width="100%" />
 </p>
 
 # Amazon Operations
 
 **简体中文** · [English](README.en.md)
 
-> 关键词排名每日跟进 v2.1：把自然排名、SP、ABA 与竞品变化，整理成一张可追踪的运营工作台。
+> 关键词排名每日跟进 v3.0：把自然排名、SP、ABA 与竞品变化，整理成一张可追踪的运营工作台。
+
+> [!TIP]
+> ## v3.0 在线体验 · ChatGPT 站点版
+>
+> **[立即打开关键词跟进工作台 →](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**
+>
+> 无需下载发布包，打开网页即可体验：每日看板、自然/SP 排名矩阵、竞品对比、ABA 月榜与使用指南。建议在电脑端使用 Chrome 或 Edge，先用示例数据熟悉操作。
 
 > [!IMPORTANT]
-> ## 最新版下载（小白直接用这个）
+> ## 下载到本机使用
 >
-> **关键词排名每日跟进网页版-v2.1**
+> **Amazon关键词每日跟进-v3.0-迁移教学版-正式版**
 >
-> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/keyword-rank-web-v2.1.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/keyword-rank-web-v3.0.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 >
 > 下载后请先“解压全部”，再双击压缩包里的 `打开网页版.cmd`。**不要用 GitHub 的 `Code → Download ZIP`**，那是源码，不是给普通用户直接打开的发布包。
 
 <p align="center">
+  <a href="https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/">在线体验 v3.0</a> ·
   <a href="web/docs/使用说明.md">网页版使用说明</a> ·
   <a href="#快速开始">快速开始</a> ·
   <a href="web/extensions/sif-batch-reverse-downloader/README.md">SIF 扩展</a> ·
   <a href="#开发与构建">开发与构建</a>
 </p>
 
+升级前先在旧版导出 JSON 备份。新版「使用指南 → 从老版本迁移数据」会演示迁移流程；导入备份会替换当前数据，不会合并。首次使用且浏览器无已保存数据时加载随包示例。
+
 ## 先看它能做什么
 
+- **直达商品页**：双击左侧自有产品或竞品名称，在新标签页打开对应站点的亚马逊商品页；悬停显示“双击进入商品页面”。单击仍切换产品。
 - **每日跟进**：用看板总览关键词表现，在自然/SP 矩阵中追踪每日排名；关键词表格可放大查看。
 - **对比决策**：按日期并列自然/SP 排名，区分“自然领先”和“SP 领先”，直接定位详情。
 - **共享竞品**：一个竞品关联多个自家产品，共用图片与历史；悬停查看排名和升降，解除关联保留数据。
@@ -34,9 +45,17 @@
 
 ## 快速开始
 
+### 直接在线体验（推荐先看这里）
+
+1. 打开 **[v3.0 ChatGPT 站点版](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**，无需下载或启动本地程序。
+2. 从「使用指南」熟悉操作，查看示例产品的自然/SP 矩阵、竞品排名与 ABA 月榜。
+3. 日常使用前检查产品与站点设置；需要从旧版本迁移时，先导出 JSON 备份，再参考「使用指南 → 从老版本迁移数据」。
+
+在线站点与本地打开的网页版使用不同的网站存储，数据不会自动互通；更换入口、浏览器或电脑时，请使用 JSON 备份迁移。导入备份会替换当前数据，不会合并。SIF 自动导入仍需安装扩展并在同一浏览器登录 SIF。
+
 ### 使用网页版发布包
 
-拿到上方“最新版下载”的完整网页版压缩包后即可使用，无需安装 Node.js、Python 或 Codex。
+拿到上方“下载到本机使用”的完整网页版压缩包后即可使用，无需安装 Node.js、Python 或 Codex。
 
 ### 从下载到第一次导入（一步一步照做）
 
@@ -110,7 +129,7 @@ npm run dist:win
 npm run release:web
 
 # 对指定发布目录做浏览器 smoke check
-npm run verify:web -- --dir "outputs/关键词排名每日跟进网页版-v2.1"
+npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0"
 ```
 
 `npm run release:web` 始终从 `apps/keyword-rank` 和 `web/` 重新构建，并生成 `outputs/关键词排名每日跟进网页版-v<版本>`。目标目录已存在时命令会安全退出；确认要替换同一版本时才使用：
@@ -154,7 +173,27 @@ npm run release:web -- --force
 <details>
 <summary>展开查看近期更新</summary>
 
-### 最新更新（2026-09-18）
+### 在线站点上线（2026-09-22）
+
+- 新增 [v3.0 ChatGPT 站点版](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)：浏览器直接体验关键词跟进工作台。
+- 首页提供在线体验与本地发布包两个入口，并说明跨入口的数据迁移方式。
+
+### 最新更新 · v3.0（2026-09-22）
+
+- 发布 Amazon关键词每日跟进-v3.0-迁移教学版-正式版，附带 L23M911 薄夹克与 3 个竞品示例。
+- 提供 20 步场景教学、离线 SIF 插件安装说明和老版本 JSON 备份迁移教学。
+- 优化关注词保存与放大表格中的管理操作，教学退出后恢复原有上下文。
+- [查看 v3.0 完整说明](docs/releases/web-v3.0.md)。本次附件沿用旧版浏览器存储，已有数据优先读取；迁移导入会替换当前数据。
+
+### 此前更新 · v2.2（2026-09-21）
+
+- 左侧自有产品和竞品名称支持双击，在新标签页打开对应站点的亚马逊商品页。
+- 悬停名称显示“双击进入商品页面”；单击仍切换软件内的产品，保留当前矩阵页签。
+- 基于 v2.1 导入结果修复版更新，保留原有标注、数据持久化和批量导入结果功能。
+- 发布名称和解压目录为“关键词排名每日跟进网页版-v2.2”，下载文件名为 `keyword-rank-web-v2.2.zip`。
+- [查看 v2.2 发布说明](https://github.com/Changjingxiang/Amazon-Operations/releases/tag/web-v2.2)。升级前先导出 JSON 备份，新版未显示现有数据时再导入。
+
+### 此前更新 · v2.1（2026-09-18）
 
 - 批量导入结束后显示结果面板，部分失败也能正常退出加载状态。
 - 显示自己产品、竞品的阶段统计和完整错误详情，支持仅重试明确失败项。

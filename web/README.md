@@ -1,6 +1,6 @@
 # 网页版发布源
 
-这里保存独立网页版 v2.1 所需的非 Vite 源文件。发布时，根目录脚本会先从 [`apps/keyword-rank`](../apps/keyword-rank) 重新构建 React/Vite，再把本目录内容组装到 `outputs/` 下的发布目录。
+这里保存独立网页版 v3.0 所需的非 Vite 源文件。发布时，根目录脚本会先从 [`apps/keyword-rank`](../apps/keyword-rank) 重新构建 React/Vite，再把本目录内容组装到 `outputs/` 下的发布目录。
 
 ## 发布输入
 
@@ -9,7 +9,7 @@
 | `browser-bridge/browser-bridge.js` | IndexedDB 数据层、SIF 任务桥接和本地文件交互 | `browser-bridge.js` |
 | `web-settings/web-settings-enhancements.js` | 产品/竞品、父体 ASIN、月 ABA 和矩阵对比增强 | `web-settings-enhancements.js` |
 | `data/initial-data.js` | 随包初始配置、排名和历史数据 | `data/initial-data.js` |
-| `data/关键词排名每日跟进表.xlsx` | 可下载的原始跟进表 | `data/关键词排名每日跟进表.xlsx` |
+| `data/Amazon关键词每日跟进-v3.0-示例参考.xlsx` | 可下载的示例参考表 | `data/Amazon关键词每日跟进-v3.0-示例参考.xlsx` |
 | `extensions/sif-batch-reverse-downloader/` | 本地 Chrome/Edge Manifest V3 SIF 扩展 | `sif-batch-reverse-downloader/` |
 | `docs/` | 面向使用者的说明、SOP 与迁移提示 | `docs/` |
 
@@ -24,7 +24,7 @@ npm run release:web
 
 `release:web` 会执行全新 Vite build，复制 bridge、设置增强、种子数据、随包 Excel、SIF 扩展和说明文件，随后生成 `index.html`、`打开网页版.cmd` 与 `BUILD-MANIFEST.json`。
 
-默认输出为 `outputs/关键词排名每日跟进网页版-v<版本>`。目标目录已存在时不会覆盖；确认要替换同一版本时才使用：
+默认输出为 `outputs/Amazon关键词每日跟进-v<版本>`。目标目录已存在时不会覆盖；确认要替换同一版本时才使用：
 
 ```powershell
 npm run release:web -- --force
