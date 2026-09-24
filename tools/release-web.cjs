@@ -190,6 +190,7 @@ function packageRelease(targetDir, packageJson, version) {
   copyFile(path.join(webDir, 'data', 'example-summary.json'), path.join(targetDir, 'data', 'example-summary.json'));
   copyFile(xlsxVendor, path.join(targetDir, 'vendor', 'xlsx.full.min.js'));
   copyFile(exceljsVendor, path.join(targetDir, 'vendor', 'exceljs.min.js'));
+  copyFile(path.join(appDir, 'node_modules', 'jszip', 'dist', 'jszip.min.js'), path.join(targetDir, 'vendor', 'jszip.min.js'));
   copyFile(path.join(appDir, 'node_modules', 'exceljs', 'LICENSE'), path.join(targetDir, 'vendor', 'exceljs.LICENSE'));
   const iconDirectory = path.join(appDir, 'src', 'assets', 'apparel-icons');
   const icons = {};

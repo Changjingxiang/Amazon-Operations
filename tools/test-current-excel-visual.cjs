@@ -1,0 +1,35 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ExcelJS = require('../apps/keyword-rank/node_modules/exceljs');
+const JSZip = require('../apps/keyword-rank/node_modules/jszip');
+const window = { ExcelJS, JSZip };
+vm.runInThisContext(`(function(window){${fs.readFileSync('web/browser-bridge/current-excel-export.js','utf8')}\n})`)(window);
+async function main() {
+  const m = { kind:'product', modelName:'Test', parentAsin:'B000000001', countryCode:'CA', latestDate:'2026-09-24', dates:['2026-08-01','2026-08-02','2026-09-23','2026-09-24'], watches:[{keyword:'jacket'}], historyRecords:[{snapshotDate:'2026-09-23',keyword:'jacket'},{snapshotDate:'2026-09-24',keyword:'jacket'}], dashboardRows:[{keyword:'jacket',watched:true,naturalRank:8,spRank:null}], matrixRows:[{keyword:'jacket',watched:true,naturalValues:[20,18,10,8],spValues:[5,6,7,null]}], abaRowsByYear:{2026:[{keyword:'jacket',watched:true,months:[10,null,8,...Array(9).fill(null)]}]},iconHistory:[] };
+  const result = await window.KeywordCurrentExcelExport.build({abaMonthly:{'CA:2026-01':{month:'2026-01',rows:{jacket:10}}}},[m]);
+  const book = result.workbook;
+  assert.equal(book.worksheets[0].name,'产品总览');
+  const matrix=book.getWorksheet('自然矩阵2026');
+  assert.equal(matrix.views[0].xSplit,7);
+  assert.equal(matrix.getColumn(8).hidden,true);
+  assert.equal(matrix.getColumn(9).hidden,false);
+  assert.equal(matrix.autoFilter.to.row,4);
+  const trends=book.getWorksheet('关注词趋势');
+  assert.equal(trends.getCell('C4').value,'2026-09-24');
+  assert.equal(trends.getCell('D4').value,8);
+  assert.equal(trends.getCell('E4').value,2);
+  assert.equal(trends.getCell('G4').value,null);
+  assert.equal(trends.getCell('H4').value,null);
+  const helper=book.getWorksheet('趋势计算');
+  assert.equal(helper.getCell('B4').value.result,-20);
+  assert.equal(helper.getCell('E5').value, null);
+  const zip=await JSZip.loadAsync(result.buffer);
+  const xml=await zip.file(`xl/worksheets/sheet${trends.id}.xml`).async('string');
+  assert.match(xml,/<x14:sparklineGroups/);
+  assert.match(xml,/displayEmptyCellsAs="gap"/);
+  assert.match(xml,/趋势计算/);
+  assert.match(await zip.file('xl/workbook.xml').async('string'),/name="趋势计算"[^>]*state="hidden"/);
+  console.log('PASS: frozen keywords, month grouping, full filters, latest missing ranks, direction, formula-linked native sparklines, blank gaps, overview order');
+}
+main().catch(e=>{console.error(e);process.exitCode=1});
