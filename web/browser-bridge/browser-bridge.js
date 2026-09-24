@@ -3,7 +3,9 @@
 
   window.__KEYWORD_ASSET_BASE__ = new URL('./assets/', document.baseURI).href;
 
-  const DB_NAME = 'keyword-rank-daily-tracker-v181';
+  // A major web release opts into its own persistent store. Never clear or
+  // silently migrate the old database: users migrate explicitly via JSON.
+  const DB_NAME = window.__KEYWORD_STORAGE_NAMESPACE__ || 'keyword-rank-daily-tracker-v181';
   const DB_VERSION = 1;
   const STORE_NAME = 'state';
   const STATE_KEY = 'tracker-store';

@@ -148,6 +148,7 @@ ${cssBlock}    <title>Amazon关键词每日跟进-v${version}</title>
   </head>
   <body>
     <div id="root"></div>
+    <script>window.__KEYWORD_STORAGE_NAMESPACE__ = 'amazon-keyword-daily-v3';</script>
     <script src="./vendor/xlsx.full.min.js"></script>
     <script src="./data/initial-data.js"></script>
     <script src="./browser-bridge.js"></script>

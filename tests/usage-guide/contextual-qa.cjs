@@ -11,7 +11,7 @@ const output = path.resolve('work/contextual-guide-qa-20260922'); fs.mkdirSync(o
   const shot = name => page.screenshot({ path: path.join(output, `${name}.png`), animations: 'disabled' });
   const ready = async () => { await page.waitForSelector('.matrix-table', { timeout: 60000 }); await page.waitForSelector('.k-loading', { state: 'detached', timeout: 60000 }); };
   const digest = () => page.evaluate(async () => {
-    const db = await new Promise((resolve, reject) => { const r = indexedDB.open('keyword-rank-daily-tracker-v181', 1); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
+    const db = await new Promise((resolve, reject) => { const r = indexedDB.open(window.__KEYWORD_STORAGE_NAMESPACE__ || 'keyword-rank-daily-tracker-v181', 1); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error); });
     const store = await new Promise(resolve => { const r = db.transaction('state').objectStore('state').get('tracker-store'); r.onsuccess = () => resolve(r.result); }); db.close();
     const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([store.configs, store.competitors, store.histories, store.watches, store.annotations, store.abaMonthlyImports])));
     return Array.from(new Uint8Array(bytes)).join(',');

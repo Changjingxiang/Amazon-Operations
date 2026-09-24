@@ -5,7 +5,9 @@ import './UsageGuide.css';
 import AnnotationEditor from './AnnotationEditor.jsx';
 import { GUIDE_STEPS as STEPS, GUIDE_TOPICS as TOPICS } from './guideSteps.js';
 
-const STORAGE_KEY = 'keyword-tracker:usage-guide:v1';
+const STORAGE_KEY = window.__KEYWORD_STORAGE_NAMESPACE__
+  ? `keyword-tracker:usage-guide:v1:${window.__KEYWORD_STORAGE_NAMESPACE__}`
+  : 'keyword-tracker:usage-guide:v1';
 function readProgress() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; } }
 function saveProgress(value) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...readProgress(), ...value })); } catch { /* Guide remains usable when browser storage is unavailable. */ } }
 
