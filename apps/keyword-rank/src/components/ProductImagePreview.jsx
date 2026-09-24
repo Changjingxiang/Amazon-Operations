@@ -22,7 +22,11 @@ export default function ProductImagePreview({ model, onOpen }) {
     setVisible(true);
   };
   const open = (element) => {
-    const rect = element.getBoundingClientRect();
+    let rect = element.getBoundingClientRect();
+    if (anchor.current?.dataset.galleryOrigin) {
+      try { rect = JSON.parse(anchor.current.dataset.galleryOrigin); } catch { /* use the element's position */ }
+      delete anchor.current.dataset.galleryOrigin;
+    }
     setVisible(false);
     onOpen({ ...model, previewRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height } });
   };

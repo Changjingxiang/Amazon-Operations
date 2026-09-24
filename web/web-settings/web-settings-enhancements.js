@@ -1359,6 +1359,74 @@
     });
   }
 
+  let competitorImagePreview = null;
+  let competitorImageHideTimer = null;
+
+  function attachCompetitorImagePreview(imageButton, sourceRow, competitor) {
+    const sourceButton = sourceRow?.querySelector('.model-icon');
+    const image = sourceButton?.querySelector('img');
+    if (!sourceButton || !image) return;
+    const name = competitor.competitorName || competitor.modelName || '竞品';
+    const hide = () => {
+      clearTimeout(competitorImageHideTimer);
+      competitorImageHideTimer = setTimeout(() => {
+        competitorImagePreview?.classList.remove('is-visible');
+        const retiring = competitorImagePreview;
+        competitorImagePreview = null;
+        setTimeout(() => retiring?.remove(), 220);
+      }, 300);
+    };
+    const open = (element) => {
+      const { left, top, width, height } = element.getBoundingClientRect();
+      sourceButton.dataset.galleryOrigin = JSON.stringify({ left, top, width, height });
+      clearTimeout(competitorImageHideTimer);
+      competitorImagePreview?.remove();
+      competitorImagePreview = null;
+      sourceButton.click();
+    };
+    const show = () => {
+      clearTimeout(competitorImageHideTimer);
+      competitorImagePreview?.remove();
+      const rect = imageButton.getBoundingClientRect();
+      const sidebar = imageButton.closest('.sidebar')?.getBoundingClientRect();
+      const left = (sidebar?.right || rect.right) + 14;
+      const height = Math.min(414, window.innerHeight - 32);
+      const preview = document.createElement('div');
+      preview.className = 'product-image-preview';
+      Object.assign(preview.style, {
+        left: `${left}px`,
+        top: `${Math.max(56, Math.min(rect.top - height / 3, window.innerHeight - height - 16))}px`,
+        width: `${Math.min(336, window.innerWidth - left - 14)}px`,
+        height: `${height}px`,
+      });
+      const expand = document.createElement('button');
+      expand.type = 'button';
+      expand.setAttribute('aria-label', '双击放大竞品图片');
+      const fullImage = image.cloneNode(true);
+      fullImage.alt = name;
+      expand.appendChild(fullImage);
+      expand.addEventListener('dblclick', () => open(expand));
+      expand.addEventListener('keydown', (event) => { if (event.key === 'Enter') open(expand); });
+      const caption = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = name;
+      const hint = document.createElement('small');
+      hint.textContent = '双击图片，放大查看';
+      caption.append(title, hint);
+      preview.append(expand, caption);
+      preview.addEventListener('pointerenter', () => clearTimeout(competitorImageHideTimer));
+      preview.addEventListener('pointerleave', hide);
+      document.body.appendChild(preview);
+      competitorImagePreview = preview;
+      requestAnimationFrame(() => preview.classList.add('is-visible'));
+    };
+    imageButton.addEventListener('pointerenter', show);
+    imageButton.addEventListener('pointerleave', hide);
+    imageButton.addEventListener('focus', show);
+    imageButton.addEventListener('blur', hide);
+    imageButton.addEventListener('click', () => open(imageButton));
+  }
+
   function renderCompetitorSidebar(data) {
     const modelList = document.querySelector('.model-list');
     if (!(modelList instanceof HTMLElement)) return;
@@ -1451,7 +1519,7 @@
             imageButton.setAttribute('aria-label', `更换 ${competitor.competitorName || competitor.modelName} 的图片`);
             const productImage = sourceRow?.querySelector('.model-icon img');
             if (productImage) imageButton.appendChild(productImage.cloneNode(true));
-            imageButton.addEventListener('click', () => sourceRow?.querySelector('.model-icon')?.click());
+            attachCompetitorImagePreview(imageButton, sourceRow, competitor);
             line.querySelector('.competitor-sidebar-branch')?.replaceWith(imageButton);
             const copy = line.querySelector('.competitor-sidebar-copy');
             copy.title = '双击进入商品页面';

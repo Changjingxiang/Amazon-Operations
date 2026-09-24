@@ -18,9 +18,9 @@
 > [!IMPORTANT]
 > ## 下载到本机使用
 >
-> **Amazon关键词每日跟进-v3.0.1-产品图片增强版**
+> **Amazon关键词每日跟进-v3.0.2-竞品图片预览版**
 >
-> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.1/keyword-rank-web-v3.0.1.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.2/keyword-rank-web-v3.0.2.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 >
 > 下载后请先“解压全部”，再双击压缩包里的 `打开网页版.cmd`。**不要用 GitHub 的 `Code → Download ZIP`**，那是源码，不是给普通用户直接打开的发布包。
 
@@ -84,7 +84,7 @@
 ### 产品与数据管理
 
 - 产品管理覆盖美国、德国、英国、日本、加拿大、法国、西班牙、意大利 8 个站点。
-- 产品图片支持悬停预览、双击居中放大和历史图叠放查看；可选择简略图标或更换自定义图片。图片历史从升级后开始积累。
+- 自有产品和展开列表中的竞品图片支持悬停预览、双击居中放大和历史图叠放查看；可选择简略图标或更换自定义图片。图片历史从升级后开始积累。
 - 自家产品与竞品均支持内置服装图标和自定义图片；共享竞品解除关联不删除历史，即使所有关联均已解除，也可从共享库重新关联。
 - 网页版工具文件夹支持导出/导入 JSON 备份、下载随包原始 Excel 和恢复上周的数据。
 

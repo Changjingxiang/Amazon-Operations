@@ -39,7 +39,7 @@ The hosted site and a locally opened web release use separate site storage; data
 
 The complete web package needs no Node.js, Python, or Codex installation. GitHub’s **Code → Download ZIP** downloads source code, not the latest ready-to-use package.
 
-**[Download Amazon关键词每日跟进-v3.0.1-产品图片增强版.zip](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.1/keyword-rank-web-v3.0.1.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+**[Download Amazon关键词每日跟进-v3.0.2-竞品图片预览版.zip](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.2/keyword-rank-web-v3.0.2.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 
 Batch imports now end with a result dialog, including partial failures. Review errors, retry failed items, or confirm and refresh after data has been saved. Unsaved data requires a save retry or backup export before refreshing.
 
