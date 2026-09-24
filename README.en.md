@@ -23,7 +23,7 @@ Keyword rank tracker v3.0: a local-first workspace for daily organic rankings, s
 - Side-by-side organic/SP comparisons with leading relationships and ranking page indicators.
 - Link one shared competitor to multiple owned products, reuse its images and history, and compare ranks and daily movement. Unlinking preserves data.
 - Monthly ABA CSV imports with selectable historical years and year-over-year trends.
-- Resizable columns, date and keyword filters, saved keyword combinations, custom product images, and parent ASIN editing.
+- Resizable columns, date and keyword filters, saved keyword combinations, hover photo previews, an expandable image history, custom product images, and parent ASIN editing.
 - Product settings for the US, Germany, UK, Japan, Canada, France, Spain, and Italy.
 - Web data stored in browser IndexedDB; desktop data stored locally through the Electron bridge.
 
@@ -39,7 +39,7 @@ The hosted site and a locally opened web release use separate site storage; data
 
 The complete web package needs no Node.js, Python, or Codex installation. GitHub’s **Code → Download ZIP** downloads source code, not the latest ready-to-use package.
 
-**[Download Amazon关键词每日跟进-v3.0-迁移教学版-正式版.zip](https://github.com/Changjingxiang/Amazon-Operations/releases/latest/download/keyword-rank-web-v3.0.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+**[Download Amazon关键词每日跟进-v3.0.1-产品图片增强版.zip](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.1/keyword-rank-web-v3.0.1.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 
 Batch imports now end with a result dialog, including partial failures. Review errors, retry failed items, or confirm and refresh after data has been saved. Unsaved data requires a save retry or backup export before refreshing.
 

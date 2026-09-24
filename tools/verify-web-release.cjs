@@ -93,6 +93,9 @@ async function main() {
     await page.waitForSelector('.app-shell', { timeout: 60000 });
     await page.waitForSelector('.busy-overlay', { state: 'detached', timeout: 60000 });
     await page.waitForTimeout(250);
+    const skipGuide = page.getByRole('button', { name: '暂时跳过', exact: true });
+    await skipGuide.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    if (await skipGuide.isVisible().catch(() => false)) await skipGuide.click();
 
     result.models = await page.locator('.model-item').count();
     result.tabs = await page.locator('.tabs button').allTextContents();
