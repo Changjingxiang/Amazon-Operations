@@ -387,6 +387,7 @@
       annotations: normalizeAnnotations(store.annotations),
       adReviews: store.adReviews && Array.isArray(store.adReviews.reports) && Array.isArray(store.adReviews.decisions)
         ? store.adReviews : { reports: [], decisions: [] },
+      iconHistories: store.iconHistories && typeof store.iconHistories === 'object' ? store.iconHistories : {},
       iconSelections: store.iconSelections && typeof store.iconSelections === 'object'
         ? store.iconSelections
         : { ...INITIAL_ICONS },
@@ -1201,6 +1202,7 @@
     const ownModels = store.configs.map((config) => ({
       ...buildModel(config, store.histories[config.historySheet] || [], store.watches, store.annotations, store.abaMonthly),
       iconKey: store.iconSelections[config.parentAsin] || defaultIconKey(config.modelName),
+      iconHistory: Array.isArray(store.iconHistories[config.parentAsin]) ? store.iconHistories[config.parentAsin] : [],
       kind: 'own',
     }));
     const modelByAsin = new Map();
@@ -1218,6 +1220,7 @@
         ownerParentAsin: config.ownerParentAsin,
         ownerModelName: config.ownerModelName || owner?.modelName || '',
         iconKey: store.iconSelections[config.parentAsin] || defaultIconKey(config.modelName),
+      iconHistory: Array.isArray(store.iconHistories[config.parentAsin]) ? store.iconHistories[config.parentAsin] : [],
       };
     });
     const competitorsByOwner = new Map();
@@ -1548,6 +1551,10 @@
       }
       delete store.iconSelections[previousAsin];
     }
+    if (store.iconHistories[previousAsin]) {
+      store.iconHistories[nextAsin] = [...(store.iconHistories[nextAsin] || []), ...store.iconHistories[previousAsin]];
+      delete store.iconHistories[previousAsin];
+    }
     const aliases = new Set([previousAsin, ...(config.legacyParentAsins || [])]);
     store.watches.forEach((watch) => {
       if (watch && aliases.has(text(watch.parentAsin).toUpperCase())) {
@@ -1611,6 +1618,7 @@
     }
     if (store.iconSelections && typeof store.iconSelections === 'object') {
       removedAsins.forEach((asin) => delete store.iconSelections[asin]);
+      removedAsins.forEach((asin) => delete store.iconHistories[asin]);
     }
     await writeStore(store);
     return result(`已删除型号“${removed.modelName}”。`);
@@ -1650,6 +1658,7 @@
     }
     if (store.iconSelections && typeof store.iconSelections === 'object') {
       removedAsins.forEach((itemAsin) => delete store.iconSelections[itemAsin]);
+      removedAsins.forEach((asin) => delete store.iconHistories[asin]);
     }
     await writeStore(store);
     return result(`已删除竞品“${removed.competitorName || removed.modelName}”。`);
@@ -1665,7 +1674,17 @@
     const iconKey = custom ? 'custom' : text(candidate);
     if (!/^B0[A-Z0-9]{8}$/.test(asin)) throw new Error('父体 ASIN 格式不正确。');
     if (!APPAREL_ICON_KEYS.has(iconKey) && !(custom && /^data:image\/(png|jpe?g|gif|webp|bmp);base64,/i.test(custom.dataUrl) && custom.dataUrl.length <= 5 * 1024 * 1024)) throw new Error('不支持的产品图标或图片格式。');
-    store.iconSelections[asin] = custom || iconKey;
+    const nextIcon = custom || iconKey;
+    const config = [...store.configs, ...store.competitors].find(item => item.parentAsin === asin);
+    if (!config) throw new Error('产品不存在，请刷新后重试。');
+    const previous = store.iconSelections[asin] || defaultIconKey(config.modelName);
+    const identity = value => typeof value === 'object' ? value?.dataUrl : value;
+    if (identity(previous) !== identity(nextIcon)) {
+      const history = Array.isArray(store.iconHistories[asin]) ? store.iconHistories[asin] : [];
+      store.iconHistories[asin] = [{ iconKey: previous, replacedAt: new Date().toISOString() }, ...history]
+        .filter((entry, index, all) => identity(entry.iconKey) !== identity(nextIcon) && all.findIndex(other => identity(other.iconKey) === identity(entry.iconKey)) === index);
+    }
+    store.iconSelections[asin] = nextIcon;
     await writeStore(store);
     return result('产品图标已保存到浏览器。');
   }

@@ -1,5 +1,5 @@
 import { ChevronRight, Download, FolderOpen, Plus, Settings } from 'lucide-react';
-import { getApparelIcon } from '../lib/apparelIcons.js';
+import ProductImagePreview from './ProductImagePreview.jsx';
 
 const MARKETPLACES = { US: 'amazon.com', CA: 'amazon.ca', UK: 'amazon.co.uk', GB: 'amazon.co.uk', DE: 'amazon.de', JP: 'amazon.co.jp', FR: 'amazon.fr', ES: 'amazon.es', IT: 'amazon.it' };
 function openProduct(model) {
@@ -17,10 +17,7 @@ export default function Sidebar({ models, activeIndex, onSelect, onChooseIcon, o
             className={`model-item ${index === activeIndex ? 'active' : ''}`}
             key={model.parentAsin}
           >
-            <button type="button" className="model-icon" onClick={() => onChooseIcon(model)} title="点击更换产品图标" aria-label={`更换 ${model.modelName} 的图标`}>
-              <img src={getApparelIcon(model.iconKey).image} alt="" />
-              <i>换</i>
-            </button>
+            <ProductImagePreview model={model} onOpen={onChooseIcon} />
             <button type="button" className="model-copy" onClick={() => onSelect(index)} onDoubleClick={() => openProduct(model)} title="双击进入商品页面">
               <strong>{model.modelName}</strong>
               <small>{model.parentAsin}</small>

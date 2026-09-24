@@ -503,6 +503,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
       '产品图标已更新',
     );
     if (ok) setIconModel(null);
+    return ok;
   };
 
   if (!data || !model) {
