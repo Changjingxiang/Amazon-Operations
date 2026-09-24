@@ -7,9 +7,10 @@
 | 路径 | 作用 | 发布包位置 |
 | --- | --- | --- |
 | `browser-bridge/browser-bridge.js` | IndexedDB 数据层、SIF 任务桥接和本地文件交互 | `browser-bridge.js` |
+| `browser-bridge/current-excel-export.js` | 从当前浏览器数据生成分 Sheet 的 Excel（含图片） | `current-excel-export.js` |
 | `web-settings/web-settings-enhancements.js` | 产品/竞品、父体 ASIN、月 ABA 和矩阵对比增强 | `web-settings-enhancements.js` |
 | `data/initial-data.js` | 随包初始配置、排名和历史数据 | `data/initial-data.js` |
-| `data/Amazon关键词每日跟进-v3.0-示例参考.xlsx` | 可下载的示例参考表 | `data/Amazon关键词每日跟进-v3.0-示例参考.xlsx` |
+| `apps/keyword-rank/src/assets/apparel-icons/` | 导出 Excel 时内置图片的源文件 | `vendor/apparel-icons.js` |
 | `extensions/sif-batch-reverse-downloader/` | 本地 Chrome/Edge Manifest V3 SIF 扩展 | `sif-batch-reverse-downloader/` |
 | `docs/` | 面向使用者的说明、SOP 与迁移提示 | `docs/` |
 

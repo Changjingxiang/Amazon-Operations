@@ -1243,7 +1243,7 @@
     return {
       toolRoot: '浏览器本地存储',
       adReviews: store.adReviews,
-      workbookPath: 'data/Amazon关键词每日跟进-v3.0-示例参考.xlsx',
+      workbookPath: '',
       workbookModifiedAt: store.updatedAt || store.migratedFromWorkbookAt || new Date().toISOString(),
       workbookOpen: false,
       sourceCount: store.sourceCount,
@@ -2297,6 +2297,16 @@
     downloadBlob(`${JSON.stringify(store)}\n`, `Amazon关键词每日跟进-v3.0-数据_${date}.json`, 'application/json;charset=utf-8');
   }
 
+  async function exportCurrentExcel() {
+    await persistenceQueue;
+    const store = pendingSave?.store || await ensureStore();
+    const data = await readData();
+    if (!window.KeywordCurrentExcelExport) throw new Error('Excel 导出模块未加载，请刷新页面后重试。');
+    const now = new Date();
+    const { buffer } = await window.KeywordCurrentExcelExport.build(store, data.models, now);
+    return window.KeywordCurrentExcelExport.download(buffer, now);
+  }
+
   async function importBackup() {
     const files = await chooseFiles('.json,application/json', false);
     if (!files.length) return;
@@ -2365,7 +2375,7 @@
         <div class="browser-manager-actions">
           <button data-action="export">导出数据备份</button>
           <button data-action="import">导入数据备份</button>
-          <a href="./data/Amazon关键词每日跟进-v3.0-示例参考.xlsx" download>下载示例参考 Excel</a>
+          <button data-action="export-excel">导出当前 Excel</button>
           <button data-action="download-sif">下载 SIF 在线版扩展</button>
           <button data-action="install-sif">不会安装？查看安装教程</button>
           <small data-sif-download-status role="status" hidden></small>
@@ -2393,6 +2403,14 @@
     overlay.querySelector('.browser-manager-close').onclick = () => overlay.remove();
     overlay.onclick = (event) => { if (event.target === overlay) overlay.remove(); };
     overlay.querySelector('[data-action="export"]').onclick = () => exportBackup().catch((error) => alert(error.message));
+    overlay.querySelector('[data-action="export-excel"]').onclick = async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = '正在生成 Excel…';
+      try { await exportCurrentExcel(); button.textContent = '已导出当前 Excel'; }
+      catch (error) { button.textContent = '导出当前 Excel'; alert(`Excel 导出失败：${error.message}`); }
+      finally { button.disabled = false; }
+    };
     overlay.querySelector('[data-action="import"]').onclick = () => importBackup().catch((error) => alert(error.message));
     overlay.querySelector('[data-action="download-sif"]').onclick = () => {
       const status = overlay.querySelector('[data-sif-download-status]');
@@ -2485,13 +2503,9 @@
     },
     retryImportSave: retryPendingSave,
     exportImportBackup: exportBackup,
+    exportCurrentExcel,
     ...(window.keywordAI ? { importBackup } : {}),
-    openWorkbook: () => {
-      const link = document.createElement('a');
-      link.href = new URL('./data/Amazon关键词每日跟进-v3.0-示例参考.xlsx', document.baseURI).href;
-      link.download = 'Amazon关键词每日跟进-v3.0-示例参考.xlsx';
-      link.click();
-    },
+    openWorkbook: () => exportCurrentExcel().catch((error) => alert(`Excel 导出失败：${error.message}`)),
     openSourceFolder: async () => {
       const response = await importReports('normal');
       if (response.output && !response.output.startsWith('未选择')) location.reload();

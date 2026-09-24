@@ -13,7 +13,7 @@ export default function HistoryView({ model, sourceCount, workbookModifiedAt, st
         <div><strong>{model.snapshotSummary.length}</strong><span>历史快照日期</span></div>
         <div><strong>{sourceCount}</strong><span>每日源文件</span></div>
         <div><strong>{model.historyRecords.length.toLocaleString('zh-CN')}</strong><span>历史关键词记录</span></div>
-        <button type="button" onClick={onOpenWorkbook}><FileSpreadsheet size={19} />打开跟进表</button>
+        <button type="button" onClick={onOpenWorkbook}><FileSpreadsheet size={19} />{window.keywordTracker?.isWeb ? '导出当前 Excel' : '打开跟进表'}</button>
         <button type="button" onClick={onOpenSourceFolder}><FolderOpen size={19} />打开源文件夹</button>
       </div>
       <div className="history-table-wrap">
