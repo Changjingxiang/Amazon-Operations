@@ -20,6 +20,7 @@ export default function Header({ model, activeTab, onTab, selectedDate, onDate, 
         </div>
         <div className="header-actions">
           <label className="date-control">
+            <span className="date-control-label">摘要日</span>
             <CalendarDays size={18} />
             <input
               type="date"

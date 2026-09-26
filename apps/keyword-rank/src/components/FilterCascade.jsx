@@ -221,6 +221,7 @@ export default function FilterCascade({
   showDate = false,
   placeholder = '搜索关键词…',
   label = '筛选',
+  dateScopeHint = '',
 }) {
   const [open, setOpen] = useState(false);
   const [keywordCombinations, setKeywordCombinations] = useState(readKeywordCombinations);
@@ -230,6 +231,7 @@ export default function FilterCascade({
   const [popoverStyle, setPopoverStyle] = useState(undefined);
   const rootRef = useRef(null);
   const popoverRef = useRef(null);
+  const triggerRef = useRef(null);
   const current = { ...EMPTY_FILTER, ...(filter || {}) };
   const keywordOptions = useMemo(() => {
     const seen = new Set();
@@ -306,7 +308,9 @@ export default function FilterCascade({
       if (!rootRef.current?.contains(event.target) && !popoverRef.current?.contains(event.target)) setOpen(false);
     };
     document.addEventListener('pointerdown', closeOnOutside);
-    return () => document.removeEventListener('pointerdown', closeOnOutside);
+    const escape = (event) => { if (event.key === 'Escape') { event.preventDefault(); setOpen(false); triggerRef.current?.focus(); } };
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', closeOnOutside); document.removeEventListener('keydown', escape); };
   }, [open]);
 
   useLayoutEffect(() => {
@@ -342,7 +346,7 @@ export default function FilterCascade({
           <input value={current.query} placeholder={placeholder} onChange={(event) => update({ ...current, query: event.target.value })} />
           {current.query && <button type="button" className="cascade-search-clear" aria-label="清除搜索内容" onClick={() => update({ ...current, query: '' })}><X size={13} /></button>}
         </label>
-        <button type="button" className={`cascade-trigger ${open ? 'is-open' : ''}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <button ref={triggerRef} type="button" className={`cascade-trigger ${open ? 'is-open' : ''}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
           <span>{label}</span>{activeCount > 0 && <b>{activeCount}</b>}<ChevronDown size={14} />
         </button>
         {hasAnyFilter && <button type="button" className="cascade-clear" onClick={clear}>清除</button>}
@@ -351,6 +355,7 @@ export default function FilterCascade({
         <div className="cascade-popover" ref={popoverRef} role="dialog" aria-label={`${label}条件`} style={popoverStyle}>
           <div className="cascade-popover-head"><strong>筛选条件</strong><button type="button" aria-label="关闭筛选条件" onClick={() => setOpen(false)}><X size={15} /></button></div>
           <div className="cascade-group-list">
+            {dateScopeHint && <p className="cascade-scope-hint">{dateScopeHint}</p>}
             {keywordOptions.length > 0 && (
               <KeywordCombinations
                 items={keywordCombinations}
@@ -406,7 +411,7 @@ export default function FilterCascade({
             )}
 
           </div>
-          <div className="cascade-popover-foot"><span>{hasAnyFilter ? '已应用筛选条件' : '未设置筛选条件'}</span><button type="button" onClick={() => setOpen(false)}>完成</button></div>
+          <div className="cascade-popover-foot"><span>{hasAnyFilter ? '筛选已即时生效' : '未设置筛选条件'}</span><button type="button" onClick={() => { setOpen(false); triggerRef.current?.focus(); }}>关闭</button></div>
         </div>,
         document.body,
       )}

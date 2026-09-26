@@ -27,6 +27,9 @@ export default function WatchDrawer({ open, model, onClose, onSave, initialKeywo
   const [dragIndex, setDragIndex] = useState(null);
   const [dropIndex, setDropIndex] = useState(null);
   const [keyboardGrabbed, setKeyboardGrabbed] = useState(null);
+  const [baseline, setBaseline] = useState('[]');
+  const [discardPrompt, setDiscardPrompt] = useState(false);
+  const discardRef = useRef(null);
   const pointerRef = useRef({ id: null, index: null });
   const drawerRef = useRef(null);
 
@@ -51,15 +54,12 @@ export default function WatchDrawer({ open, model, onClose, onSave, initialKeywo
       setDragIndex(null);
       setDropIndex(null);
       setKeyboardGrabbed(null);
-      setDraft((model?.watches || []).map((watch) => ({ keyword: watch.keyword, note: watch.note || '' })));
+      const initial = (model?.watches || []).map((watch) => ({ keyword: watch.keyword, note: watch.note || '' }));
+      setDraft(initial);
+      setBaseline(JSON.stringify(initial));
+      setDiscardPrompt(false);
     }
   }, [open, initialKeyword, model?.parentAsin]);
-  useEffect(() => {
-    if (!open || preview) return undefined;
-    const handleKeyDown = (event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); onClose?.(); } };
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [open, onClose, preview]);
 
   const pendingKeywords = useMemo(
     () => keywords.split(/[\r\n,，;；]+/).map((value) => value.trim()).filter(Boolean),
@@ -74,6 +74,22 @@ export default function WatchDrawer({ open, model, onClose, onSave, initialKeywo
     }
     return dedupe(merged);
   }, [draft, pendingKeywords, note]);
+  const dirty = JSON.stringify(saveItems) !== baseline;
+  const hasDraft = dirty || Boolean(keywords.trim() || note.trim());
+  const requestClose = () => { if (!preview && hasDraft) setDiscardPrompt(true); else onClose?.(); };
+  useEffect(() => {
+    if (!open || preview) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (discardPrompt) setDiscardPrompt(false);
+      else if (hasDraft) setDiscardPrompt(true);
+      else onClose?.();
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [open, preview, hasDraft, discardPrompt, onClose]);
+  useEffect(() => { if (discardPrompt) discardRef.current?.focus(); }, [discardPrompt]);
 
   const finishPointerDrag = (event) => {
     if (pointerRef.current.id !== event.pointerId) return;
@@ -136,17 +152,18 @@ export default function WatchDrawer({ open, model, onClose, onSave, initialKeywo
 
   if (!open) return null;
   return createPortal(
-    <div className="watch-modal-layer" onMouseDown={event => { if (event.target === event.currentTarget && !preview) onClose?.(); }}>
+    <div className="watch-modal-layer" onMouseDown={event => { if (event.target === event.currentTarget && !preview) requestClose(); }}>
     <aside ref={drawerRef} className="watch-drawer" role="dialog" aria-modal="true" aria-label="关注关键词">
-      <div className="drawer-header"><h2>关注关键词</h2><button type="button" onClick={onClose} aria-label="关闭关注关键词"><X /></button></div>
+      <div className="drawer-header"><h2>关注关键词</h2><button type="button" onClick={requestClose} aria-label="关闭关注关键词"><X /></button></div>
+      {discardPrompt && <div className="watch-unsaved-prompt" role="alert"><strong>有未保存的更改</strong><span>关闭后，本次输入和排序调整不会保存。</span><div><button ref={discardRef} type="button" onClick={() => setDiscardPrompt(false)}>继续编辑</button><button type="button" onClick={onClose}>放弃更改并关闭</button></div></div>}
       {preview && <div className="guide-preview-label">教学示例 · 不会保存新增关键词</div>}
       <p className="drawer-intro">尚未有流量的词也可手动添加。支持批量导入；拖拽手柄、触屏或键盘都能调整同一张卡片的顺序。</p>
       <label>所属产品<input value={model.modelName} disabled /></label>
       <label>新增关键词（可批量填写）<textarea className="watch-keywords-input" value={keywords} onChange={(event) => setKeywords(event.target.value)} placeholder="每行一个关键词，也支持逗号、分号分隔" /></label>
       <label>新增词备注（可选）<textarea value={note} onChange={(event) => setNote(event.target.value)} maxLength={100} placeholder="例如：重点观察" /></label>
       <div className="watch-save-row">
-        <span><Star size={24} fill="currentColor" />待保存 {saveItems.length} 个</span>
-        <button type="button" className="primary-button" disabled={preview} onClick={() => onSave(saveItems)}>{saveItems.length ? '保存并同步' : '清空并同步'}</button>
+        <span><Star size={24} fill="currentColor" />{dirty ? `保存后 ${saveItems.length} 个 · 有未保存更改` : `当前关注 ${saveItems.length} 个 · 已保存`}</span>
+        <button type="button" className="primary-button" disabled={preview || !dirty} onClick={() => onSave(saveItems)}>{saveItems.length ? '保存并同步' : '清空并同步'}</button>
       </div>
       <div className="current-watches">
         <h3>当前关注词 <span>{draft.length}</span></h3>

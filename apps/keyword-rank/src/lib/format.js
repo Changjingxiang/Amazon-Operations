@@ -139,7 +139,8 @@ function buildDateViewIndexes(model) {
 
 export function buildDateView(model, selectedDate) {
   if (!model?.historyRecords?.length || !selectedDate) {
-    return { rows: model?.dashboardRows || [], metrics: model?.metrics || {} };
+    const rows = model?.dashboardRows || [];
+    return { rows, metrics: { ...(model?.metrics || {}), unrankedSp: rows.filter((item) => item.spRank == null).length } };
   }
   if (model && typeof model === 'object') {
     const cached = dateViewCache.get(model);
@@ -216,6 +217,7 @@ export function buildDateView(model, selectedDate) {
       naturalUp: rows.filter((item) => item.naturalDirection === 'up').length,
       spUp: rows.filter((item) => item.spDirection === 'up').length,
       unrankedNatural: rows.filter((item) => item.naturalRank == null).length,
+      unrankedSp: rows.filter((item) => item.spRank == null).length,
     },
   };
   let modelCache = dateViewCache.get(model);

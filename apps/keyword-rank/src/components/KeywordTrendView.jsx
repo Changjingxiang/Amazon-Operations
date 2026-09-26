@@ -144,7 +144,7 @@ export default function KeywordTrendView({ model, row, onBack }) {
       yAxis: [
         { type: 'value', inverse: true, name: '排名', min: 1, axisLabel: { color: '#1688a8' }, splitLine: { lineStyle: { color: '#edf1f4' } } },
         { type: 'value', inverse: true, name: 'ABA', position: 'right', offset: 0, axisLabel: { color: '#7566b8' }, splitLine: { show: false } },
-        { type: 'value', name: '流量占比', position: 'right', offset: 52, min: 0, axisLabel: { color: '#c28a1c', formatter: (value) => `${(value * 100).toFixed(0)}%` }, splitLine: { show: false } },
+        { type: 'value', name: '流量占比', position: 'right', offset: 52, min: 0, axisLabel: { color: '#946500', formatter: (value) => `${Number((value * 100).toPrecision(3))}%` }, splitLine: { show: false } },
       ],
       dataZoom: [{ type: 'slider', bottom: 22, height: 18 }, { type: 'inside' }],
       series: [

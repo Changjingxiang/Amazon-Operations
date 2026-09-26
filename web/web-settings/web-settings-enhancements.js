@@ -392,7 +392,7 @@
   }
 
   function installAbaImport() {
-    const modal = document.querySelector('.settings-modal');
+    const modal = document.querySelector('.settings-modal:not(.aba-import-dialog)');
     // The React source now owns the same import section in both Electron and
     // the web build.  Keep this enhancer as a compatibility fallback for an
     // older bundle, but never inject a second section into the new UI.
@@ -1079,7 +1079,7 @@
   }
 
   function installCompetitorSettings() {
-    const modal = document.querySelector('.settings-modal');
+    const modal = document.querySelector('.settings-modal:not(.aba-import-dialog)');
     if (!modal || modal.querySelector(`[${COMPETITOR_SETTINGS_ATTR}]`)) return;
     const section = document.createElement('section');
     section.className = 'settings-competitor-panel';

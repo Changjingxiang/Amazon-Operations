@@ -70,9 +70,9 @@ export default function AbaImportSection({ imports = [], defaultCountry = 'CA', 
       <label className="settings-aba-file">月 ABA CSV 文件<input ref={inputRef} type="file" accept=".csv,text/csv" onChange={(event) => setFile(event.target.files?.[0] || null)} /></label>
       <button type="button" className="settings-aba-import-button" disabled={submitting} onClick={submit}>{submitting ? '正在导入…' : '导入月 ABA 文件'}</button>
       <small className={`settings-aba-import-status ${isError ? 'is-error' : ''}`} role="status" aria-live="polite">{status}</small>
-      <div className="settings-aba-imported"><span className="settings-aba-imported-title">已导入月份</span><div className="settings-aba-imported-list">
+      <details className="settings-aba-imported"><summary className="settings-aba-imported-title">已导入月份（{imports.length}）</summary><div className="settings-aba-imported-list">
         {imports.length ? imports.map((item) => <div className="settings-aba-imported-item" key={`${item.countryCode}-${item.month}`}><strong>{item.countryName || item.countryCode} {item.month}</strong><small title={item.fileName || ''}>{Number(item.rowCount || 0).toLocaleString('zh-CN')} 词{item.fileName ? ` · ${item.fileName}` : ''}</small></div>) : <small className="settings-aba-imported-item">尚未导入月 ABA 文件。</small>}
-      </div></div>
+      </div></details>
     </section>
   );
 }

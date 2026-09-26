@@ -13,7 +13,7 @@ export default function SummaryBand({ metrics, latestDate, loadedAt, mode = 'das
           ['关键词', metrics.keywordCount],
           ['关注词', metrics.watchedCount],
           ['SP上升', metrics.spUp, 'coral'],
-          ['未上榜', metrics.unrankedNatural],
+          ['SP未上榜', metrics.unrankedSp],
         ]
       : [
           ['关键词', metrics.keywordCount],
@@ -26,12 +26,12 @@ export default function SummaryBand({ metrics, latestDate, loadedAt, mode = 'das
       <img src={appLogo} alt="" className="summary-logo" />
       {items.map(([label, value, tone]) => (
         <div className="summary-item" key={label}>
-          <span>{label}</span>
+          <span>{label === '关键词' ? (mode === 'dashboard' ? '当前筛选关键词' : '摘要日关键词') : label}</span>
           <strong className={tone || ''}>{value ?? 0}</strong>
         </div>
       ))}
       <div className="summary-item summary-time">
-        <span>最近数据</span>
+        <span>摘要日期</span>
         <strong>{latestDate || '尚未导入'}</strong>
         <small>{loadedAt ? `软件刷新 ${new Date(loadedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` : ''}</small>
       </div>

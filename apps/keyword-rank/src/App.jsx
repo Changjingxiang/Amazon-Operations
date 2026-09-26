@@ -18,6 +18,7 @@ import { EMPTY_FILTER, filterRows } from './components/FilterCascade.jsx';
 import { BusyOverlay, Toast } from './components/Feedback.jsx';
 import WindowTitlebar from './components/WindowTitlebar.jsx';
 import UsageGuide from './components/UsageGuide.jsx';
+import AbaImportSection from './components/AbaImportSection.jsx';
 import { api } from './lib/api.js';
 import { buildDateView } from './lib/format.js';
 import { resetAllColumnWidths } from './lib/columnWidths.jsx';
@@ -116,6 +117,10 @@ export default function App({ onStartupSettled, startupReady = true }) {
   const [comparisonFocus, setComparisonFocus] = useState(null);
   const [trendRow, setTrendRow] = useState(null);
   const [comparisonScroll, setComparisonScroll] = useState(null);
+  const [matrixFocused, setMatrixFocused] = useState(false);
+  const [comparisonDisplayCount, setComparisonDisplayCount] = useState(0);
+  const [overviewCollapsed, setOverviewCollapsed] = useState(() => { try { return localStorage.getItem('keyword-tracker:overview:collapsed') === 'true'; } catch { return false; } });
+  const [abaImportOpen, setAbaImportOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [viewFilters, setViewFilters] = useState(() => initialViewFilters());
   const [watchOpen, setWatchOpen] = useState(false);
@@ -133,7 +138,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
   };
   useEffect(() => {
     const close = () => { setWebTool(null); setSettingsOpen(false); };
-    const key = (event) => { if (event.key === 'Escape') closeWebTools(); };
+    const key = (event) => { if (event.key === 'Escape' && !event.defaultPrevented) { closeWebTools(); setAbaImportOpen(false); setMatrixFocused(false); } };
     window.addEventListener('web-data-manager-closed', close);
     window.addEventListener('keydown', key);
     return () => { window.removeEventListener('web-data-manager-closed', close); window.removeEventListener('keydown', key); };
@@ -224,7 +229,6 @@ export default function App({ onStartupSettled, startupReady = true }) {
   const abaYear = Number(viewFilters.aba.abaYear || model?.selectedYear);
   const abaModel = useMemo(() => model ? { ...model, selectedYear: abaYear, abaRows: model.abaRowsByYear?.[abaYear] || model.abaRows } : null, [model, abaYear]);
   const abaRows = useMemo(() => filterRows(abaModel?.abaRows, viewFilters.aba), [abaModel, viewFilters.aba]);
-  const comparisonRows = useMemo(() => filterRows(model?.matrixRows, viewFilters.comparison), [model?.matrixRows, viewFilters.comparison]);
   const filteredMetrics = useMemo(() => ({
     ...dateView.metrics,
     keywordCount: dashboardRows.length,
@@ -232,15 +236,17 @@ export default function App({ onStartupSettled, startupReady = true }) {
     naturalUp: dashboardRows.filter((row) => row.naturalDirection === 'up').length,
     spUp: dashboardRows.filter((row) => row.spDirection === 'up').length,
     unrankedNatural: dashboardRows.filter((row) => row.naturalRank == null).length,
+    unrankedSp: dashboardRows.filter((row) => row.spRank == null).length,
   }), [dateView.metrics, dashboardRows]);
   const activeViewCount = activeTab === 'dashboard' ? dashboardRows.length
     : activeTab === 'natural' ? naturalRows.length
       : activeTab === 'sp' ? spRows.length
         : activeTab === 'aba' ? abaRows.length
-          : activeTab === 'comparison' ? comparisonRows.length
+          : activeTab === 'comparison' ? comparisonDisplayCount
             : dateView.rows.length;
 
   const updateViewFilter = (view, next) => {
+    if (['natural', 'sp', 'comparison'].includes(view)) setComparisonScroll(null);
     setViewFilters((current) => {
       const updated = { ...current, [view]: { ...EMPTY_FILTER, ...(next || {}) } };
       if (['natural', 'sp', 'comparison'].includes(view)) {
@@ -437,10 +443,11 @@ export default function App({ onStartupSettled, startupReady = true }) {
     setActiveTab('comparison');
   };
 
-  const openKeywordTrend = (row) => {
+  const openKeywordTrend = (row, category) => {
     const scroll = document.querySelector('.comparison-scroll');
-    const tableScroll = document.querySelector('.comparison-table-scroll');
-    setComparisonScroll({ top: scroll?.scrollTop || 0, left: tableScroll?.scrollLeft || 0 });
+    const section = [...(scroll?.querySelectorAll('[data-comparison-section]') || [])].find((node) => node.dataset.comparisonSection === category);
+    const tableScroll = (section || scroll)?.querySelector('.comparison-table-scroll');
+    setComparisonScroll({ top: scroll?.scrollTop || 0, left: tableScroll?.scrollLeft || 0, keyword: row.keyword, category });
     setTrendRow(row);
   };
 
@@ -537,7 +544,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
           onOpenFolder={() => api.openToolFolder()}
           onSettings={() => setSettingsOpen(true)}
         />
-        <main className="main-area">
+        <main className={`main-area ${['natural', 'sp', 'comparison'].includes(activeTab) ? 'matrix-workspace' : ''} ${activeTab === 'comparison' && matrixFocused && !trendRow ? 'matrix-focused' : ''}`}>
           <Header
             model={model}
             activeTab={activeTab}
@@ -561,7 +568,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
                 loadedAt={data.loadedAt}
                 mode={activeTab}
               />
-              {activeTab === 'dashboard' && <DashboardComparisonOverview rows={dashboardRows} selectedDate={selectedDate || model.latestDate} onDetails={openComparison} />}
+              {activeTab === 'dashboard' && <><div className="overview-toggle-bar"><strong>自然 / SP 对比总览</strong><button type="button" aria-expanded={!overviewCollapsed} onClick={() => setOverviewCollapsed((current) => { try { localStorage.setItem('keyword-tracker:overview:collapsed', String(!current)); } catch {} return !current; })}>{overviewCollapsed ? '展开总览' : '收起总览，查看更多关键词'}</button></div>{!overviewCollapsed && <DashboardComparisonOverview rows={dashboardRows} selectedDate={selectedDate || model.latestDate} onDetails={openComparison} />}</>}
             </>
           )}
           <div className={`content-area view-transition ${trendRow ? 'content-area-trend' : ''}`}>
@@ -569,12 +576,12 @@ export default function App({ onStartupSettled, startupReady = true }) {
             {!trendRow && activeTab === 'dashboard' && <DashboardView  rows={dashboardRows} sourceRows={dateView.rows} model={model} filters={viewFilters.dashboard} onFiltersChange={(next) => updateViewFilter('dashboard', next)} onToggleWatch={toggleWatch} onManage={() => setWatchOpen(true)} onOpenTrend={openKeywordTrend} />}
             {!trendRow && activeTab === 'natural' && <MatrixView model={model} pendingAnnotationCells={pendingAnnotationCells} metric="natural" rows={naturalRows} filters={viewFilters.natural} onFiltersChange={(next) => updateViewFilter('natural', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={(payload) => saveAnnotation({ ...payload, metric: 'natural' })} />}
             {!trendRow && activeTab === 'sp' && <MatrixView  model={model} pendingAnnotationCells={pendingAnnotationCells} metric="sp" rows={spRows} filters={viewFilters.sp} onFiltersChange={(next) => updateViewFilter('sp', next)} selectedDate={selectedDate} onToggleWatch={toggleWatch} onSetAnnotation={saveAnnotation} />}
-            {!trendRow && activeTab === 'comparison' && <ComparisonMatrixView model={model} rows={model.matrixRows} filters={viewFilters.comparison} onFiltersChange={(next) => updateViewFilter('comparison', next)} selectedDate={selectedDate} focusSection={comparisonFocus} onFocusHandled={() => setComparisonFocus(null)} onToggleWatch={toggleWatch} onOpenTrend={openKeywordTrend} restoreScroll={comparisonScroll} />}
-            {!trendRow && activeTab === 'aba' && <ABAView model={abaModel} rows={abaRows} filters={viewFilters.aba} onFiltersChange={(next) => updateViewFilter('aba', next)} onToggleWatch={toggleWatch} />}
+            {!trendRow && activeTab === 'comparison' && <ComparisonMatrixView model={model} rows={model.matrixRows} filters={viewFilters.comparison} onFiltersChange={(next) => updateViewFilter('comparison', next)} selectedDate={selectedDate} focusSection={comparisonFocus} onFocusHandled={() => setComparisonFocus(null)} onToggleWatch={toggleWatch} onOpenTrend={openKeywordTrend} restoreScroll={comparisonScroll} focused={matrixFocused} onFocusToggle={() => setMatrixFocused((value) => !value)} onDisplayCount={setComparisonDisplayCount} />}
+            {!trendRow && activeTab === 'aba' && <ABAView model={abaModel} rows={abaRows} filters={viewFilters.aba} onFiltersChange={(next) => updateViewFilter('aba', next)} onToggleWatch={toggleWatch} onImport={() => setAbaImportOpen(true)} />}
             {!trendRow && activeTab === 'history' && <HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} />}
           </div>
           <footer className="statusbar">
-            <span role="status">{pendingWatches > 0 ? `正在后台保存关注（${pendingWatches}）…` : pendingAnnotations > 0 ? `正在后台保存标注（${pendingAnnotations}）…` : '本地数据已同步'} · {activeViewCount} 个关键词 · 源文件 {data.sourceCount} 个</span>
+            <span role="status">{pendingWatches > 0 ? `正在后台保存关注（${pendingWatches}）…` : pendingAnnotations > 0 ? `正在后台保存标注（${pendingAnnotations}）…` : '本地数据已保存'} · {activeTab === 'history' ? '历史记录' : trendRow ? '关键词趋势' : `当前显示 ${activeViewCount} 个关键词`} · 源文件 {data.sourceCount} 个</span>
             <span><b className="legend-up">红色＝上升</b><b className="legend-down">绿色＝下降</b><b className="legend-none">灰色＝未上榜</b></span>
           </footer>
         </main>
@@ -587,6 +594,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
           onSave={saveWatch}
         />
         <AddModelModal open={addModelOpen} onClose={() => setAddModelOpen(false)} onSubmit={addModel} />
+        {abaImportOpen && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setAbaImportOpen(false); }}><section className="settings-modal aba-import-dialog" role="dialog" aria-modal="true" aria-label="导入月 ABA CSV"><div className="drawer-header"><h2>导入月 ABA CSV</h2><button type="button" autoFocus onClick={() => setAbaImportOpen(false)} aria-label="关闭 ABA 导入">×</button></div><div className="settings-modal-scroll"><AbaImportSection imports={data.abaMonthlyImports || []} defaultCountry={model.countryCode || 'CA'} defaultYear={abaYear} defaultMonth={Number((selectedDate || model.latestDate)?.slice(5, 7)) || 1} onImport={importAbaMonthlyCsv} /></div></section></div>}
         <IconPickerModal model={iconModel} onClose={() => setIconModel(null)} onSelect={saveModelIcon} />
         {webTool === 'history' && <div className="web-tool-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeWebTools(); }}><section className="web-tool-panel" role="dialog" aria-label="导入日志"><div className="drawer-header"><h2>导入日志</h2><button onClick={closeWebTools} aria-label="关闭导入日志">×</button></div><HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} /></section></div>}
         <SettingsModal open={settingsOpen} onClose={closeWebTools} onResetWidths={resetWidths} models={data.models} activeModel={model} onDeleteModel={deleteModel} onAddModel={() => setAddModelOpen(true)} onSetCountry={setModelCountry} onRenameModel={renameModel} onChangeModelAsin={changeModelAsin} onReleaseModelAlias={releaseModelAlias} abaMonthlyImports={data.abaMonthlyImports} onImportAba={importAbaMonthlyCsv} />

@@ -894,3 +894,68 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .product-image-preview.is-visible { animation: product-gallery-in .2s ease both; }
 .product-gallery { transform-origin: top left; }
 @media (prefers-reduced-motion: reduce) { .product-image-preview.is-visible { animation-duration: .01ms; } }
+
+/* Dense working views: keep the table as the primary workspace. */
+.date-control-label { font-size: 11px; color: #52617b; white-space: nowrap; }
+.matrix-workspace .topbar { min-height: 76px; padding-block: 10px; }
+.matrix-workspace .summary-band { flex-basis: 48px; margin-block: 6px; padding: 5px 12px; border-radius: 8px; }
+.matrix-workspace .summary-logo { display: none; }
+.matrix-workspace .summary-item { flex-direction: row; align-items: center; gap: 10px; padding: 1px 15px; }
+.matrix-workspace .summary-item:first-of-type { border-left: 0; }
+.matrix-workspace .summary-item strong { font-size: 20px; }
+.matrix-workspace .summary-time { gap: 8px; min-width: 0; }
+.matrix-workspace .summary-time strong { font-size: 12px; margin-top: 0; }
+.matrix-workspace .summary-time small { display: none; }
+.matrix-focused > .topbar, .matrix-focused > .summary-band { display: none; }
+.matrix-focused .content-area { margin-top: 8px; }
+.comparison-panel .comparison-note { min-height: 44px; padding: 5px 12px; gap: 12px; background: #fff; }
+.comparison-panel .comparison-note > .cascade-filter { margin-left: auto; }
+.comparison-panel .comparison-note > .comparison-view-actions { display: flex; align-items: center; gap: 6px; }
+.comparison-view-actions button, .overview-toggle-bar button { min-height: 30px; border: 1px solid #bbcbd5; background: white; border-radius: 6px; color: #27475f; padding: 4px 9px; font-size: 12px; display: inline-flex; gap: 5px; align-items: center; white-space: nowrap; }
+.comparison-view-actions button[aria-pressed="true"] { background: #e8f9fb; border-color: #109faf; color: #066f7d; }
+.comparison-period-bar { display: flex; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #dce5ec; background: #f9fcfd; flex-shrink: 0; }
+.comparison-period-bar .matrix-period-select { padding: 6px 12px; border: 0; background: transparent; gap: 8px; }
+.comparison-date-scope { flex: 1; min-width: 260px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 12px; color: #566777; font-size: 11px; }
+.comparison-date-scope strong { color: #24465e; }
+.comparison-date-scope.is-fallback { color: #8c5307; background: #fff6df; border-left: 3px solid #d79820; }
+.comparison-date-scope.is-fallback strong { color: #80500a; }
+.comparison-quick-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; padding: 6px 12px; border-bottom: 1px solid #dce5ec; flex-shrink: 0; }
+.comparison-quick-filters button { border: 1px solid transparent; border-radius: 5px; min-height: 28px; padding: 3px 8px; background: #f0f4f7; font-size: 12px; color: #40596a; }
+.comparison-quick-filters b { margin-left: 4px; font-variant-numeric: tabular-nums; }
+.comparison-quick-filters button[aria-pressed="true"] { background: #e1f6f8; border-color: #1297a8; color: #076b78; }
+.comparison-quick-filters > span { margin-left: auto; font-size: 11px; color: #5e6d7a; }
+.comparison-panel .comparison-section-header { min-height: 36px; height: 36px; padding: 4px 12px; }
+.comparison-section-all .comparison-section-header { display: none; }
+.comparison-table tbody tr:not(.comparison-virtual-spacer) > td { height: 36px; padding-block: 2px; }
+.comparison-section-header h2 { font-size: 13px; }
+.comparison-keyword-cell { padding-right: 32px !important; }
+.comparison-keyword-text { display: block; overflow: hidden; text-overflow: ellipsis; }
+.comparison-trend-button { position: absolute; right: 4px; top: 5px; display: grid; place-items: center; width: 26px; height: 26px; padding: 0; border: 1px solid #c8d9df; border-radius: 5px; background: #f4fafb; color: #267286; }
+.comparison-trend-button:hover { background: #dff5f7; border-color: #168fa2; }
+.comparison-page-marker { font-size: 10px; }
+.comparison-view-actions button:focus-visible, .comparison-quick-filters button:focus-visible, .comparison-trend-button:focus-visible { outline: 2px solid #086f85; outline-offset: 2px; }
+.cascade-popover { display: flex; flex-direction: column; overflow: hidden; }
+.cascade-popover-head, .cascade-popover-foot { flex: 0 0 38px; }
+.cascade-group-list { min-height: 0; flex: 1 1 auto; overflow-y: auto; display: block; overscroll-behavior: contain; }
+.cascade-popover-foot { color: #526577; font-size: 11px; }
+.cascade-popover-foot button { font-size: 12px; min-height: 28px; }
+.cascade-scope-hint { margin: 8px 0; padding: 8px; border-radius: 5px; background: #f0f7fa; color: #4d6476; font-size: 11px; line-height: 1.5; }
+.overview-toggle-bar { margin: 0 16px 6px; display: flex; align-items: center; justify-content: space-between; color: #3c566c; font-size: 12px; flex-shrink: 0; }
+.watch-save-row > span { font-size: 13px; }
+.watch-save-row button:disabled { opacity: .5; cursor: default; }
+.watch-unsaved-prompt { position: sticky; top: 0; z-index: 5; display: grid; gap: 7px; padding: 12px; border: 1px solid #ddb96e; border-radius: 8px; background: #fff7e3; color: #774d15; font-size: 12px; }
+.watch-unsaved-prompt div { display: flex; gap: 8px; }
+.watch-unsaved-prompt button { padding: 6px 9px; border: 1px solid #bda36f; background: white; border-radius: 5px; color: #634716; }
+.aba-import-entry { min-height: 32px; font-size: 12px; }
+.aba-import-dialog { max-width: 620px; }
+.settings-aba-imported summary { cursor: pointer; padding: 8px 0; }
+.settings-aba-imported > summary.settings-aba-imported-title { display: list-item; margin-left: 14px; }
+.settings-aba-imported summary::marker { color: #20788b; }
+@media (max-width: 1100px) {
+  .matrix-workspace .topbar { flex-wrap: wrap; }
+  .matrix-workspace .summary-item { min-width: 0; padding-inline: 8px; gap: 6px; }
+  .matrix-workspace .summary-time { display: none; }
+  .comparison-panel .comparison-note { flex-wrap: wrap; }
+  .comparison-panel .comparison-note > .cascade-filter { margin-left: 0; }
+  .comparison-quick-filters > span { width: 100%; margin-left: 0; }
+}

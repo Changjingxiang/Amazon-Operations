@@ -2520,7 +2520,7 @@
     overlay.innerHTML = `
       <div class="browser-manager-card" role="dialog" aria-modal="true" aria-labelledby="browser-manager-title">
         <button class="browser-manager-close" aria-label="关闭">×</button>
-        <h2 id="browser-manager-title">工具文件夹</h2>
+        <h2 id="browser-manager-title">数据与工具</h2>
         <p>${cloudMode ? '数据保存到云端，同一飞书账号可跨设备读取。可导出 JSON 备份。' : '数据保存在此浏览器的 IndexedDB 中。建议定期导出 JSON 备份。'}</p>
         <div class="browser-manager-actions">
           <button data-action="export">导出数据备份</button>
