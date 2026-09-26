@@ -77,6 +77,13 @@ function findBrowser() {
 async function main() {
   const directory = parseArgs(process.argv.slice(2));
   if (!fs.existsSync(path.join(directory, 'index.html'))) throw new Error(`找不到网页版入口: ${directory}`);
+  // The packaged seed is ~28 MB. It is injected by browser-bridge on the first
+  // run only, so it must not appear as a static tag here: an eager tag would
+  // put the parse cost back on every returning-user launch. This run uses a
+  // fresh browser context, so it is a first run and the seed is still expected
+  // to be present in the page by the time the assertions below read it.
+  const releaseHtml = fs.readFileSync(path.join(directory, 'index.html'), 'utf8');
+  const eagerSeedTags = (releaseHtml.match(/<script[^>]+src=["'][^"']*data\/initial-data\.js/g) || []).length;
   const { server, port } = await startServer(directory);
   const browser = await chromium.launch({ executablePath: findBrowser(), headless: true });
   const page = await browser.newPage({ viewport: { width: 1536, height: 1024 }, deviceScaleFactor: 1 });
@@ -87,7 +94,7 @@ async function main() {
   const pageErrors = [];
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   page.on('pageerror', (error) => pageErrors.push(error.message));
-  const result = { directory, url: `http://127.0.0.1:${port}/`, consoleErrors, pageErrors };
+  const result = { directory, url: `http://127.0.0.1:${port}/`, eagerSeedTags, consoleErrors, pageErrors };
   try {
     await page.goto(result.url, { waitUntil: 'networkidle' });
     await page.waitForSelector('.app-shell', { timeout: 60000 });
@@ -147,6 +154,8 @@ async function main() {
       clientWidth: document.body.clientWidth,
     }));
     result.ok = result.models === result.bridgeFunctions.seedModels
+      && result.eagerSeedTags === 0
+      && result.bridgeFunctions.hasSeed
       && result.tabs.length >= 5
       && Object.values(tabChecks).every(Boolean)
       && result.bridgeFunctions.hasBridge

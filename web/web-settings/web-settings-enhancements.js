@@ -616,9 +616,72 @@
   // Matrix dates are rendered chronologically from left to right.  When a
   // matrix tab opens, move its horizontal scroller to the far right so the
   // latest date is immediately visible while the fixed keyword columns remain
-  // pinned on the left.  The small retry loop waits for the table's columns to
-  // finish layout without repeatedly overriding a user's later manual scroll.
-  const matrixScrollJobs = new WeakMap();
+  // pinned on the left.
+  //
+  // The table is usually still being built when the tab first scans it, so a
+  // single attempt is rarely enough.  Polling with requestAnimationFrame cannot
+  // tell "not laid out yet" apart from "laid out, just slow", so a fixed frame
+  // budget either gives up while columns are still arriving or keeps running
+  // after the user has taken over.  Watch the two boxes that actually change
+  // while the table lays out instead -- the scroller gains its width, the table
+  // gains its date columns -- and align once, on the event that means the
+  // layout is real.
+  const matrixScrollJobs = new WeakMap();   // table -> { scroll, targets }
+  const matrixScrollOwners = new WeakMap(); // observed element -> table
+  const matrixScrollWatched = new Set();    // live tables, so a scan can prune
+  let matrixScrollObserver = null;
+
+  // true = aligned, false = not laid out yet, null = nothing left to do.
+  function matrixScrollReady(table, scroll) {
+    if (!table.isConnected || !scroll.isConnected || scroll.hasAttribute('data-guide-scroll-restored')) return null;
+    const hasRows = table.querySelector('tbody tr');
+    const hasDateHeaders = table.querySelectorAll('thead tr:last-child th').length > 3;
+    if (!scroll.clientWidth || !scroll.clientHeight || !hasRows || !hasDateHeaders) return false;
+    scroll.scrollLeft = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
+    table.setAttribute(MATRIX_LATEST_SCROLL_ATTR, '');
+    return true;
+  }
+
+  function stopWatchingMatrixScroll(table) {
+    const job = matrixScrollJobs.get(table);
+    if (!job) return;
+    matrixScrollJobs.delete(table);
+    matrixScrollWatched.delete(table);
+    if (!matrixScrollObserver) return;
+    job.targets.forEach((target) => {
+      matrixScrollOwners.delete(target);
+      matrixScrollObserver.unobserve(target);
+    });
+  }
+
+  function watchMatrixScroll(table, scroll) {
+    if (matrixScrollJobs.has(table)) return;
+    if (!matrixScrollObserver) {
+      matrixScrollObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const owner = matrixScrollOwners.get(entry.target);
+          if (!owner) continue;
+          const job = matrixScrollJobs.get(owner);
+          // Anything other than "not laid out yet" means this job is finished
+          // or moot; both stop the observation so a detached table is released
+          // rather than kept alive by the observer's reference to it.
+          if (!job || matrixScrollReady(owner, job.scroll) !== false) stopWatchingMatrixScroll(owner);
+        }
+      });
+    }
+    const targets = [scroll, table];
+    matrixScrollJobs.set(table, { scroll, targets });
+    matrixScrollWatched.add(table);
+    targets.forEach((target) => {
+      matrixScrollOwners.set(target, table);
+      matrixScrollObserver.observe(target);
+    });
+  }
+
+  function pruneMatrixScrollJobs() {
+    matrixScrollWatched.forEach((table) => { if (!table.isConnected) stopWatchingMatrixScroll(table); });
+  }
+
   function alignMatrixToLatestDate(table) {
     if (!(table instanceof HTMLTableElement)
       || !table.classList.contains('matrix-table')
@@ -626,26 +689,18 @@
       || table.hasAttribute(MATRIX_LATEST_SCROLL_ATTR)) return;
     const scroll = table.closest('.matrix-scroll');
     if (!(scroll instanceof HTMLElement) || scroll.hasAttribute('data-guide-scroll-restored') || matrixScrollJobs.has(table)) return;
-    const job = { attempts: 0 };
-    matrixScrollJobs.set(table, job);
-    const run = () => {
-      if (!table.isConnected || scroll.hasAttribute('data-guide-scroll-restored')) { matrixScrollJobs.delete(table); return; }
-      const hasRows = table.querySelector('tbody tr');
-      const hasDateHeaders = table.querySelectorAll('thead tr:last-child th').length > 3;
-      if (!scroll.clientWidth || !scroll.clientHeight || !hasRows || !hasDateHeaders) {
-        if (job.attempts++ < 18) { window.requestAnimationFrame(run); return; }
-        matrixScrollJobs.delete(table);
-        return;
-      }
-      const maxScrollLeft = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
-      scroll.scrollLeft = maxScrollLeft;
-      table.setAttribute(MATRIX_LATEST_SCROLL_ATTR, '');
-      matrixScrollJobs.delete(table);
-    };
-    window.requestAnimationFrame(() => window.requestAnimationFrame(run));
+    // One frame lets the current commit finish laying out before the first
+    // attempt; the observer covers everything after that.
+    window.requestAnimationFrame(() => {
+      if (matrixScrollJobs.has(table) || !table.isConnected) return;
+      if (matrixScrollReady(table, scroll) === false) watchMatrixScroll(table, scroll);
+    });
   }
 
   function scanMatrices() {
+    // The observer holds its targets strongly, so drop jobs whose table has
+    // been unmounted before this pass adds any new ones.
+    pruneMatrixScrollJobs();
     document.querySelectorAll('table.matrix-table.matrix-group-table:not(.aba-table)')
       .forEach((table) => {
         alignMatrixToLatestDate(table);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {installBrowserAI} from '../../src/ai/browser-adapter.mjs';
 class Page extends EventTarget{
-  __KEYWORD_TRACKER_SEED__={};out=[];
+  __KEYWORD_WEB_EDITION__=true;out=[];
   postMessage(data){this.out.push(data);}
   deliver(data,source=this){const event=new Event('message');Object.assign(event,{data:{source:'keyword-ai-extension',...data},source});this.dispatchEvent(event);}
 }

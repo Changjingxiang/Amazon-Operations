@@ -17,7 +17,7 @@ export const api = {
     if (typeof bridge?.importAbaMonthlyCsv === 'function') {
       // Browser File objects are consumed by browser-bridge directly.  The
       // Electron preload receives a file path (or opens the native picker).
-      if (window.__KEYWORD_TRACKER_SEED__) return bridge.importAbaMonthlyCsv(payload);
+      if (window.__KEYWORD_WEB_EDITION__) return bridge.importAbaMonthlyCsv(payload);
       return bridge.importAbaMonthlyCsv({
         year: payload.year,
         month: payload.month,

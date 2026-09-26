@@ -67,7 +67,7 @@ function supportsTab(targetModel, tab) {
 // (the Electron context bridge is intentionally left untouched) and is
 // invalidated by enhancement mutations before their normal reload/update path.
 function syncWebBridgeData(data) {
-  if (typeof window === 'undefined' || !data || !window.__KEYWORD_TRACKER_SEED__) return;
+  if (typeof window === 'undefined' || !data || !window.__KEYWORD_WEB_EDITION__) return;
   const bridge = window.keywordTracker;
   if (!bridge || typeof bridge.getData !== 'function') return;
   const cacheKey = '__keywordRankGetDataCache';

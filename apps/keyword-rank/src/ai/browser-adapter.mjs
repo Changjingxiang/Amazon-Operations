@@ -1,7 +1,7 @@
 // Data stays in the existing browser store. Only explicit AI operations cross
 // the user-paired extension -> native messaging channel. Never handle a key.
 export function installBrowserAI(target=window) {
-  if(target.keywordAI||!target.__KEYWORD_TRACKER_SEED__)return;
+  if(target.keywordAI||!target.__KEYWORD_WEB_EDITION__)return;
   let connected=false,lastError='',sequence=0;
   const pending=new Map();
   const guidance='请在浏览器扩展“关键词 AI 安全连接”中点击“连接当前页面”，并核对本机确认窗口。';

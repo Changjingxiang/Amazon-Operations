@@ -3,6 +3,12 @@
 
   window.__KEYWORD_ASSET_BASE__ = new URL('./assets/', document.baseURI).href;
 
+  // Marks this page as a browser-shell build. Both the web release and the AI
+  // edition ship this file; the Electron preload and the Vite dev root do not.
+  // React reads this instead of probing for the seed, which is no longer
+  // guaranteed to exist by the time React runs (see ensureOriginalSeed below).
+  window.__KEYWORD_WEB_EDITION__ = true;
+
   // A major web release opts into its own persistent store. Never clear or
   // silently migrate the old database: users migrate explicitly via JSON.
   const DB_NAME = window.__KEYWORD_STORAGE_NAMESPACE__ || 'keyword-rank-daily-tracker-v181';
@@ -11,10 +17,17 @@
   const STATE_KEY = 'tracker-store';
   const LEGACY_BACKUPS_KEY = 'daily-backups';
   const DAILY_BACKUP_PREFIX = 'daily-backup:';
+  // How many daily snapshots stay in IndexedDB.  Each one is a full copy of the
+  // store, so this number multiplies the database size directly.  It must stay
+  // large enough to cover previousWeekBackup(), which reads last Monday-Sunday:
+  // the oldest date it can ask for is 13 days back, so 14 keeps that window
+  // intact for anyone who opens the app daily.  Raise it for more history at a
+  // proportional cost in storage.
+  const DAILY_BACKUP_KEEP = 14;
   const SCHEMA_VERSION = 4;
   const cloudMode = Boolean(window.__KEYWORD_CLOUD_MODE__) || new URLSearchParams(window.location.search).get('cloud') === '1';
   const cloudStorage = cloudMode && window.parent !== window ? window.parent.__keywordCloudStorage : null;
-  const ORIGINAL_SEED = window.__KEYWORD_TRACKER_SEED__ || {
+  const EMPTY_SEED = {
     schemaVersion: SCHEMA_VERSION,
     configs: [],
     watches: [],
@@ -23,6 +36,46 @@
     abaMonthly: {},
     annotations: [],
   };
+  // The packaged seed is ~28 MB of JSON. Reading it costs a full parse and a
+  // long main-thread task, and it is consumed in exactly one place: the
+  // first-run branch of loadStore(), to create a store that does not exist yet.
+  // Every launch after that was parsing 28 MB only to throw it away, so it is
+  // no longer a <script> tag in the release index.html. It is injected on
+  // demand, and awaited, only when a store actually has to be created.
+  //
+  // fetch() cannot be used here: under file:// the origin is opaque and fetch
+  // is blocked. Dynamic <script> injection is allowed, so that is the vehicle.
+  const SEED_SCRIPT_SRC = new URL('./data/initial-data.js', document.baseURI).href;
+  let originalSeed = window.__KEYWORD_TRACKER_SEED__ || null;
+  let seedPromise = null;
+
+  // Resolves to the packaged seed. If the file is missing or fails to execute
+  // this resolves to an empty seed rather than rejecting, so a damaged release
+  // still opens with blank configuration instead of hanging on a rejected
+  // promise that only surfaces as an empty workspace.
+  //
+  // The AI edition and the test fixtures already have a seed global on the page
+  // before this file runs; that value is adopted without a network request.
+  function ensureOriginalSeed() {
+    if (originalSeed) return Promise.resolve(originalSeed);
+    if (seedPromise) return seedPromise;
+    seedPromise = new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = SEED_SCRIPT_SRC;
+      // Assigned before insertion so a cached file that executes synchronously
+      // on append cannot fire past handlers that are not attached yet.
+      script.onload = () => {
+        originalSeed = window.__KEYWORD_TRACKER_SEED__ || null;
+        resolve(originalSeed || EMPTY_SEED);
+      };
+      script.onerror = () => {
+        console.warn('初始数据 data/initial-data.js 加载失败，将以空白配置启动。');
+        resolve(EMPTY_SEED);
+      };
+      document.head.append(script);
+    });
+    return seedPromise;
+  }
   const INITIAL_ICONS = {
     B0C1CGFWDX: 'bomber-jacket',
     B089B4RBX8: 'bomber-jacket',
@@ -460,8 +513,11 @@
     return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
   }
 
-  async function writeIndexedState(store, expectedUpdatedAt = null, recovery = null) {
-    const db = await openDatabase();
+  // `sharedDb` lets a caller that already has a connection hand it in, so one
+  // save costs one open/close instead of one per write. Without it the helper
+  // opens and closes its own connection, which every other call site still does.
+  async function writeIndexedState(store, expectedUpdatedAt = null, recovery = null, sharedDb = null) {
+    const db = sharedDb || await openDatabase();
     try {
       await new Promise((resolve, reject) => {
         const transaction = db.transaction(STORE_NAME, 'readwrite');
@@ -488,11 +544,11 @@
       indexedDbAvailable = true;
     } catch (error) {
       throw storageError('主数据事务提交', error);
-    } finally { db.close(); }
+    } finally { if (!sharedDb) db.close(); }
   }
 
-  async function writeDailyBackup(store) {
-    const db = await openDatabase();
+  async function writeDailyBackup(store, sharedDb = null) {
+    const db = sharedDb || await openDatabase();
     try {
       const date = localBackupDate();
       await new Promise((resolve, reject) => {
@@ -505,9 +561,9 @@
             const backupKeys = (keysRequest.result || [])
               .filter((keyValue) => typeof keyValue === 'string' && keyValue.startsWith(DAILY_BACKUP_PREFIX))
               .sort();
-            const keep = new Set([...backupKeys, `${DAILY_BACKUP_PREFIX}${date}`].sort().slice(-21));
+            const keep = new Set([...backupKeys, `${DAILY_BACKUP_PREFIX}${date}`].sort().slice(-DAILY_BACKUP_KEEP));
             backupKeys.forEach((keyValue) => { if (!keep.has(keyValue)) records.delete(keyValue); });
-            records.put({ date, savedAt: new Date().toISOString(), store: clone(store) }, `${DAILY_BACKUP_PREFIX}${date}`);
+            records.put({ date, savedAt: new Date().toISOString(), store }, `${DAILY_BACKUP_PREFIX}${date}`);
           } catch (error) {
             writeError = error;
             transaction.abort();
@@ -519,7 +575,7 @@
       });
     } catch (error) {
       throw storageError('自动备份事务提交', error);
-    } finally { db.close(); }
+    } finally { if (!sharedDb) db.close(); }
   }
 
   async function readDailyBackups() {
@@ -553,16 +609,52 @@
   // This function is serialized into a Blob worker so file:// releases work
   // without a server. Only a cell-sized message crosses the UI thread; history
   // and daily backup deserialization/cloning stay inside the worker.
+  //
+  // The worker lives for the whole session and keeps one database connection
+  // open: spawning a worker and opening the database cost more than the write
+  // they were there to perform. Messages are answered one at a time, in arrival
+  // order, which is why the caller serializes them.
   function annotationStorageWorker() {
+    let cachedDb = null;
+    let cachedKey = '';
+    let busy = false;
+    const queue = [];
+
+    const message = (error, fallback) => `${error?.name ? `${error.name}：` : ''}${error?.message || fallback}`;
+
+    function database(data) {
+      const key = `${data.database}@${data.version}`;
+      if (cachedDb && cachedKey === key) return Promise.resolve(cachedDb);
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(data.database, data.version);
+        request.onerror = () => reject(request.error);
+        request.onblocked = () => reject(new DOMException('浏览器数据库正被另一个页面占用，请关闭旧页面后重试。', 'BlockedError'));
+        request.onsuccess = () => {
+          cachedDb = request.result;
+          cachedKey = key;
+          // Let a future version bump replace us instead of blocking on an
+          // open connection that never goes away.
+          cachedDb.onversionchange = () => { cachedDb.close(); cachedDb = null; };
+          resolve(cachedDb);
+        };
+      });
+    }
+
     self.onmessage = ({ data }) => {
-      const message = (error, fallback) => `${error?.name ? `${error.name}：` : ''}${error?.message || fallback}`;
-      const fail = (error) => self.postMessage({ ok: false, error: message(error, '标注写入失败，请重试。') });
-      const request = indexedDB.open(data.database, data.version);
-      request.onerror = () => fail(request.error);
-      request.onsuccess = () => {
-        const db = request.result;
+      queue.push(data);
+      drain();
+    };
+
+    function drain() {
+      if (busy) return;
+      const data = queue.shift();
+      if (!data) return;
+      busy = true;
+      const done = (payload) => { busy = false; self.postMessage({ id: data.id, ...payload }); drain(); };
+      const fail = (error) => done({ ok: false, error: message(error, '标注写入失败，请重试。') });
+      database(data).then((db) => {
         let store;
-        const finishBackup = (backup) => { db.close(); self.postMessage({ ok: true, backup, ...(data.watch ? { watches: store.watches } : {}) }); };
+        const finishBackup = (backup) => done({ ok: true, backup, ...(data.watch ? { watches: store.watches } : {}) });
         const writeBackup = () => {
           let transaction;
           let writeError = null;
@@ -576,7 +668,7 @@
                   .filter((keyValue) => typeof keyValue === 'string' && keyValue.startsWith(data.backupPrefix))
                   .sort();
                 const targetKey = `${data.backupPrefix}${data.backupDate}`;
-                const keep = new Set([...keys, targetKey].sort().slice(-21));
+                const keep = new Set([...keys, targetKey].sort().slice(-(data.backupKeep || 14)));
                 keys.forEach((keyValue) => { if (!keep.has(keyValue)) records.delete(keyValue); });
                 records.put({ date: data.backupDate, savedAt: store.updatedAt, store }, targetKey);
               } catch (error) { writeError = error; transaction.abort(); }
@@ -622,36 +714,84 @@
             }
           };
           transaction.oncomplete = writeBackup;
-          transaction.onabort = () => { db.close(); fail(writeError || transaction.error); };
+          transaction.onabort = () => fail(writeError || transaction.error);
           transaction.onerror = () => {}; // onabort reports transaction failures once.
         } catch (error) {
-          db.close();
           fail(error);
         }
-      };
+      }, fail);
     };
   }
 
+  // Beyond this the save is treated as lost and the worker is replaced. Long
+  // enough that a real save on a slow disk never trips it; short enough that a
+  // wedged worker cannot silently stop every later annotation from saving.
+  const ANNOTATION_WORKER_TIMEOUT_MS = 30000;
+  let annotationWorkerState = null;
+  let annotationWorkerQueue = Promise.resolve();
+  let annotationWorkerSeq = 0;
+
+  function disposeAnnotationWorker() {
+    const state = annotationWorkerState;
+    annotationWorkerState = null;
+    if (!state) return;
+    state.worker.terminate();
+    if (state.url) URL.revokeObjectURL(state.url);
+  }
+
+  function annotationWorker() {
+    if (annotationWorkerState) return annotationWorkerState;
+    const url = URL.createObjectURL(new Blob([`(${annotationStorageWorker.toString()})()`], { type: 'text/javascript' }));
+    const worker = new Worker(url);
+    annotationWorkerState = { worker, url };
+    // A worker that dies between saves would swallow the next request without
+    // ever answering it, so drop it the moment it reports an error.
+    worker.addEventListener('error', () => { if (annotationWorkerState?.worker === worker) disposeAnnotationWorker(); });
+    return annotationWorkerState;
+  }
+
+  // Saves run strictly one at a time: the worker holds a single connection and
+  // a single transaction slot, so overlapping requests would interleave.
   function writeAnnotationInWorker(annotation, asins, storageRevision, watch = null, expectedRevision = null, updatedAt = annotation?.updatedAt) {
-    return new Promise((resolve, reject) => {
+    const run = () => new Promise((resolve, reject) => {
       let worker;
-      let url;
+      try { ({ worker } = annotationWorker()); } catch (error) { reject(error); return; }
+      const id = ++annotationWorkerSeq;
+      let timer = null;
       const finish = (error, value) => {
-        worker?.terminate();
-        if (url) URL.revokeObjectURL(url);
+        if (timer) window.clearTimeout(timer);
+        worker.removeEventListener('message', onMessage);
+        worker.removeEventListener('error', onError);
+        worker.removeEventListener('messageerror', onMessageError);
         if (error) reject(error);
         else resolve(value);
       };
-      try {
-        url = URL.createObjectURL(new Blob([`(${annotationStorageWorker.toString()})()`], { type: 'text/javascript' }));
-        worker = new Worker(url);
-        worker.onmessage = ({ data }) => finish(data.ok ? null : new Error(data.error), data);
-        worker.onerror = (event) => { event.preventDefault(); finish(new Error(event.message || '标注保存线程无法启动。')); };
-        worker.onmessageerror = () => finish(new Error('标注保存结果读取失败，请重试。'));
-        worker.postMessage({ database: DB_NAME, version: DB_VERSION, objectStore: STORE_NAME,
-          stateKey: STATE_KEY, annotation, asins, storageRevision, watch, expectedRevision, updatedAt, backupDate: localBackupDate(), backupPrefix: DAILY_BACKUP_PREFIX });
-      } catch (error) { finish(error); }
+      const onMessage = ({ data }) => {
+        if (!data || data.id !== id) return;
+        finish(data.ok ? null : new Error(data.error), data);
+      };
+      const onError = (event) => {
+        event.preventDefault();
+        disposeAnnotationWorker();
+        finish(new Error(event.message || '标注保存线程无法启动。'));
+      };
+      const onMessageError = () => {
+        disposeAnnotationWorker();
+        finish(new Error('标注保存结果读取失败，请重试。'));
+      };
+      worker.addEventListener('message', onMessage);
+      worker.addEventListener('error', onError);
+      worker.addEventListener('messageerror', onMessageError);
+      timer = window.setTimeout(() => {
+        disposeAnnotationWorker();
+        finish(new Error('标注保存超时，请重试。'));
+      }, ANNOTATION_WORKER_TIMEOUT_MS);
+      worker.postMessage({ id, database: DB_NAME, version: DB_VERSION, objectStore: STORE_NAME,
+        stateKey: STATE_KEY, annotation, asins, storageRevision, watch, expectedRevision, updatedAt, backupDate: localBackupDate(), backupPrefix: DAILY_BACKUP_PREFIX, backupKeep: DAILY_BACKUP_KEEP });
     });
+    const scheduled = annotationWorkerQueue.then(run, run);
+    annotationWorkerQueue = scheduled.catch(() => {});
+    return scheduled;
   }
 
   async function previousWeekBackup() {
@@ -763,13 +903,18 @@
   }
 
   async function persistMainAndBackup(next, expectedUpdatedAt, recovery = null) {
+    // One connection for the whole persist. Two opens per save was pure
+    // overhead, and on a ~28 MB store the open plus the first transaction is a
+    // measurable slice of the save.
+    const sharedDb = await openDatabase().catch(() => null);
     try {
-      await writeIndexedState(next, expectedUpdatedAt, recovery);
+      await writeIndexedState(next, expectedUpdatedAt, recovery, sharedDb);
     } catch (error) {
       indexedDbAvailable = false;
       pendingSave = { store: next, expectedUpdatedAt, recovery };
       lastPersistenceStatus = { main: { ok: false, error: persistenceMessage(error) }, backup: { ok: false, skipped: true } };
       showUnsavedNotice(error);
+      if (sharedDb) sharedDb.close();
       throw error;
     }
     indexedDbAvailable = true;
@@ -777,12 +922,14 @@
     if (!memoryStore || text(memoryStore.storageRevision || memoryStore.updatedAt) === text(next.storageRevision || next.updatedAt)) memoryStore = next;
     storageChannel?.postMessage({ updatedAt: next.updatedAt, storageRevision: next.storageRevision });
     try {
-      await writeDailyBackup(next);
+      await writeDailyBackup(next, sharedDb);
       lastPersistenceStatus = { main: { ok: true }, backup: { ok: true } };
     } catch (error) {
       lastPersistenceStatus = { main: { ok: true }, backup: { ok: false, error: persistenceMessage(error) } };
       console.warn('主数据已保存，但自动备份失败。', error);
       showBackupNotice(error);
+    } finally {
+      if (sharedDb) sharedDb.close();
     }
     return lastPersistenceStatus;
   }
@@ -816,7 +963,7 @@
     if (cloudMode) {
       if (!cloudStorage) throw new Error('云端连接未建立，请从飞书云端工作台入口打开。');
       const savedCloud = await cloudStorage.read();
-      const next = normalizeStore(savedCloud || clone(ORIGINAL_SEED));
+      const next = normalizeStore(savedCloud || clone(await ensureOriginalSeed()));
       if (!savedCloud) await cloudStorage.write(next);
       memoryStore = next;
       return clone(memoryStore);
@@ -844,7 +991,10 @@
       }
       return memoryStore;
     }
-    const initial = normalizeStore(clone(ORIGINAL_SEED));
+    // First run: no store exists, so this is the one launch that pays for the
+    // packaged seed. Awaited here rather than at module scope so a returning
+    // user never downloads or parses it.
+    const initial = normalizeStore(clone(await ensureOriginalSeed()));
     const next = normalizeStore({ ...initial, updatedAt: new Date().toISOString(), storageRevision: newStorageRevision() });
     await persistMainAndBackup(next, null);
     return memoryStore;
