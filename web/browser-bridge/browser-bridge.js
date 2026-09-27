@@ -43,9 +43,11 @@
   // no longer a <script> tag in the release index.html. It is injected on
   // demand, and awaited, only when a store actually has to be created.
   //
-  // fetch() cannot be used here: under file:// the origin is opaque and fetch
-  // is blocked. Dynamic <script> injection is allowed, so that is the vehicle.
+  // file:// cannot fetch the compressed seed, so local copies keep using script
+  // injection. Hosted copies use the same JSON in a small gzip asset so static
+  // hosts with a per-file size limit can still provide the full first-run data.
   const SEED_SCRIPT_SRC = new URL('./data/initial-data.js', document.baseURI).href;
+  const SEED_GZIP_SRC = new URL('./data/initial-data.json.gz', document.baseURI).href;
   let originalSeed = window.__KEYWORD_TRACKER_SEED__ || null;
   let seedPromise = null;
 
@@ -59,7 +61,7 @@
   function ensureOriginalSeed() {
     if (originalSeed) return Promise.resolve(originalSeed);
     if (seedPromise) return seedPromise;
-    seedPromise = new Promise((resolve) => {
+    const loadScriptSeed = () => new Promise((resolve) => {
       const script = document.createElement('script');
       script.src = SEED_SCRIPT_SRC;
       // Assigned before insertion so a cached file that executes synchronously
@@ -74,6 +76,24 @@
       };
       document.head.append(script);
     });
+    if (window.location.protocol !== 'file:' && typeof DecompressionStream === 'function') {
+      seedPromise = fetch(SEED_GZIP_SRC)
+        .then((response) => {
+          if (!response.ok) throw new Error(`初始数据请求失败：${response.status}`);
+          return new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).json();
+        })
+        .then((seed) => {
+          originalSeed = seed;
+          window.__KEYWORD_TRACKER_SEED__ = seed;
+          return seed;
+        })
+        .catch((error) => {
+          console.warn('压缩初始数据加载失败，尝试普通数据文件。', error);
+          return loadScriptSeed();
+        });
+    } else {
+      seedPromise = loadScriptSeed();
+    }
     return seedPromise;
   }
   const INITIAL_ICONS = {

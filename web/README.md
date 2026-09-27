@@ -10,6 +10,7 @@
 | `browser-bridge/current-excel-export.js` | 从当前浏览器数据生成分 Sheet 的 Excel（含图片） | `current-excel-export.js` |
 | `web-settings/web-settings-enhancements.js` | 产品/竞品、父体 ASIN、月 ABA 和矩阵对比增强 | `web-settings-enhancements.js` |
 | `data/initial-data.js` | 随包初始配置、排名和历史数据 | `data/initial-data.js` |
+| `data/initial-data.json.gz` | 托管站点首次使用的压缩初始数据 | `data/initial-data.json.gz` |
 | `apps/keyword-rank/src/assets/apparel-icons/` | 导出 Excel 时内置图片的源文件 | `vendor/apparel-icons.js` |
 | `extensions/sif-batch-reverse-downloader/` | 本地 Chrome/Edge Manifest V3 SIF 扩展 | `sif-batch-reverse-downloader/` |
 | `docs/` | 面向使用者的说明、SOP 与迁移提示 | `docs/` |
@@ -46,7 +47,7 @@ npm run verify:web -- --dir "outputs/temporary-web-release"
 xlsx vendor → browser-bridge.js → Vite bundle → web-settings-enhancements.js
 ```
 
-`data/initial-data.js` 约 28 MB，不再随 `index.html` 静态加载：bridge 在首次使用（IndexedDB 中尚无数据）时动态注入并等待它，之后每次启动都不再读取，因此返回用户的启动不再承担这次解析开销。`browser-bridge.js` 会设置 `window.__KEYWORD_WEB_EDITION__`，React 侧以此判断当前是否为浏览器外壳版本。
+初始数据只在首次使用（IndexedDB 中尚无数据）时加载：直接打开本地文件时使用 `data/initial-data.js`，通过网页地址访问时使用内容相同的 `data/initial-data.json.gz`。之后每次启动都不再读取。`browser-bridge.js` 会设置 `window.__KEYWORD_WEB_EDITION__`，React 侧以此判断当前是否为浏览器外壳版本。
 
 打开发布目录中的 `打开网页版.cmd` 或 `index.html` 即可运行，推荐最新版 Chrome 或 Edge。网页版数据保存于当前浏览器 IndexedDB；首次使用和迁移前请阅读 [`docs/使用说明.md`](docs/使用说明.md)，并按扩展 README 加载 SIF 扩展。
 

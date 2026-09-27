@@ -174,6 +174,8 @@ function packageRelease(targetDir, packageJson, version) {
   requiredFile(path.join(webDir, 'browser-bridge', 'current-excel-export.js'), 'Excel 导出源文件');
   requiredFile(path.join(webDir, 'web-settings', 'web-settings-enhancements.js'), 'web-settings 源文件');
   requiredFile(path.join(webDir, 'data', 'initial-data.js'), '初始数据源文件');
+  requiredFile(path.join(webDir, 'data', 'initial-data.json.gz'), '网页压缩初始数据');
+  requiredFile(path.join(webDir, 'data', 'Amazon关键词每日跟进-v3.0-示例数据.zip'), '网页示例数据压缩包');
   requiredDirectory(path.join(webDir, 'extensions', 'sif-batch-reverse-downloader'), 'SIF 扩展源目录');
   requiredDirectory(path.join(webDir, 'docs'), '网页版说明文档源目录');
   const xlsxVendor = path.join(appDir, 'node_modules', 'xlsx', 'dist', 'xlsx.full.min.js');
@@ -185,7 +187,9 @@ function packageRelease(targetDir, packageJson, version) {
   copyFile(path.join(webDir, 'browser-bridge', 'current-excel-export.js'), path.join(targetDir, 'current-excel-export.js'));
   copyFile(path.join(webDir, 'web-settings', 'web-settings-enhancements.js'), path.join(targetDir, 'web-settings-enhancements.js'));
   copyFile(path.join(webDir, 'data', 'initial-data.js'), path.join(targetDir, 'data', 'initial-data.js'));
+  copyFile(path.join(webDir, 'data', 'initial-data.json.gz'), path.join(targetDir, 'data', 'initial-data.json.gz'));
   copyFile(path.join(webDir, 'data', 'Amazon关键词每日跟进-v3.0-示例数据.json'), path.join(targetDir, 'data', 'Amazon关键词每日跟进-v3.0-示例数据.json'));
+  copyFile(path.join(webDir, 'data', 'Amazon关键词每日跟进-v3.0-示例数据.zip'), path.join(targetDir, 'data', 'Amazon关键词每日跟进-v3.0-示例数据.zip'));
   copyFile(path.join(webDir, 'data', 'example-summary.json'), path.join(targetDir, 'data', 'example-summary.json'));
   copyFile(xlsxVendor, path.join(targetDir, 'vendor', 'xlsx.full.min.js'));
   copyFile(exceljsVendor, path.join(targetDir, 'vendor', 'exceljs.min.js'));
