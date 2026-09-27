@@ -39,7 +39,9 @@ The hosted site and a locally opened web release use separate site storage; data
 
 The complete web package needs no Node.js, Python, or Codex installation. GitHub’s **Code → Download ZIP** downloads source code, not the latest ready-to-use package.
 
-**[Download Amazon关键词每日跟进-v3.0.3.zip](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.3/keyword-rank-web-v3.0.3.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+**[Download Amazon关键词每日跟进-v3.0.3.zip](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.3-matrix-drag-20260927/keyword-rank-web-v3.0.3-matrix-drag-20260927.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+
+The organic, SP, comparison, and ABA matrices now align their columns, support hiding translations, and let you click or drag across keywords to select them. Press Enter to copy one keyword per line; customize the selection shortcut in the top-right Settings menu.
 
 Batch imports now end with a result dialog, including partial failures. Review errors, retry failed items, or confirm and refresh after data has been saved. Unsaved data requires a save retry or backup export before refreshing.
 

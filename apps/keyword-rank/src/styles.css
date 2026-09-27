@@ -479,6 +479,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .settings-modal-scroll { min-height: 0; flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; padding: 1px 3px 2px 1px; scrollbar-color: #a8b2bd #f0f3f5; scrollbar-width: thin; }
 .settings-intro { margin: 12px 0 17px; color: var(--text-muted); font-size: 11px; line-height: 1.65; }
 .settings-reset-button { height: 39px; }
+.settings-matrix-shortcut { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding: 12px; border: 1px solid #d5e5eb; border-radius: 9px; background: #f5fbfd; }
+.settings-matrix-shortcut > div { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.settings-matrix-shortcut strong { color: #173b64; font-size: 12px; }
+.settings-matrix-shortcut small { color: #61798a; font-size: 11px; line-height: 1.5; }
+.settings-matrix-shortcut button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 33px; padding: 5px 9px; border: 1px solid #93b9c5; border-radius: 6px; background: #fff; color: #17677a; font-size: 11px; font-weight: 700; cursor: pointer; }
+.settings-matrix-shortcut button.is-recording { border-color: #099cae; box-shadow: 0 0 0 2px #d5f7fa; }
+.settings-matrix-shortcut button:focus-visible { outline: 2px solid #087e90; outline-offset: 2px; }
+.settings-matrix-shortcut .settings-shortcut-cancel { width: 33px; padding: 0; }
+.settings-matrix-shortcut .settings-shortcut-status { flex-basis: 100%; color: #087e90; }
 .settings-divider { height: 1px; margin: 18px 0 15px; background: var(--line-soft); }
 .settings-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; color: #b53b3b; }
 .settings-section-heading h3 { margin: 0; font-size: 14px; color: #25354d; }
@@ -959,7 +968,7 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .matrix-copy-controls button:focus-visible, .matrix-translation-toggle:focus-visible, .matrix-copy-row-button:focus-visible { outline: 2px solid #086f85; outline-offset: 2px; }
 .matrix-copy-count { font-weight: 800; white-space: nowrap; }
 .matrix-copy-status { max-width: 260px; color: #086f7d; line-height: 1.3; }
-.matrix-copy-selectable { cursor: pointer !important; }
+.matrix-copy-selectable { cursor: pointer !important; user-select: none; -webkit-user-select: none; }
 .matrix-copy-selectable:has(.matrix-copy-row-button[aria-pressed="true"]) { background: #def4f5 !important; }
 .matrix-copy-row-button { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; margin-right: 5px; padding: 0; border: 1px solid #7196a6; border-radius: 3px; background: #fff; color: #fff; cursor: pointer; }
 .matrix-copy-row-button[aria-pressed="true"] { border-color: #087e90; background: #087e90; }

@@ -2,6 +2,7 @@ import { AlertTriangle, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { SIF_COUNTRIES } from '../lib/countries.js';
 import AbaImportSection from './AbaImportSection.jsx';
+import { MatrixCopyShortcutSetting } from './MatrixKeywordCopy.jsx';
 
 const ASIN_PATTERN = /^B0[A-Z0-9]{8}$/;
 
@@ -50,6 +51,7 @@ export default function SettingsModal({ open, onClose, onResetWidths, models = [
           <button type="button" className="secondary-button settings-reset-button" onClick={onResetWidths}>
             <RotateCcw size={17} />还原原表宽度
           </button>
+          <MatrixCopyShortcutSetting />
           <AbaImportSection
             imports={abaMonthlyImports}
             defaultCountry={activeModel?.countryCode || models[0]?.countryCode || 'CA'}

@@ -56,7 +56,7 @@ function rankTitle(value, previous, metric, annotation) {
 // Keep row identity stable while the virtual window advances. The parent still
 // recalculates the small visible window, but rows that remain in that window do
 // not rebuild every date cell or icon on each scroll tick.
-const MatrixRow = memo(function MatrixRow({ row, reviewCells, columns, dateIndexMap, valueField, annotationField, metric, selectedDate, editing, pendingDates, savedDates, onToggleWatch, onBeginAnnotation, onAI, copyActive, copySelected, onToggleCopy, showTranslation }) {
+const MatrixRow = memo(function MatrixRow({ row, reviewCells, columns, dateIndexMap, valueField, annotationField, metric, selectedDate, editing, pendingDates, savedDates, onToggleWatch, onBeginAnnotation, onAI, copyActive, copySelected, onToggleCopy, onConsumeCopyClick, copyCellHandlers, showTranslation }) {
   const values = row[valueField] || [];
   const annotations = annotationField ? (row[annotationField] || []) : [];
   const editingKey = editing ? `${editing.keyword}|${editing.date}` : '';
@@ -67,11 +67,12 @@ const MatrixRow = memo(function MatrixRow({ row, reviewCells, columns, dateIndex
         className={`sticky-col keyword-col ${metric === 'natural' && !copyActive ? 'matrix-keyword-aba-cell' : ''} ${copyActive ? 'matrix-copy-selectable' : ''}`}
         data-text-tooltip={metric === 'sp' ? row.keyword : undefined}
         data-matrix-keyword={row.keyword}
+        data-copy-keyword={copyActive ? row.keyword : undefined}
         aria-label={metric === 'natural' ? `${row.keyword}，悬停查看 ABA 对照` : undefined}
         tabIndex={metric === 'natural' || copyActive ? 0 : undefined}
-        onClick={copyActive ? () => onToggleCopy(row.keyword) : undefined}
-        onKeyDown={copyActive ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onToggleCopy(row.keyword); } } : undefined}
-      >{copyActive && <KeywordCopyButton keyword={row.keyword} selected={copySelected} onToggle={onToggleCopy} />}{onAI ? <><span className="ai-keyword-label">{row.keyword}</span><button className="ai-row-button" title={`AI 分析 ${row.keyword}`} onClick={e => { e.stopPropagation(); onAI(row.keyword); }}>AI</button></> : <span className="matrix-keyword-label">{row.keyword}</span>}</td>{showTranslation && <td className="sticky-col translation-col" data-text-tooltip={row.translation}>{row.translation || '—'}</td>}
+        {...(copyActive ? copyCellHandlers : {})}
+        onKeyDown={copyActive ? (event) => { if (event.key === ' ') { event.preventDefault(); onToggleCopy(row.keyword); } } : undefined}
+      >{copyActive && <KeywordCopyButton keyword={row.keyword} selected={copySelected} onToggle={onToggleCopy} onConsumeClick={onConsumeCopyClick} />}{onAI ? <><span className="ai-keyword-label">{row.keyword}</span><button className="ai-row-button" title={`AI 分析 ${row.keyword}`} onPointerDown={(event) => event.stopPropagation()} onClick={e => { e.stopPropagation(); onAI(row.keyword); }}>AI</button></> : <span className="matrix-keyword-label">{row.keyword}</span>}</td>{showTranslation && <td className="sticky-col translation-col" data-text-tooltip={row.translation}>{row.translation || '—'}</td>}
       {columns.map((column) => {
         if (column.type !== 'date') return <td key={`${row.keyword}-${column.key}`} className="matrix-placeholder" aria-label="折叠分组" />;
         const index = dateIndexMap.get(column.date);
@@ -447,6 +448,8 @@ export default function MatrixView({ reviewState = EMPTY_REVIEWS, onAcceptReview
             copyActive={copy.active}
             copySelected={copy.isSelected(row.keyword)}
             onToggleCopy={copy.toggleKeyword}
+            onConsumeCopyClick={copy.consumePointerClick}
+            copyCellHandlers={copy.cellHandlers}
             showTranslation={showTranslation}
           />)}{renderSpacer(bottomSpacerHeight, 'matrix-virtual-bottom')}</tbody>
         </table>

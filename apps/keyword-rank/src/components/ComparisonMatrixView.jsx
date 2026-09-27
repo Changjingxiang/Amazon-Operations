@@ -120,7 +120,7 @@ const COMPARISON_INITIAL_ROWS = 48;
 const COMPARISON_SECTION_HEADER_HEIGHT = 36;
 const COMPARISON_TABLE_HEADER_HEIGHT = 66;
 
-const ComparisonRow = memo(function ComparisonRow({ category, row, order, dates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, showTranslation, copyActive, copySelected, onToggleCopy }) {
+const ComparisonRow = memo(function ComparisonRow({ category, row, order, dates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, showTranslation, copyActive, copySelected, onToggleCopy, onConsumeCopyClick, copyCellHandlers }) {
   return (
     <tr key={`${category}-${row.keyword}-${order}`} className={row.watched ? 'watched-row' : ''}>
       <td className="comparison-star-cell">
@@ -134,11 +134,14 @@ const ComparisonRow = memo(function ComparisonRow({ category, row, order, dates,
       </td>
       <td
         className={`comparison-keyword-cell comparison-trend-keyword ${copyActive ? 'matrix-copy-selectable' : ''}`}
+        data-copy-keyword={copyActive ? row.keyword : undefined}
         data-text-tooltip={copyActive ? '点击选择复制' : '点击趋势图标，或双击关键词查看趋势'}
         title={copyActive ? '点击选择复制' : '点击趋势图标，或双击关键词查看趋势'}
-        onClick={copyActive ? () => onToggleCopy(row.keyword) : undefined}
+        tabIndex={copyActive ? 0 : undefined}
+        {...(copyActive ? copyCellHandlers : {})}
+        onKeyDown={copyActive ? (event) => { if (event.key === ' ') { event.preventDefault(); onToggleCopy(row.keyword); } } : undefined}
         onDoubleClick={copyActive ? undefined : () => onOpenTrend?.(row, category)}
-      >{copyActive && <KeywordCopyButton keyword={row.keyword} selected={copySelected} onToggle={onToggleCopy} />}<span className="comparison-keyword-text" title={row.keyword}>{row.keyword}</span>{!copyActive && <button type="button" className="comparison-trend-button" data-trend-keyword={row.keyword} aria-label={`查看 ${row.keyword} 趋势`} title="查看趋势" onDoubleClick={(event) => event.stopPropagation()} onClick={() => onOpenTrend?.(row, category)}><ChartNoAxesCombined size={16} /></button>}</td>
+      >{copyActive && <KeywordCopyButton keyword={row.keyword} selected={copySelected} onToggle={onToggleCopy} onConsumeClick={onConsumeCopyClick} />}<span className="comparison-keyword-text" title={row.keyword}>{row.keyword}</span>{!copyActive && <button type="button" className="comparison-trend-button" data-trend-keyword={row.keyword} aria-label={`查看 ${row.keyword} 趋势`} title="查看趋势" onDoubleClick={(event) => event.stopPropagation()} onClick={() => onOpenTrend?.(row, category)}><ChartNoAxesCombined size={16} /></button>}</td>
       {showTranslation && <td className="comparison-translation-cell" data-text-tooltip={row.translation}>{row.translation || '—'}</td>}
       {dates.flatMap((date) => {
         const index = dateIndexMap.get(date);
@@ -251,7 +254,7 @@ function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate
             </thead>
             <tbody>
               {renderSpacer(topSpacerHeight, 'comparison-virtual-top')}
-              {visibleRows.map(({ row, order }) => <ComparisonRow key={`${category}-${row.keyword}-${order}`} category={category} row={row} order={order} dates={dates} dateIndexMap={dateIndexMap} comparisonDate={comparisonDate} onToggleWatch={onToggleWatch} onOpenTrend={onOpenTrend} showTranslation={showTranslation} copyActive={copy.active} copySelected={copy.isSelected(row.keyword)} onToggleCopy={copy.toggleKeyword} />)}
+              {visibleRows.map(({ row, order }) => <ComparisonRow key={`${category}-${row.keyword}-${order}`} category={category} row={row} order={order} dates={dates} dateIndexMap={dateIndexMap} comparisonDate={comparisonDate} onToggleWatch={onToggleWatch} onOpenTrend={onOpenTrend} showTranslation={showTranslation} copyActive={copy.active} copySelected={copy.isSelected(row.keyword)} onToggleCopy={copy.toggleKeyword} onConsumeCopyClick={copy.consumePointerClick} copyCellHandlers={copy.cellHandlers} />)}
               {renderSpacer(bottomSpacerHeight, 'comparison-virtual-bottom')}
             </tbody>
           </table>
