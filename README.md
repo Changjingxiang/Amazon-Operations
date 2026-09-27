@@ -6,10 +6,10 @@
 
 **简体中文** · [English](README.en.md)
 
-> 关键词排名每日跟进 v3.0：把自然排名、SP、ABA 与竞品变化，整理成一张可追踪的运营工作台。
+> 关键词排名每日跟进 v3.0.3：把自然排名、SP、ABA 与竞品变化，整理成一张可追踪的运营工作台。
 
 > [!TIP]
-> ## v3.0 在线体验 · ChatGPT 站点版
+> ## v3.0.3 在线体验 · ChatGPT 站点版
 >
 > **[立即打开关键词跟进工作台 →](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**
 >
@@ -27,7 +27,7 @@
 本次矩阵更新修复了列错位；自然、SP、对比和 ABA 矩阵均可收起翻译，并可点选或按住鼠标左键拖选关键词。按 Enter 复制所选关键词，每词一行；多选快捷键可在右上角“设置”中自定义。
 
 <p align="center">
-  <a href="https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/">在线体验 v3.0</a> ·
+  <a href="https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/">在线体验 v3.0.3</a> ·
   <a href="web/docs/使用说明.md">网页版使用说明</a> ·
   <a href="#快速开始">快速开始</a> ·
   <a href="web/extensions/sif-batch-reverse-downloader/README.md">SIF 扩展</a> ·
@@ -49,7 +49,7 @@
 
 ### 直接在线体验（推荐先看这里）
 
-1. 打开 **[v3.0 ChatGPT 站点版](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**，无需下载或启动本地程序。
+1. 打开 **[v3.0.3 ChatGPT 站点版](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**，无需下载或启动本地程序。
 2. 从「使用指南」熟悉操作，查看示例产品的自然/SP 矩阵、竞品排名与 ABA 月榜。
 3. 日常使用前检查产品与站点设置；需要从旧版本迁移时，先导出 JSON 备份，再参考「使用指南 → 从老版本迁移数据」。
 
@@ -132,10 +132,10 @@ npm run dist:win
 npm run release:web
 
 # 对指定发布目录做浏览器 smoke check
-npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0"
+npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0.3"
 ```
 
-`npm run release:web` 始终从 `apps/keyword-rank` 和 `web/` 重新构建，并生成 `outputs/关键词排名每日跟进网页版-v<版本>`。目标目录已存在时命令会安全退出；确认要替换同一版本时才使用：
+`npm run release:web` 始终从 `apps/keyword-rank` 和 `web/` 重新构建，并生成 `outputs/Amazon关键词每日跟进-v<版本>`。目标目录已存在时命令会安全退出；确认要替换同一版本时才使用：
 
 ```powershell
 npm run release:web -- --force
@@ -176,12 +176,18 @@ npm run release:web -- --force
 <details>
 <summary>展开查看近期更新</summary>
 
+### 最新更新 · v3.0.3（2026-09-27）
+
+- 修复自然、SP、对比和 ABA 矩阵的列错位；四个矩阵均支持收起翻译。
+- 四个矩阵均支持点选或按住鼠标左键拖选关键词，按 Enter 逐行复制；多选快捷键可在右上角“设置”中自定义。
+- “导出当前 Excel”使用当前浏览器保存的数据，并按产品及竞品关联词筛选 ABA 月榜。详见 [v3.0.3 更新说明](docs/releases/web-v3.0.3.md)及[最新发布页](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)。
+
 ### 在线站点上线（2026-09-22）
 
 - 新增 [v3.0 ChatGPT 站点版](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)：浏览器直接体验关键词跟进工作台。
 - 首页提供在线体验与本地发布包两个入口，并说明跨入口的数据迁移方式。
 
-### 最新更新 · v3.0（2026-09-22）
+### 此前更新 · v3.0（2026-09-22）
 
 - 发布 Amazon关键词每日跟进-v3.0-迁移教学版-正式版，附带 L23M911 薄夹克与 3 个竞品示例。
 - 提供 20 步场景教学、离线 SIF 插件安装说明和老版本 JSON 备份迁移教学。

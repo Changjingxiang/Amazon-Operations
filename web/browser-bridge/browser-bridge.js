@@ -2464,7 +2464,7 @@
   async function exportBackup() {
     const store = pendingSave?.store || await ensureStore();
     const date = new Date().toISOString().slice(0, 10);
-    downloadBlob(`${JSON.stringify(store)}\n`, `Amazon关键词每日跟进-v3.0-数据_${date}.json`, 'application/json;charset=utf-8');
+    downloadBlob(`${JSON.stringify(store)}\n`, `Amazon关键词每日跟进-v3.0.3-数据_${date}.json`, 'application/json;charset=utf-8');
   }
 
   async function exportCurrentExcel() {

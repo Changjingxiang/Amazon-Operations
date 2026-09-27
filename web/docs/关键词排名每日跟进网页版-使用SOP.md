@@ -1,11 +1,11 @@
-# Amazon关键词每日跟进-v3.0 使用 SOP
+# Amazon关键词每日跟进-v3.0.3 使用 SOP
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 软件名称 | Amazon关键词每日跟进 |
-| 软件版本 | v3.0 |
+| 软件版本 | v3.0.3 |
 | 适用人员 | 亚马逊运营、广告投放及关键词排名跟进人员 |
 | 推荐浏览器 | Microsoft Edge、Google Chrome 最新版 |
 | 数据保存位置 | 当前电脑、当前浏览器的 IndexedDB 本地数据库 |
@@ -519,7 +519,7 @@ Amazon关键词每日跟进-v3.0-数据_YYYY-MM-DD_操作人.json
 
 向新使用者发送以下文件：
 
-1. `Amazon关键词每日跟进-v3.0.zip`；
+1. [v3.0.3 最新发布包](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)中的 ZIP；
 2. 本 SOP；
 3. 如需同步最新进度，再附上最新导出的 JSON 数据备份。
 

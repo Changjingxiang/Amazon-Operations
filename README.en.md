@@ -6,10 +6,10 @@
 
 [简体中文](README.md) · **English**
 
-Keyword rank tracker v3.0: a local-first workspace for daily organic rankings, sponsored product (SP) rankings, ABA trends, and competitor comparisons. The application interface is currently in Chinese.
+Keyword rank tracker v3.0.3: a local-first workspace for daily organic rankings, sponsored product (SP) rankings, ABA trends, and competitor comparisons. The application interface is currently in Chinese.
 
 > [!TIP]
-> ## Try v3.0 online · Hosted on ChatGPT Sites
+> ## Try v3.0.3 online · Hosted on ChatGPT Sites
 >
 > **[Open the keyword tracking workspace →](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**
 >
@@ -29,7 +29,7 @@ Keyword rank tracker v3.0: a local-first workspace for daily organic rankings, s
 
 ## Quick start: try it online
 
-1. Open the **[v3.0 ChatGPT-hosted site](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**. No download or local launcher is needed.
+1. Open the **[v3.0.3 ChatGPT-hosted site](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**. No download or local launcher is needed.
 2. Use the Chinese-language usage guide and explore the example product, ranking matrices, competitors, and ABA monthly view.
 3. Before using your own data, check product and marketplace settings. To migrate, export a JSON backup from your existing version and follow the migration guide.
 
@@ -87,7 +87,7 @@ npm run dist:win
 npm run release:web
 
 # Check a generated web release
-npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0"
+npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0.3"
 ```
 
 Use `npm run release:web -- --output outputs/my-release` for a unique output directory. Existing release directories are not overwritten by default. Use `--force` only when intentionally replacing a release.
@@ -129,12 +129,18 @@ The following detailed guides are currently in Chinese:
 <details>
 <summary>Show recent updates</summary>
 
+### Latest updates — v3.0.3 · September 27, 2026
+
+- Fixed column alignment in the organic, SP, comparison, and ABA matrices. Translation can be collapsed in each matrix.
+- Select keywords by clicking or dragging with the left mouse button, then press Enter to copy one keyword per line. The selection shortcut is customizable in Settings.
+- The current Excel export uses saved browser data and filters ABA terms to each product and its competitors. See the [v3.0.3 notes](docs/releases/web-v3.0.3.md) and [latest release](https://github.com/Changjingxiang/Amazon-Operations/releases/latest).
+
 ### Online site launch — September 22, 2026
 
 - Try the [v3.0 ChatGPT-hosted site](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/) directly in your browser.
 - The README now offers online and downloadable entry points, with backup guidance for moving between them.
 
-### Latest updates — v3.0 · September 22, 2026
+### Previous updates — v3.0 · September 22, 2026
 
 - Ships the L23M911 example product and three competitors, a 20-step contextual guide, offline SIF installation help, and JSON backup migration guidance.
 - Improves watch-list saving and expanded-table management while restoring workspace context after the guide.
