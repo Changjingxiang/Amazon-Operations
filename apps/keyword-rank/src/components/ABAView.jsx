@@ -5,6 +5,8 @@ import { integer, percent } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
 import FilterCascade, { WATCH_FILTER_OPTIONS } from './FilterCascade.jsx';
+import { KeywordCopyButton, useMatrixKeywordCopy } from './MatrixKeywordCopy.jsx';
+import { useMatrixTranslation } from '../lib/matrixPreferences.js';
 
 const ABA_ROW_HEIGHT = 38;
 const ABA_ROW_OVERSCAN = 8;
@@ -21,7 +23,10 @@ export default function ABAView({ model, rows: filteredRows, filters, onFiltersC
   const [virtualRange, setVirtualRange] = useState(() => ({ start: 0, end: Math.min(rowCount, ABA_INITIAL_ROWS) }));
   const virtualRangeRef = useRef(virtualRange);
   const defaults = useMemo(() => ({ star: 54, keyword: 250, translation: 180, search: 86, conversion: 86, month: 86 }), []);
-  const { widths, nudgeWidth, startResize } = useColumnWidths('keyword-tracker:columns:aba', defaults);
+  const minimums = useMemo(() => ({ star: 48, keyword: 160, translation: 96, search: 86, conversion: 86, month: 86 }), []);
+  const { widths, nudgeWidth, startResize } = useColumnWidths('keyword-tracker:columns:aba', defaults, minimums);
+  const { showTranslation, toggleTranslation } = useMatrixTranslation();
+  const copy = useMatrixKeywordCopy(model.parentAsin);
   const year = String(model.selectedYear);
   const monthKeys = useMemo(() => Array.from({ length: 12 }, (_, index) => `${year}-${String(index + 1).padStart(2, '0')}`), [year]);
   const yearClosed = collapsedYears.has(year);
@@ -60,26 +65,84 @@ export default function ABAView({ model, rows: filteredRows, filters, onFiltersC
   const animateLayout = () => { setLayoutAnimating(false); requestAnimationFrame(() => { setLayoutAnimating(true); window.setTimeout(() => setLayoutAnimating(false), 300); }); };
   const toggleYear = () => { animateLayout(); setCollapsedYears((current) => { const next = new Set(current); next.has(year) ? next.delete(year) : next.add(year); return next; }); };
   const toggleMonth = (month) => { animateLayout(); setCollapsedMonths((current) => { const next = new Set(current); next.has(month) ? next.delete(month) : next.add(month); return next; }); };
-  const showTrend = (row, event) => setHovered({ keyword: row.keyword, row, style: trendPopoverStyle(event, event?.currentTarget) });
+  const showTrend = (row, event) => { if (!copy.active) setHovered({ keyword: row.keyword, row, style: trendPopoverStyle(event, event?.currentTarget) }); };
+  useEffect(() => { if (copy.active) setHovered(null); }, [copy.active]);
   const updateTrend = (row, event) => setHovered((current) => current?.keyword === row.keyword ? { ...current, style: trendPopoverStyle(event) } : current);
   const widthStyle = (column) => ({ width: widths[column], minWidth: widths[column] });
   const resizeHandle = (column, label) => <ResizeHandle columnKey={column} onResize={startResize} onNudge={nudgeWidth} label={label} />;
   const stickyLayoutStyle = {
+    width: `${widths.star + widths.keyword + (showTranslation ? widths.translation : 0) + widths.search + widths.conversion + columns.length * widths.month + 126}px`,
+    minWidth: `${widths.star + widths.keyword + (showTranslation ? widths.translation : 0) + widths.search + widths.conversion + columns.length * widths.month + 126}px`,
     '--sticky-keyword-left': `${widths.star}px`,
     '--sticky-translation-left': `${widths.star + widths.keyword}px`,
+    '--matrix-star-width': `${widths.star}px`,
+    '--matrix-keyword-width': `${widths.keyword}px`,
+    '--matrix-translation-width': `${widths.translation}px`,
+    '--aba-fixed-width': `${widths.star + widths.keyword + (showTranslation ? widths.translation : 0)}px`,
   };
   const visibleRows = rows.slice(virtualRange.start, virtualRange.end);
   const topSpacerHeight = virtualRange.start * ABA_ROW_HEIGHT;
   const bottomSpacerHeight = Math.max(0, rowCount - virtualRange.end) * ABA_ROW_HEIGHT;
   const renderSpacer = (height, key) => height > 0 ? (
     <tr key={key} className="matrix-virtual-spacer" aria-hidden="true">
-      <td colSpan={columns.length + 7}><div style={{ height: `${height}px` }} /></td>
+      <td colSpan={columns.length + (showTranslation ? 5 : 4)}><div style={{ height: `${height}px` }} /></td>
     </tr>
   ) : null;
   const popup = hovered ? createPortal(<AbaTrendPopover key={hovered.keyword} keyword={hovered.keyword} trend={hovered.row.abaTrend} previousTrend={hovered.row.abaPreviousTrend} year={model.selectedYear} previousYear={hovered.row.previousYear} style={hovered.style} />, document.body) : null;
-  return <section className="matrix-panel aba-panel"><div className="matrix-note matrix-group-note"><div className="matrix-note-copy"><span>{model.selectedYear} 年 ABA 月度排名：可按年份、月份收放</span><span>每月排名和对照折线均以已导入的 ABA CSV 为准；悬停关键词可查看所选年份与上一年两种颜色的 ABA 对照趋势，各月点位会标出具体排名。</span></div><FilterCascade rows={model.abaRows || []} filter={filters} onChange={onFiltersChange} groups={[{ key: 'watch', label: '关注状态', options: WATCH_FILTER_OPTIONS }]} label="筛选" placeholder="搜索 ABA 关键词…" /></div><div className="matrix-period-select"><button type="button" className="secondary-button aba-import-entry" onClick={onImport}>导入月 ABA CSV</button><label>年份 <select aria-label="ABA年份" value={year} onChange={(event) => onFiltersChange({ ...filters, abaYear: Number(event.target.value) })}>{(model.abaYears || [model.selectedYear]).map((value) => <option key={value} value={value}>{value}年</option>)}</select></label></div><div ref={scrollRef} className="matrix-scroll"><table key={year} data-aba-year={year} style={stickyLayoutStyle} className={`matrix-table aba-table aba-group-table matrix-layout-transition ${layoutAnimating ? 'is-animating' : ''}`}><colgroup><col style={widthStyle('star')} /><col style={widthStyle('keyword')} /><col style={widthStyle('translation')} /><col style={widthStyle('search')} /><col style={widthStyle('conversion')} />{columns.map((column) => <col key={`width-${column.key}`} style={widthStyle('month')} />)}</colgroup><thead>
-    <tr className="matrix-year-row"><th className="sticky-col aba-fixed-head" colSpan="3">年份</th><th rowSpan="3" className="aba-summary-head" style={widthStyle('search')}>搜索量<br />年内最高{resizeHandle('search', '搜索量')}</th><th rowSpan="3" className="aba-summary-head" style={widthStyle('conversion')}>点击转化率<br />年内最高{resizeHandle('conversion', '点击转化率')}</th><th colSpan={columns.length} className="matrix-group-cell"><button type="button" onClick={toggleYear} aria-expanded={!yearClosed}><span className="group-chevron">{yearClosed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}</span>{year}年</button></th></tr>
-    <tr className="matrix-month-row"><th className="sticky-col aba-fixed-head" colSpan="3">月份</th>{yearClosed ? <th rowSpan="2" className="matrix-group-cell matrix-collapsed-label" aria-label="年份分组" /> : monthKeys.map((month) => { const closed = collapsedMonths.has(month); return <th key={month} rowSpan="2" className="matrix-group-cell"><button type="button" onClick={() => toggleMonth(month)} aria-expanded={!closed}><span className="group-chevron">{closed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}</span>{Number(month.slice(5, 7))}月</button>{resizeHandle('month', '月份')}</th>; })}</tr>
-    <tr><th className="sticky-col star-col" style={widthStyle('star')}>关注{resizeHandle('star', '关注')}</th><th className="sticky-col keyword-col" style={widthStyle('keyword')}>关键词{resizeHandle('keyword', '关键词')}</th><th className="sticky-col translation-col" style={widthStyle('translation')}>翻译{resizeHandle('translation', '翻译')}</th></tr>
-  </thead><tbody>{renderSpacer(topSpacerHeight, 'aba-virtual-top')}{visibleRows.map((row) => <tr key={row.keyword} className={row.watched ? 'watched-row' : ''}><td className="sticky-col star-col"><button type="button" className={`star-button ${row.watched ? 'watched' : ''}`} aria-label={`${row.watched ? "取消关注" : "关注"} ${row.keyword}`} aria-pressed={row.watched} aria-busy={row.watchPending || undefined} onClick={() => onToggleWatch(row.keyword, !row.watched, '')}><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button></td><td className="sticky-col keyword-col aba-keyword-cell" onMouseEnter={(event) => showTrend(row, event)} onMouseLeave={() => setHovered(null)} onFocus={(event) => showTrend(row, event)} onBlur={() => setHovered(null)} tabIndex="0"><span>{row.keyword}</span></td><td className="sticky-col translation-col">{row.translation || '—'}</td><td>{integer(row.maxSearch)}</td><td>{percent(row.maxConversion)}</td>{columns.map((column) => { if (!column.expanded) return <td key={`${row.keyword}-${column.key}`} className="matrix-placeholder" aria-label="折叠分组" />; const index = Number(column.month.slice(5, 7)) - 1; return <td key={`${row.keyword}-${column.key}`}>{integer(row.months[index])}</td>; })}</tr>)}{renderSpacer(bottomSpacerHeight, 'aba-virtual-bottom')}</tbody></table></div>{popup}</section>;
+  return (
+    <section className="matrix-panel aba-panel">
+      <div className="matrix-note matrix-group-note">
+        <div className="matrix-note-copy">
+          <span>{model.selectedYear} 年 ABA 月度排名：可按年份、月份收放</span>
+          <span>每月排名和对照折线均以已导入的 ABA CSV 为准；悬停关键词可查看所选年份与上一年两种颜色的 ABA 对照趋势，各月点位会标出具体排名。</span>
+        </div>
+        <FilterCascade rows={model.abaRows || []} filter={filters} onChange={onFiltersChange} groups={[{ key: 'watch', label: '关注状态', options: WATCH_FILTER_OPTIONS }]} label="筛选" placeholder="搜索 ABA 关键词…" />
+        {copy.controls}
+        <button type="button" className="matrix-translation-toggle" aria-pressed={!showTranslation} onClick={toggleTranslation}>{showTranslation ? '收起翻译' : '显示翻译'}</button>
+      </div>
+      <div className="matrix-period-select">
+        <button type="button" className="secondary-button aba-import-entry" onClick={onImport}>导入月 ABA CSV</button>
+        <label>年份 <select aria-label="ABA年份" value={year} onChange={(event) => onFiltersChange({ ...filters, abaYear: Number(event.target.value) })}>{(model.abaYears || [model.selectedYear]).map((value) => <option key={value} value={value}>{value}年</option>)}</select></label>
+      </div>
+      <div ref={scrollRef} className="matrix-scroll">
+        <table key={year} data-aba-year={year} style={stickyLayoutStyle} className={`matrix-table aba-table aba-group-table matrix-layout-transition ${layoutAnimating ? 'is-animating' : ''}`}>
+          <colgroup>
+            <col style={widthStyle('star')} /><col style={widthStyle('keyword')} />
+            {showTranslation && <col style={widthStyle('translation')} />}
+            <col style={widthStyle('search')} /><col style={widthStyle('conversion')} />
+            {columns.map((column) => <col key={`width-${column.key}`} style={widthStyle('month')} />)}
+          </colgroup>
+          <thead>
+            <tr className="matrix-year-row">
+              <th className="sticky-col aba-fixed-head" colSpan={showTranslation ? 3 : 2}>年份</th>
+              <th rowSpan="3" className="aba-summary-head" style={widthStyle('search')}>搜索量<br />年内最高{resizeHandle('search', '搜索量')}</th>
+              <th rowSpan="3" className="aba-summary-head" style={widthStyle('conversion')}>点击转化率<br />年内最高{resizeHandle('conversion', '点击转化率')}</th>
+              <th colSpan={columns.length} className="matrix-group-cell"><button type="button" onClick={toggleYear} aria-expanded={!yearClosed}><span className="group-chevron">{yearClosed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}</span>{year}年</button></th>
+            </tr>
+            <tr className="matrix-month-row">
+              <th className="sticky-col aba-fixed-head" colSpan={showTranslation ? 3 : 2}>月份</th>
+              {yearClosed ? <th rowSpan="2" className="matrix-group-cell matrix-collapsed-label" aria-label="年份分组" /> : monthKeys.map((month) => { const closed = collapsedMonths.has(month); return <th key={month} rowSpan="2" className="matrix-group-cell"><button type="button" onClick={() => toggleMonth(month)} aria-expanded={!closed}><span className="group-chevron">{closed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}</span>{Number(month.slice(5, 7))}月</button>{resizeHandle('month', '月份')}</th>; })}
+            </tr>
+            <tr>
+              <th className="sticky-col star-col" style={widthStyle('star')}>关注{resizeHandle('star', '关注')}</th>
+              <th className="sticky-col keyword-col" style={widthStyle('keyword')}>关键词{resizeHandle('keyword', '关键词')}</th>
+              {showTranslation && <th className="sticky-col translation-col" style={widthStyle('translation')}>翻译{resizeHandle('translation', '翻译')}</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {renderSpacer(topSpacerHeight, 'aba-virtual-top')}
+            {visibleRows.map((row) => <tr key={row.keyword} className={row.watched ? 'watched-row' : ''}>
+              <td className="sticky-col star-col"><button type="button" className={`star-button ${row.watched ? 'watched' : ''}`} aria-label={`${row.watched ? '取消关注' : '关注'} ${row.keyword}`} aria-pressed={row.watched} aria-busy={row.watchPending || undefined} onClick={() => onToggleWatch(row.keyword, !row.watched, '')}><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button></td>
+              <td className={`sticky-col keyword-col aba-keyword-cell ${copy.active ? 'matrix-copy-selectable' : ''}`} onMouseEnter={(event) => showTrend(row, event)} onMouseLeave={() => setHovered(null)} onFocus={(event) => showTrend(row, event)} onBlur={() => setHovered(null)} onClick={copy.active ? () => copy.toggleKeyword(row.keyword) : undefined} onKeyDown={copy.active ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); copy.toggleKeyword(row.keyword); } } : undefined} tabIndex="0">{copy.active && <KeywordCopyButton keyword={row.keyword} selected={copy.isSelected(row.keyword)} onToggle={copy.toggleKeyword} />}<span>{row.keyword}</span></td>
+              {showTranslation && <td className="sticky-col translation-col">{row.translation || '—'}</td>}
+              <td>{integer(row.maxSearch)}</td><td>{percent(row.maxConversion)}</td>
+              {columns.map((column) => { if (!column.expanded) return <td key={`${row.keyword}-${column.key}`} className="matrix-placeholder" aria-label="折叠分组" />; const index = Number(column.month.slice(5, 7)) - 1; return <td key={`${row.keyword}-${column.key}`}>{integer(row.months[index])}</td>; })}
+            </tr>)}
+            {renderSpacer(bottomSpacerHeight, 'aba-virtual-bottom')}
+          </tbody>
+        </table>
+      </div>
+      {popup}
+    </section>
+  );
 }

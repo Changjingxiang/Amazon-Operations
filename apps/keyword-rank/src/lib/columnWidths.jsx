@@ -2,25 +2,27 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 export const COLUMN_WIDTH_RESET_EVENT = 'keyword-tracker:reset-column-widths';
 
-function safeRead(storageKey, defaults) {
+function safeRead(storageKey, defaults, minimums) {
   if (typeof window === 'undefined') return { ...defaults };
   try {
     const value = JSON.parse(window.localStorage.getItem(storageKey) || '{}');
     return Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => {
       const candidate = Number(value[key]);
-      return [key, Number.isFinite(candidate) && candidate > 0 ? candidate : fallback];
+      return [key, Math.max(minimums[key] || 48, Number.isFinite(candidate) && candidate > 0 ? candidate : fallback)];
     }));
   } catch {
     return { ...defaults };
   }
 }
 
-export function useColumnWidths(storageKey, defaults) {
+export function useColumnWidths(storageKey, defaults, minimums = {}) {
   const defaultsRef = useRef(defaults);
-  const [widths, setWidths] = useState(() => safeRead(storageKey, defaults));
+  const minimumsRef = useRef(minimums);
+  const [widths, setWidths] = useState(() => safeRead(storageKey, defaults, minimums));
   const widthsRef = useRef(widths);
 
   useEffect(() => { defaultsRef.current = defaults; }, [defaults]);
+  useEffect(() => { minimumsRef.current = minimums; }, [minimums]);
   useEffect(() => {
     const onReset = (event) => {
       if (event.detail && event.detail !== storageKey) return;
@@ -38,7 +40,7 @@ export function useColumnWidths(storageKey, defaults) {
   }, []);
   const setWidth = useCallback((columnKey, value) => {
     const fallback = defaultsRef.current[columnKey] || 64;
-    const next = { ...widthsRef.current, [columnKey]: Math.max(48, Number(value) || fallback) };
+    const next = { ...widthsRef.current, [columnKey]: Math.max(minimumsRef.current[columnKey] || 48, Number(value) || fallback) };
     apply(next);
     try { window.localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
   }, [apply, storageKey]);
@@ -54,7 +56,7 @@ export function useColumnWidths(storageKey, defaults) {
     const startWidth = widthsRef.current[columnKey] || defaultsRef.current[columnKey] || 64;
     const onMove = (moveEvent) => apply({
       ...widthsRef.current,
-      [columnKey]: Math.max(48, Math.round(startWidth + moveEvent.clientX - startX)),
+      [columnKey]: Math.max(minimumsRef.current[columnKey] || 48, Math.round(startWidth + moveEvent.clientX - startX)),
     });
     const onUp = () => {
       window.removeEventListener('mousemove', onMove);

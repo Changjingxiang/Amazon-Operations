@@ -153,8 +153,9 @@
       .competitor-sidebar-item.is-selected .competitor-sidebar-badge{border-color:#247a8a;color:#1f6070;background:rgba(255,255,255,.45)}
       .competitor-sidebar-empty{padding:8px 8px 8px 13px;color:rgba(255,255,255,.54);font-size:10px}
       .settings-delete-item[${COMPETITOR_TOP_LEVEL_ATTR}="true"]{display:none!important}
-      .competitor-keyword-cell{position:relative}.competitor-keyword-cell .competitor-keyword-label{display:inline-block;max-width:calc(100% - 45px);overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+      .competitor-keyword-cell{position:relative}.competitor-keyword-cell .competitor-keyword-label,.competitor-keyword-cell .matrix-keyword-label,.competitor-keyword-cell .ai-keyword-label{display:inline-block;max-width:calc(100% - 45px);overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
       .competitor-keyword-button{display:inline-flex;align-items:center;justify-content:center;height:23px;margin-left:7px;border:1px solid #8ecbd4;border-radius:6px;background:#effcff;color:#217080;padding:0 7px;font:800 10px Inter,"Microsoft YaHei",sans-serif;cursor:pointer;vertical-align:middle;white-space:nowrap}.competitor-keyword-button:hover{background:#d6f7fb}
+      .matrix-copy-selectable>.competitor-keyword-button{display:none}
       .competitor-drawer-overlay{position:fixed;inset:0;z-index:100000;background:rgba(20,47,77,.26);opacity:0;pointer-events:none;transition:opacity .2s ease;font-family:Inter,"Microsoft YaHei",sans-serif}.competitor-drawer-overlay.is-open{opacity:1;pointer-events:auto}
       .competitor-drawer{position:absolute;top:0;right:0;display:flex;box-sizing:border-box;width:min(820px,calc(100vw - 18px));height:100%;flex-direction:column;background:#f8fbfd;box-shadow:-20px 0 55px rgba(20,47,77,.24);transform:translateX(100%);transition:transform .24s ease}.competitor-drawer-overlay.is-open .competitor-drawer{transform:translateX(0)}
       .competitor-drawer-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px 15px;border-bottom:1px solid #d9e8ee;background:#fff}.competitor-drawer-heading{min-width:0}.competitor-drawer-heading h2{margin:0;color:#173b64;font-size:20px;line-height:1.25}.competitor-drawer-heading p{margin:5px 0 0;color:#678097;font-size:11px;line-height:1.45}.competitor-drawer-close{flex:0 0 auto;width:34px;height:34px;border:1px solid #b8d9df;border-radius:9px;background:#f4fcfe;color:#245b68;font-size:23px;line-height:1;cursor:pointer}.competitor-drawer-close:hover{background:#dff7fa}
@@ -545,10 +546,12 @@
     if (!(table instanceof HTMLTableElement) || !table.classList.contains('aba-table')) return;
     if (table.dataset.abaComparisonColumns === 'pending') return;
     if (table.dataset.abaComparisonColumns === 'ready') {
+      const fixedCount = table.querySelector('thead tr:last-child .translation-col') ? 3 : 2;
       const needsRows = [...table.querySelectorAll('tbody tr')].some((row) =>
-        !row.querySelector('[data-aba-comparison-cell="previous-year-mom"]'));
+        row.querySelector('.aba-keyword-cell') && row.children[fixedCount]?.getAttribute('data-aba-comparison-cell') !== 'previous-year-mom');
+      const misplacedColumn = table.querySelector('colgroup')?.children[fixedCount]?.getAttribute('data-aba-comparison-col') !== 'previous-year-mom';
       const hasStaleYoY = Boolean(table.querySelector('[data-aba-comparison-col="yoy"], [data-aba-comparison-head="yoy"], [data-aba-comparison-cell="yoy"]'));
-      if (!needsRows && !hasStaleYoY) return;
+      if (!needsRows && !misplacedColumn && !hasStaleYoY) return;
       delete table.dataset.abaComparisonColumns;
     }
     table.dataset.abaComparisonColumns = 'pending';
@@ -559,20 +562,22 @@
     const model = activeModel(data);
     const rowsByKeyword = new Map((model?.abaRowsByYear?.[table.dataset.abaYear] || model?.abaRows || []).map((row) => [keywordKey(row.keyword), row]));
     const colgroup = table.querySelector('colgroup');
+    const fixedCount = table.querySelector('thead tr:last-child .translation-col') ? 3 : 2;
     // Remove the old同比 column when this enhancer is applied to a table that
     // was already enhanced by an earlier release or a hot reload.
     colgroup?.querySelectorAll('[data-aba-comparison-col="yoy"]').forEach((column) => column.remove());
     table.querySelectorAll('[data-aba-comparison-head="yoy"], [data-aba-comparison-cell="yoy"]').forEach((cell) => cell.remove());
     if (colgroup) {
       ['previous-year-mom'].forEach((key) => {
-        if (colgroup.querySelector(`[data-aba-comparison-col="${key}"]`)) return;
-        const col = document.createElement('col');
+        let col = colgroup.querySelector(`[data-aba-comparison-col="${key}"]`);
+        if (!col) col = document.createElement('col');
         col.dataset.abaComparisonCol = key;
         col.style.width = '126px';
         col.style.minWidth = '126px';
         // Keep the two comparison fields beside the fixed keyword columns so
         // they remain easy to find before the twelve month columns.
-        colgroup.children[3] ? colgroup.children[3].before(col) : colgroup.appendChild(col);
+        const target = [...colgroup.children].filter((child) => child !== col)[fixedCount];
+        if (target) target.before(col); else colgroup.appendChild(col);
       });
     }
     const firstHeader = table.querySelector('thead tr.matrix-year-row');
@@ -600,8 +605,7 @@
           cell = document.createElement('td');
           cell.dataset.abaComparisonCell = key;
         }
-        const searchCell = [...bodyRow.children].find((candidate, index) =>
-          index >= 3 && !candidate.hasAttribute('data-aba-comparison-cell'));
+        const searchCell = [...bodyRow.children].filter((candidate) => candidate !== cell)[fixedCount];
         if (searchCell && searchCell !== cell) searchCell.before(cell); else bodyRow.appendChild(cell);
         applyComparisonCell(cell, row);
       });
@@ -1638,9 +1642,6 @@
       const isDashboard = table?.classList.contains('dashboard-table');
       const note = table?.closest('.matrix-panel')?.querySelector('.matrix-note')?.textContent || '';
       const metric = isDashboard ? '' : /SP矩阵/u.test(note) ? 'sp' : 'natural';
-      const label = document.createElement('span');
-      label.className = 'competitor-keyword-label';
-      label.textContent = keyword;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'competitor-keyword-button';
@@ -1658,16 +1659,11 @@
         const selectedDate = table?.closest('.app-shell')?.querySelector('.date-control input[type="date"]')?.value || '';
         openCompetitorDrawer({ mode: 'keyword', ownerAsin, keyword, metric, date: selectedDate });
       });
-      // React owns the AI action and its keyword label in the enhanced app.
-      // Keep those nodes and their handlers; do not include button text in the keyword.
-      if (cell.querySelector('.ai-row-button')) {
-        cell.classList.add('competitor-keyword-cell', 'ai-keyword-cell');
-        cell.append(button);
-        return;
-      }
-      while (cell.firstChild) cell.removeChild(cell.firstChild);
+      // React owns the keyword label and the new selection control. Replacing
+      // its children breaks reconciliation as soon as either control changes.
       cell.classList.add('competitor-keyword-cell');
-      cell.append(label, button);
+      if (cell.querySelector('.ai-row-button')) cell.classList.add('ai-keyword-cell');
+      cell.append(button);
     });
   }
 
@@ -1691,9 +1687,7 @@
     installBatchButton();
     scanAbaTables();
     scanCompetitorUi();
-    // The keyword-cell enhancer replaces the cell's React children with the
-    // label + comparison button.  Install matrix hover handlers afterwards so
-    // they attach to the final DOM in one pass and do not race that rewrite.
+    // Install matrix hover handlers after the keyword comparison buttons.
     scanMatrices();
   }
 

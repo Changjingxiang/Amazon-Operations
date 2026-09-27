@@ -10,6 +10,8 @@ import FilterCascade, {
   filterRows,
   WATCH_FILTER_OPTIONS,
 } from './FilterCascade.jsx';
+import { KeywordCopyButton, useMatrixKeywordCopy } from './MatrixKeywordCopy.jsx';
+import { useMatrixTranslation } from '../lib/matrixPreferences.js';
 
 function rankNumber(value) {
   const parsed = Number(value);
@@ -118,7 +120,7 @@ const COMPARISON_INITIAL_ROWS = 48;
 const COMPARISON_SECTION_HEADER_HEIGHT = 36;
 const COMPARISON_TABLE_HEADER_HEIGHT = 66;
 
-const ComparisonRow = memo(function ComparisonRow({ category, row, order, dates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, showTranslation }) {
+const ComparisonRow = memo(function ComparisonRow({ category, row, order, dates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, showTranslation, copyActive, copySelected, onToggleCopy }) {
   return (
     <tr key={`${category}-${row.keyword}-${order}`} className={row.watched ? 'watched-row' : ''}>
       <td className="comparison-star-cell">
@@ -131,11 +133,12 @@ const ComparisonRow = memo(function ComparisonRow({ category, row, order, dates,
         ><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button>
       </td>
       <td
-        className="comparison-keyword-cell comparison-trend-keyword"
-        data-text-tooltip="点击趋势图标，或双击关键词查看趋势"
-        title="点击趋势图标，或双击关键词查看趋势"
-        onDoubleClick={() => onOpenTrend?.(row, category)}
-      ><span className="comparison-keyword-text" title={row.keyword}>{row.keyword}</span><button type="button" className="comparison-trend-button" data-trend-keyword={row.keyword} aria-label={`查看 ${row.keyword} 趋势`} title="查看趋势" onDoubleClick={(event) => event.stopPropagation()} onClick={() => onOpenTrend?.(row, category)}><ChartNoAxesCombined size={16} /></button></td>
+        className={`comparison-keyword-cell comparison-trend-keyword ${copyActive ? 'matrix-copy-selectable' : ''}`}
+        data-text-tooltip={copyActive ? '点击选择复制' : '点击趋势图标，或双击关键词查看趋势'}
+        title={copyActive ? '点击选择复制' : '点击趋势图标，或双击关键词查看趋势'}
+        onClick={copyActive ? () => onToggleCopy(row.keyword) : undefined}
+        onDoubleClick={copyActive ? undefined : () => onOpenTrend?.(row, category)}
+      >{copyActive && <KeywordCopyButton keyword={row.keyword} selected={copySelected} onToggle={onToggleCopy} />}<span className="comparison-keyword-text" title={row.keyword}>{row.keyword}</span>{!copyActive && <button type="button" className="comparison-trend-button" data-trend-keyword={row.keyword} aria-label={`查看 ${row.keyword} 趋势`} title="查看趋势" onDoubleClick={(event) => event.stopPropagation()} onClick={() => onOpenTrend?.(row, category)}><ChartNoAxesCombined size={16} /></button>}</td>
       {showTranslation && <td className="comparison-translation-cell" data-text-tooltip={row.translation}>{row.translation || '—'}</td>}
       {dates.flatMap((date) => {
         const index = dateIndexMap.get(date);
@@ -152,7 +155,7 @@ const ComparisonRow = memo(function ComparisonRow({ category, row, order, dates,
   );
 });
 
-function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, widths, resizeHandle, sectionRef, scrollContainerRef, showTranslation }) {
+function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, widths, resizeHandle, sectionRef, scrollContainerRef, showTranslation, copy }) {
   const meta = CATEGORY_META[category] || CATEGORY_META.common;
   const sectionElementRef = useRef(null);
   const [virtualRange, setVirtualRange] = useState(() => ({ start: 0, end: Math.min(rows.length, COMPARISON_INITIAL_ROWS) }));
@@ -222,7 +225,7 @@ function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate
       </div>
       {rows.length && dates.length ? (
         <div className="comparison-table-scroll">
-          <table className="comparison-table" style={{ '--comparison-keyword-left': `${widths.star}px`, '--comparison-translation-left': `${widths.star + widths.keyword}px` }}>
+          <table className="comparison-table" style={{ width: `${widths.star + widths.keyword + (showTranslation ? widths.translation : 0) + dates.length * 2 * widths.rank}px`, minWidth: `${widths.star + widths.keyword + (showTranslation ? widths.translation : 0) + dates.length * 2 * widths.rank}px`, '--comparison-keyword-left': `${widths.star}px`, '--comparison-translation-left': `${widths.star + widths.keyword}px`, '--comparison-star-width': `${widths.star}px`, '--comparison-keyword-width': `${widths.keyword}px`, '--comparison-translation-width': `${widths.translation}px`, '--comparison-rank-width': `${widths.rank}px` }}>
             <colgroup>
               <col style={{ width: widths.star, minWidth: widths.star }} />
               <col style={{ width: widths.keyword, minWidth: widths.keyword }} />
@@ -248,7 +251,7 @@ function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate
             </thead>
             <tbody>
               {renderSpacer(topSpacerHeight, 'comparison-virtual-top')}
-              {visibleRows.map(({ row, order }) => <ComparisonRow key={`${category}-${row.keyword}-${order}`} category={category} row={row} order={order} dates={dates} dateIndexMap={dateIndexMap} comparisonDate={comparisonDate} onToggleWatch={onToggleWatch} onOpenTrend={onOpenTrend} showTranslation={showTranslation} />)}
+              {visibleRows.map(({ row, order }) => <ComparisonRow key={`${category}-${row.keyword}-${order}`} category={category} row={row} order={order} dates={dates} dateIndexMap={dateIndexMap} comparisonDate={comparisonDate} onToggleWatch={onToggleWatch} onOpenTrend={onOpenTrend} showTranslation={showTranslation} copyActive={copy.active} copySelected={copy.isSelected(row.keyword)} onToggleCopy={copy.toggleKeyword} />)}
               {renderSpacer(bottomSpacerHeight, 'comparison-virtual-bottom')}
             </tbody>
           </table>
@@ -259,11 +262,13 @@ function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate
 }
 
 export default function ComparisonMatrixView({ model, rows: visibleRows, filters, onFiltersChange, selectedDate, focusSection, onFocusHandled, onToggleWatch, onOpenTrend, restoreScroll, focused, onFocusToggle, onDisplayCount }) {
-  const [showTranslation, setShowTranslation] = useState(() => { try { return localStorage.getItem('keyword-tracker:comparison:translation') !== 'hidden'; } catch { return true; } });
+  const { showTranslation, toggleTranslation } = useMatrixTranslation();
+  const copy = useMatrixKeywordCopy(model?.parentAsin);
   const comparisonScrollRef = useRef(null);
   const sectionRefs = useRef({});
   const defaults = useMemo(() => ({ star: 54, keyword: 250, translation: 180, rank: 82 }), []);
-  const { widths, nudgeWidth, startResize } = useColumnWidths('keyword-tracker:columns:comparison', defaults);
+  const minimums = useMemo(() => ({ star: 48, keyword: 160, translation: 96, rank: 64 }), []);
+  const { widths, nudgeWidth, startResize } = useColumnWidths('keyword-tracker:columns:comparison', defaults, minimums);
   const currentFilter = { ...EMPTY_FILTER, ...(filters || {}) };
   const sourceRows = useMemo(
     () => filterRows(Array.isArray(visibleRows) ? visibleRows : (model?.matrixRows || []), currentFilter),
@@ -282,9 +287,6 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
   const categoryCounts = useMemo(() => Object.fromEntries(COMPARISON_FILTER_OPTIONS.map(({ value }) => [value, dates.length ? categoryRows(model, comparisonDate, value, sourceRows).length : 0])), [model, comparisonDate, sourceRows, dates.length]);
   const displayedCount = useMemo(() => dates.length ? new Set(Object.values(rowsByCategory).flat().map(({ row }) => row.keyword)).size : 0, [rowsByCategory, dates.length]);
   useEffect(() => { onDisplayCount?.(displayedCount); }, [displayedCount, onDisplayCount]);
-  const toggleTranslation = () => {
-    setShowTranslation((value) => { try { localStorage.setItem('keyword-tracker:comparison:translation', value ? 'hidden' : 'visible'); } catch {} return !value; });
-  };
   const dateAxisKey = dates.join('|');
   const resizeHandle = (column, label) => <ResizeHandle columnKey={column} onResize={startResize} onNudge={nudgeWidth} label={label} />;
 
@@ -354,7 +356,7 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
           label="高级筛选"
           placeholder="搜索对比关键词…"
         />
-        <div className="comparison-view-actions"><button type="button" aria-pressed={!showTranslation} onClick={toggleTranslation}>{showTranslation ? '收起翻译' : '显示翻译'}</button><button type="button" aria-pressed={focused} onClick={onFocusToggle}>{focused ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{focused ? '退出专注' : '专注矩阵'}</button></div>
+        <div className="comparison-view-actions">{copy.controls}<button type="button" aria-pressed={!showTranslation} onClick={toggleTranslation}>{showTranslation ? '收起翻译' : '显示翻译'}</button><button type="button" aria-pressed={focused} onClick={onFocusToggle}>{focused ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{focused ? '退出专注' : '专注矩阵'}</button></div>
       </div>
       <div className="comparison-period-bar">
         <MatrixPeriodSelect dates={allDates} filter={currentFilter} onChange={onFiltersChange} />
@@ -382,6 +384,7 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
             onOpenTrend={onOpenTrend}
             widths={widths}
             showTranslation={showTranslation}
+            copy={copy}
             resizeHandle={resizeHandle}
             scrollContainerRef={comparisonScrollRef}
             sectionRef={(node) => { sectionRefs.current[category] = node; }}

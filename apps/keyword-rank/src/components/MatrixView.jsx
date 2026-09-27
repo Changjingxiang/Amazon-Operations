@@ -7,6 +7,8 @@ import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import AbaTrendPopover, { trendPopoverStyle } from './AbaTrendPopover.jsx';
 import FilterCascade, { WATCH_FILTER_OPTIONS, filterDates } from './FilterCascade.jsx';
 import AnnotationEditor from './AnnotationEditor.jsx';
+import { KeywordCopyButton, useMatrixKeywordCopy } from './MatrixKeywordCopy.jsx';
+import { useMatrixTranslation } from '../lib/matrixPreferences.js';
 import { reviewCore, EMPTY_REVIEWS } from '../lib/adReview.js';
 
 function keywordKey(value) {
@@ -24,7 +26,7 @@ function revealRankCell(cell) {
   const scroll = cell.closest('.matrix-scroll');
   if (!scroll) return;
   const rect = cell.getBoundingClientRect();
-  const frozenRight = cell.parentElement.querySelector('.translation-col')?.getBoundingClientRect().right || scroll.getBoundingClientRect().left;
+  const frozenRight = (cell.parentElement.querySelector('.translation-col') || cell.parentElement.querySelector('.keyword-col'))?.getBoundingClientRect().right || scroll.getBoundingClientRect().left;
   if (rect.left < frozenRight) scroll.scrollLeft -= frozenRight - rect.left;
   else if (rect.right > scroll.getBoundingClientRect().right) scroll.scrollLeft += rect.right - scroll.getBoundingClientRect().right;
 }
@@ -54,7 +56,7 @@ function rankTitle(value, previous, metric, annotation) {
 // Keep row identity stable while the virtual window advances. The parent still
 // recalculates the small visible window, but rows that remain in that window do
 // not rebuild every date cell or icon on each scroll tick.
-const MatrixRow = memo(function MatrixRow({ row, reviewCells, columns, dateIndexMap, valueField, annotationField, metric, selectedDate, editing, pendingDates, savedDates, onToggleWatch, onBeginAnnotation, onAI }) {
+const MatrixRow = memo(function MatrixRow({ row, reviewCells, columns, dateIndexMap, valueField, annotationField, metric, selectedDate, editing, pendingDates, savedDates, onToggleWatch, onBeginAnnotation, onAI, copyActive, copySelected, onToggleCopy, showTranslation }) {
   const values = row[valueField] || [];
   const annotations = annotationField ? (row[annotationField] || []) : [];
   const editingKey = editing ? `${editing.keyword}|${editing.date}` : '';
@@ -62,12 +64,14 @@ const MatrixRow = memo(function MatrixRow({ row, reviewCells, columns, dateIndex
     <tr data-matrix-keyword={row.keyword} className={row.watched ? 'watched-row' : ''}>
       <td className="sticky-col star-col"><button type="button" className={`star-button ${row.watched ? 'watched' : ''}`} aria-pressed={row.watched} aria-busy={row.watchPending || undefined} title={row.watched ? '取消关注' : '设为关注'} onClick={() => onToggleWatch(row.keyword, !row.watched, row.note)}><Star size={18} fill={row.watched ? 'currentColor' : 'none'} /></button></td>
       <td
-        className={`sticky-col keyword-col ${metric === 'natural' ? 'matrix-keyword-aba-cell' : ''}`}
+        className={`sticky-col keyword-col ${metric === 'natural' && !copyActive ? 'matrix-keyword-aba-cell' : ''} ${copyActive ? 'matrix-copy-selectable' : ''}`}
         data-text-tooltip={metric === 'sp' ? row.keyword : undefined}
         data-matrix-keyword={row.keyword}
         aria-label={metric === 'natural' ? `${row.keyword}，悬停查看 ABA 对照` : undefined}
-        tabIndex={metric === 'natural' ? 0 : undefined}
-      >{onAI ? <><span className="ai-keyword-label">{row.keyword}</span><button className="ai-row-button" title={`AI 分析 ${row.keyword}`} onClick={e => { e.stopPropagation(); onAI(row.keyword); }}>AI</button></> : row.keyword}</td><td className="sticky-col translation-col" data-text-tooltip={row.translation}>{row.translation || '—'}</td>
+        tabIndex={metric === 'natural' || copyActive ? 0 : undefined}
+        onClick={copyActive ? () => onToggleCopy(row.keyword) : undefined}
+        onKeyDown={copyActive ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onToggleCopy(row.keyword); } } : undefined}
+      >{copyActive && <KeywordCopyButton keyword={row.keyword} selected={copySelected} onToggle={onToggleCopy} />}{onAI ? <><span className="ai-keyword-label">{row.keyword}</span><button className="ai-row-button" title={`AI 分析 ${row.keyword}`} onClick={e => { e.stopPropagation(); onAI(row.keyword); }}>AI</button></> : <span className="matrix-keyword-label">{row.keyword}</span>}</td>{showTranslation && <td className="sticky-col translation-col" data-text-tooltip={row.translation}>{row.translation || '—'}</td>}
       {columns.map((column) => {
         if (column.type !== 'date') return <td key={`${row.keyword}-${column.key}`} className="matrix-placeholder" aria-label="折叠分组" />;
         const index = dateIndexMap.get(column.date);
@@ -105,6 +109,9 @@ const MatrixRow = memo(function MatrixRow({ row, reviewCells, columns, dateIndex
   && previous.selectedDate === next.selectedDate
   && previous.editing?.keyword === next.editing?.keyword
   && previous.editing?.date === next.editing?.date
+  && previous.copyActive === next.copyActive
+  && previous.copySelected === next.copySelected
+  && previous.showTranslation === next.showTranslation
 ));
 
 // Matrix rows are deliberately virtualized without touching the date axis.
@@ -145,7 +152,10 @@ export default function MatrixView({ reviewState = EMPTY_REVIEWS, onAcceptReview
   const [virtualRange, setVirtualRange] = useState(() => ({ start: 0, end: Math.min(rowCount, MATRIX_INITIAL_ROWS) }));
   const virtualRangeRef = useRef(virtualRange);
   const defaults = useMemo(() => ({ star: 54, keyword: 250, translation: 180, date: 82 }), []);
-  const { widths, nudgeWidth, startResize } = useColumnWidths(`keyword-tracker:columns:${metric}`, defaults);
+  const minimums = useMemo(() => ({ star: 48, keyword: 160, translation: 96, date: 64 }), []);
+  const { widths, nudgeWidth, startResize } = useColumnWidths(`keyword-tracker:columns:${metric}`, defaults, minimums);
+  const copy = useMatrixKeywordCopy(model.parentAsin);
+  const { showTranslation, toggleTranslation } = useMatrixTranslation();
   const sifAbaTrendByKeyword = useMemo(
     () => metric === 'natural' ? buildSifAbaTrendMap(model) : new Map(),
     [model.historyRecords, model.selectedYear, metric],
@@ -226,7 +236,7 @@ export default function MatrixView({ reviewState = EMPTY_REVIEWS, onAcceptReview
   // virtualized rows do not receive new callback props on every hover.
   useEffect(() => {
     const table = tableRef.current;
-    if (!table || metric !== 'natural') return undefined;
+    if (!table || metric !== 'natural' || copy.active) return undefined;
     const scroll = scrollRef.current;
     const getKeywordCell = (target) => target?.closest?.('td.matrix-keyword-aba-cell');
     const showTrend = (event, cell) => {
@@ -280,7 +290,8 @@ export default function MatrixView({ reviewState = EMPTY_REVIEWS, onAcceptReview
       scroll?.removeEventListener('scroll', handleScroll);
       setHovered(null);
     };
-  }, [sifAbaTrendByKeyword, metric]);
+  }, [sifAbaTrendByKeyword, metric, copy.active]);
+  useEffect(() => { if (copy.active) setHovered(null); }, [copy.active]);
 
   useEffect(() => {
     const table = tableRef.current;
@@ -365,15 +376,21 @@ export default function MatrixView({ reviewState = EMPTY_REVIEWS, onAcceptReview
   const widthStyle = (column) => ({ width: widths[column], minWidth: widths[column] });
   const resizeHandle = (column, label) => <ResizeHandle columnKey={column} onResize={startResize} onNudge={nudgeWidth} label={label} />;
   const stickyLayoutStyle = {
+    width: `${widths.star + widths.keyword + (showTranslation ? widths.translation : 0) + columns.length * widths.date}px`,
+    minWidth: `${widths.star + widths.keyword + (showTranslation ? widths.translation : 0) + columns.length * widths.date}px`,
     '--sticky-keyword-left': `${widths.star}px`,
     '--sticky-translation-left': `${widths.star + widths.keyword}px`,
+    '--matrix-star-width': `${widths.star}px`,
+    '--matrix-keyword-width': `${widths.keyword}px`,
+    '--matrix-translation-width': `${widths.translation}px`,
+    '--matrix-date-width': `${widths.date}px`,
   };
   const visibleRows = rows.slice(virtualRange.start, virtualRange.end);
   const topSpacerHeight = virtualRange.start * MATRIX_ROW_HEIGHT;
   const bottomSpacerHeight = Math.max(0, rowCount - virtualRange.end) * MATRIX_ROW_HEIGHT;
   const renderSpacer = (height, key) => height > 0 ? (
     <tr key={key} className="matrix-virtual-spacer" aria-hidden="true">
-      <td colSpan={columns.length + 3}><div style={{ height: `${height}px` }} /></td>
+      <td colSpan={columns.length + (showTranslation ? 3 : 2)}><div style={{ height: `${height}px` }} /></td>
     </tr>
   ) : null;
 
@@ -391,20 +408,22 @@ export default function MatrixView({ reviewState = EMPTY_REVIEWS, onAcceptReview
           label="筛选"
           placeholder="搜索矩阵关键词…"
         />
+        {copy.controls}
+        <button type="button" className="matrix-translation-toggle" aria-pressed={!showTranslation} onClick={toggleTranslation}>{showTranslation ? '收起翻译' : '显示翻译'}</button>
       </div>
       <MatrixPeriodSelect dates={model.dates || []} filter={filters} onChange={onFiltersChange} />
       <div ref={scrollRef} className="matrix-scroll">
         <div ref={columnOverlayRef} className="matrix-column-hover-overlay" hidden aria-hidden="true" />
         <table ref={tableRef} data-annotation-editor-open={editing ? 'true' : undefined} style={stickyLayoutStyle} className="matrix-table matrix-group-table matrix-clean-table">
           <colgroup>
-            <col style={widthStyle('star')} /><col style={widthStyle('keyword')} /><col style={widthStyle('translation')} />
+            <col style={widthStyle('star')} /><col style={widthStyle('keyword')} />{showTranslation && <col style={widthStyle('translation')} />}
             {columns.map((column) => <col key={`width-${column.key}`} style={widthStyle('date')} />)}
           </colgroup>
           <thead>
             <tr className="matrix-month-row">
               <th rowSpan="2" className="sticky-col star-col">关注{resizeHandle('star', '关注')}</th>
               <th rowSpan="2" className="sticky-col keyword-col">关键词{resizeHandle('keyword', '关键词')}</th>
-              <th rowSpan="2" className="sticky-col translation-col">翻译{resizeHandle('translation', '翻译')}</th>
+              {showTranslation && <th rowSpan="2" className="sticky-col translation-col">翻译{resizeHandle('translation', '翻译')}</th>}
               {groups.flatMap(({ months }) => months.map(([month, dates]) => <th key={month} colSpan={dates.length}>{monthLabel(month)}</th>))}
             </tr>
             <tr className="matrix-dates-row">{columns.map(column => <th key={column.date} data-matrix-date={column.date} className={column.date === selectedDate ? 'selected-date' : ''}><span>{shortDate(column.date)}</span>{column.date === today && <span className="matrix-today-dot" title="今天" />}{resizeHandle('date', '日期')}</th>)}</tr>
@@ -425,6 +444,10 @@ export default function MatrixView({ reviewState = EMPTY_REVIEWS, onAcceptReview
             onToggleWatch={onToggleWatch}
             onBeginAnnotation={beginAnnotation}
             onAI={onAI}
+            copyActive={copy.active}
+            copySelected={copy.isSelected(row.keyword)}
+            onToggleCopy={copy.toggleKeyword}
+            showTranslation={showTranslation}
           />)}{renderSpacer(bottomSpacerHeight, 'matrix-virtual-bottom')}</tbody>
         </table>
       </div>
