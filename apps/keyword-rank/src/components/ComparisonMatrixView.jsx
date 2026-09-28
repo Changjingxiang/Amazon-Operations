@@ -1,7 +1,8 @@
+import { ComparisonHoverProvider, ComparisonRankCell as RankCell } from './ComparisonRankCell.jsx';
 import MatrixPeriodSelect, { filterPeriodDates } from './MatrixPeriodSelect.jsx';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Star, ChartNoAxesCombined, Maximize2, Minimize2 } from 'lucide-react';
-import { integer, rankClass, shortDate } from '../lib/format.js';
+import { shortDate } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import FilterCascade, {
   COMPARISON_FILTER_OPTIONS,
@@ -16,31 +17,6 @@ import { useMatrixTranslation } from '../lib/matrixPreferences.js';
 function rankNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function pageMarker(value) {
-  const rank = rankNumber(value);
-  if (rank == null) return '—';
-  if (rank <= 10) return '①';
-  if (rank <= 20) return '②';
-  if (rank <= 30) return '③';
-  return '④+';
-}
-
-function pageText(value) {
-  const rank = rankNumber(value);
-  if (rank == null) return '未上榜';
-  return rank <= 30 ? `第${Math.ceil(rank / 10)}页` : '第4页及以后';
-}
-
-function movementText(value, previous) {
-  const currentRank = rankNumber(value);
-  const previousRank = rankNumber(previous);
-  if (currentRank == null) return '未上榜';
-  if (previousRank == null) return '前一天未上榜，当前上榜';
-  if (currentRank < previousRank) return '较前一天上升';
-  if (currentRank > previousRank) return '较前一天下降';
-  return '较前一天持平';
 }
 
 const CATEGORY_META = {
@@ -94,24 +70,6 @@ function categoryRows(model, comparisonDate, category, sourceRows) {
   }, []);
 }
 
-function RankCell({ value, previous, metric, date, selected }) {
-  const currentRank = rankNumber(value);
-  const className = rankClass(value, previous);
-  const label = `${metric === 'natural' ? '自然' : 'SP'}排名 ${currentRank == null ? '未上榜' : integer(currentRank)}，${pageText(value)}，${movementText(value, previous)}`;
-  return (
-    <td
-      className={`comparison-rank-cell ${className} ${selected ? 'selected-date' : ''}`}
-      data-comparison-date={date}
-      data-comparison-metric={metric}
-      aria-label={label}
-      data-text-tooltip={label}
-    >
-      <span className="comparison-rank-number">{currentRank == null ? '—' : integer(currentRank)}</span>
-      <small className="comparison-page-marker">{pageMarker(value)}</small>
-    </td>
-  );
-}
-
 const COMPARISON_ROW_HEIGHT = 36;
 const COMPARISON_ROW_OVERSCAN = 24;
 const COMPARISON_RANGE_MARGIN = 8;
@@ -120,7 +78,7 @@ const COMPARISON_INITIAL_ROWS = 48;
 const COMPARISON_SECTION_HEADER_HEIGHT = 36;
 const COMPARISON_TABLE_HEADER_HEIGHT = 66;
 
-const ComparisonRow = memo(function ComparisonRow({ category, row, order, dates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, showTranslation, copyActive, copySelected, onToggleCopy, onConsumeCopyClick, copyCellHandlers }) {
+const ComparisonRow = memo(function ComparisonRow({ category, row, order, dates, allDates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, showTranslation, copyActive, copySelected, onToggleCopy, onConsumeCopyClick, copyCellHandlers }) {
   return (
     <tr key={`${category}-${row.keyword}-${order}`} className={row.watched ? 'watched-row' : ''}>
       <td className="comparison-star-cell">
@@ -150,15 +108,15 @@ const ComparisonRow = memo(function ComparisonRow({ category, row, order, dates,
         const previousNatural = index > 0 ? naturalValues[index - 1] : null;
         const previousSp = index > 0 ? spValues[index - 1] : null;
         return [
-          <RankCell key={`${date}-natural`} value={naturalValues[index]} previous={previousNatural} metric="natural" date={date} selected={date === comparisonDate} />,
-          <RankCell key={`${date}-sp`} value={spValues[index]} previous={previousSp} metric="sp" date={date} selected={date === comparisonDate} />,
+          <RankCell key={`${date}-natural`} value={naturalValues[index]} previous={previousNatural} row={row} index={index} previousDate={allDates[index - 1]} metric="natural" date={date} selected={date === comparisonDate} />,
+          <RankCell key={`${date}-sp`} value={spValues[index]} previous={previousSp} row={row} index={index} previousDate={allDates[index - 1]} metric="sp" date={date} selected={date === comparisonDate} />,
         ];
       })}
     </tr>
   );
 });
 
-function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, widths, resizeHandle, sectionRef, scrollContainerRef, showTranslation, copy }) {
+function ComparisonSection({ category, rows, dates, allDates, dateIndexMap, comparisonDate, onToggleWatch, onOpenTrend, widths, resizeHandle, sectionRef, scrollContainerRef, showTranslation, copy }) {
   const meta = CATEGORY_META[category] || CATEGORY_META.common;
   const sectionElementRef = useRef(null);
   const [virtualRange, setVirtualRange] = useState(() => ({ start: 0, end: Math.min(rows.length, COMPARISON_INITIAL_ROWS) }));
@@ -224,7 +182,6 @@ function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate
           <h2 id={`comparison-${category}-title`}>{meta.title}</h2>
           <span title={meta.subtitle}>基准 {comparisonDate || '无日期'} · {rows.length} 个关键词</span>
         </div>
-        <div className="comparison-section-legend"><span className="legend-up">红色＝排名上升</span><span className="legend-down">绿色＝排名下降</span></div>
       </div>
       {rows.length && dates.length ? (
         <div className="comparison-table-scroll">
@@ -247,14 +204,14 @@ function ComparisonSection({ category, rows, dates, dateIndexMap, comparisonDate
               </tr>
               <tr className="comparison-metric-row">
                 {dates.flatMap((date) => [
-                  <th key={`${date}-natural`} className={date === comparisonDate ? 'selected-date' : ''}>自然{resizeHandle('rank', '自然排名')}</th>,
-                  <th key={`${date}-sp`} className={date === comparisonDate ? 'selected-date' : ''}>SP{resizeHandle('rank', 'SP排名')}</th>,
+                  <th key={`${date}-natural`} className={`comparison-natural-head ${date === comparisonDate ? 'selected-date' : ''}`}>自然{resizeHandle('rank', '自然排名')}</th>,
+                  <th key={`${date}-sp`} className={`comparison-sp-head ${date === comparisonDate ? 'selected-date' : ''}`}>SP{resizeHandle('rank', 'SP排名')}</th>,
                 ])}
               </tr>
             </thead>
             <tbody>
               {renderSpacer(topSpacerHeight, 'comparison-virtual-top')}
-              {visibleRows.map(({ row, order }) => <ComparisonRow key={`${category}-${row.keyword}-${order}`} category={category} row={row} order={order} dates={dates} dateIndexMap={dateIndexMap} comparisonDate={comparisonDate} onToggleWatch={onToggleWatch} onOpenTrend={onOpenTrend} showTranslation={showTranslation} copyActive={copy.active} copySelected={copy.isSelected(row.keyword)} onToggleCopy={copy.toggleKeyword} onConsumeCopyClick={copy.consumePointerClick} copyCellHandlers={copy.cellHandlers} />)}
+              {visibleRows.map(({ row, order }) => <ComparisonRow key={`${category}-${row.keyword}-${order}`} category={category} row={row} order={order} dates={dates} allDates={allDates} dateIndexMap={dateIndexMap} comparisonDate={comparisonDate} onToggleWatch={onToggleWatch} onOpenTrend={onOpenTrend} showTranslation={showTranslation} copyActive={copy.active} copySelected={copy.isSelected(row.keyword)} onToggleCopy={copy.toggleKeyword} onConsumeCopyClick={copy.consumePointerClick} copyCellHandlers={copy.cellHandlers} />)}
               {renderSpacer(bottomSpacerHeight, 'comparison-virtual-bottom')}
             </tbody>
           </table>
@@ -268,6 +225,8 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
   const { showTranslation, toggleTranslation } = useMatrixTranslation();
   const copy = useMatrixKeywordCopy(model?.parentAsin);
   const comparisonScrollRef = useRef(null);
+  const dateScrollbarRef = useRef(null);
+  const [dateScrollWidth, setDateScrollWidth] = useState(0);
   const sectionRefs = useRef({});
   const defaults = useMemo(() => ({ star: 54, keyword: 250, translation: 180, rank: 82 }), []);
   const minimums = useMemo(() => ({ star: 48, keyword: 160, translation: 96, rank: 64 }), []);
@@ -330,6 +289,45 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
     return () => { resize.disconnect(); if (frame) window.cancelAnimationFrame(frame); };
   }, [model?.parentAsin, model?.latestDate, dateAxisKey, activeCategories.join('|'), restoreScroll?.left, restoreScroll?.top, showTranslation]);
 
+  // Keep date navigation visible at the panel bottom, even with virtualized rows.
+  useEffect(() => {
+    const container = comparisonScrollRef.current;
+    const scrollbar = dateScrollbarRef.current;
+    if (!container || !scrollbar) return undefined;
+    const tables = [...container.querySelectorAll('.comparison-table-scroll')];
+    const sync = (left) => {
+      for (const node of [...tables, scrollbar]) {
+        if (Math.abs(node.scrollLeft - left) > 1) node.scrollLeft = left;
+      }
+    };
+    const measure = () => {
+      const maximum = Math.max(0, ...tables.map((node) => node.scrollWidth - node.clientWidth));
+      const width = maximum > 0 ? scrollbar.clientWidth + maximum : 0;
+      // Update the spacer before scrollLeft so the browser can clamp correctly.
+      if (scrollbar.firstElementChild) scrollbar.firstElementChild.style.width = `${width}px`;
+      setDateScrollWidth(width);
+      sync(tables[0]?.scrollLeft || 0);
+    };
+    const onScroll = (event) => {
+      if (event.target === scrollbar || tables.includes(event.target)) sync(event.target.scrollLeft);
+    };
+    container.addEventListener('scroll', onScroll, true);
+    scrollbar.addEventListener('scroll', onScroll, { passive: true });
+    const resize = new ResizeObserver(measure);
+    resize.observe(container);
+    for (const node of tables) {
+      resize.observe(node);
+      if (node.firstElementChild) resize.observe(node.firstElementChild);
+    }
+    const frame = window.requestAnimationFrame(measure);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resize.disconnect();
+      container.removeEventListener('scroll', onScroll, true);
+      scrollbar.removeEventListener('scroll', onScroll);
+    };
+  }, [dateAxisKey, activeCategories.join('|'), model?.parentAsin, showTranslation, widths, displayedCount]);
+
   useEffect(() => {
     if (!focusSection) return undefined;
     const target = sectionRefs.current[focusSection];
@@ -342,9 +340,10 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
   }, [focusSection, model?.parentAsin, comparisonDate, activeCategories.join('|'), onFocusHandled]);
 
   return (
+    <ComparisonHoverProvider resetKey={`${model?.parentAsin}|${dateAxisKey}|${activeCategories.join()}|${currentFilter.query}|${currentFilter.watch}`} >
     <section className="comparison-panel" data-comparison-matrix aria-labelledby="comparison-matrix-title">
       <div className="comparison-note">
-        <div className="comparison-note-copy"><strong id="comparison-matrix-title" title="排名数字越小越好；①/②/③表示第1/2/3页，④+表示第4页及以后。红色表示较前日上升，绿色表示下降。">对比矩阵</strong>{focused && <span title={model?.modelName}>{model?.modelName}</span>}</div>
+        <div className="comparison-note-copy"><strong id="comparison-matrix-title" title="排名越小越好；P 为导入排名详情中的页码。红↑上升，绿↓下降，比较上一条日期记录。蓝色折角表示有标注，悬停查看。">对比矩阵</strong>{focused && <span title={model?.modelName}>{model?.modelName}</span>}</div>
         <FilterCascade
           rows={model?.matrixRows || []}
           filter={currentFilter}
@@ -381,6 +380,7 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
             category={category}
             rows={rowsByCategory[category] || []}
             dates={dates}
+            allDates={allDates}
             dateIndexMap={dateIndexMap}
             comparisonDate={comparisonDate}
             onToggleWatch={onToggleWatch}
@@ -394,6 +394,10 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
           />
         ))}
       </div>
+      <div ref={dateScrollbarRef} className="comparison-date-scrollbar" role="region" aria-label="横向滚动查看日期" tabIndex={0} style={{ visibility: dateScrollWidth ? 'visible' : 'hidden' }}>
+        <div style={{ width: dateScrollWidth, height: 1 }} />
+      </div>
     </section>
+    </ComparisonHoverProvider>
   );
 }

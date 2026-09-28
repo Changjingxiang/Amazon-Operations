@@ -243,6 +243,8 @@ function buildModel(config, records, allWatches, allAnnotations = [], allAbaMont
       note: watch?.note || '',
       naturalValues: dates.map((date) => pointMap.get(`${key}|${date}`)?.naturalRank ?? null),
       spValues: dates.map((date) => pointMap.get(`${key}|${date}`)?.spRank ?? null),
+      naturalRankDetails: dates.map((date) => pointMap.get(`${key}|${date}`)?.naturalRankDetail || ''),
+      spRankDetails: dates.map((date) => pointMap.get(`${key}|${date}`)?.spRankDetail || ''),
       naturalAnnotations: dates.map((date) => annotationMaps.natural.get(`${key}|${date}`) || ''),
       spAnnotations: dates.map((date) => annotationMaps.sp.get(`${key}|${date}`) || ''),
     };

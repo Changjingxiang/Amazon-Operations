@@ -984,3 +984,45 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
   .comparison-panel .comparison-note > .cascade-filter { margin-left: 0; }
   .comparison-quick-filters > span { width: 100%; margin-left: 0; }
 }
+/* Comparison matrix: source pages, compact changes and shared annotation hover. */
+.comparison-visual-legend { display:flex; gap:16px; align-items:center; padding:4px 12px 7px; color:#728093; font-size:11px; flex-wrap:wrap; }
+.comparison-table .comparison-natural-head { color:#2563a6; border-top:2px solid #5891cd; }
+.comparison-table .comparison-sp-head { color:#8052ad; border-top:2px solid #9d79be; border-right:2px solid #cdd9e4; }
+.comparison-table .comparison-date-row th[colspan] { border-right:2px solid #cdd9e4; }
+.comparison-table .comparison-sp-cell { border-right:2px solid #cdd9e4; }
+.comparison-table .comparison-rank-cell { position:relative; cursor:help; }
+.comparison-table .comparison-rank-cell:focus-visible { outline:2px solid #3979ba; outline-offset:-2px; }
+.comparison-rank-line { display:flex; align-items:baseline; justify-content:space-between; gap:3px; white-space:nowrap; }
+.comparison-rank-line .comparison-rank-number { font-size:14px; }
+.comparison-rank-delta { min-width:0; overflow:hidden; text-overflow:ellipsis; font-size:9px; font-variant-numeric:tabular-nums; }
+.comparison-rank-cell .comparison-page-marker { text-align:left; color:#697c8c; font-size:9px; font-weight:600; opacity:1; }
+.comparison-annotation-corner { position:absolute; top:0; right:0; width:0; height:0; border-top:7px solid #2788dc; border-left:7px solid transparent; }
+.comparison-hover-card { position:fixed; z-index:10000; width:350px; max-width:calc(100vw - 16px); max-height:calc(100vh - 16px); overflow:auto; padding:14px; border:1px solid #d7e2eb; border-radius:10px; background:#fff; color:#263f54; box-shadow:0 8px 28px #173b6429; font-size:12px; line-height:1.5; user-select:text; box-sizing:border-box; }
+.comparison-hover-heading { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:10px; }
+.comparison-hover-heading strong { overflow-wrap:anywhere; }
+.comparison-hover-heading time { white-space:nowrap; color:#6b7d8d; font-size:11px; }
+.comparison-hover-metric { padding:8px; border-radius:6px; border:1px solid transparent; }
+.comparison-hover-metric.is-current { background:#f3f7fb; border-color:#dce6ef; }
+.comparison-hover-metric > div { display:flex; align-items:center; gap:12px; }
+.comparison-hover-metric.natural strong { color:#2563a6; }
+.comparison-hover-metric.sp strong { color:#8052ad; }
+.comparison-hover-metric b { font-size:17px; }
+.comparison-hover-metric small { margin-left:auto; color:#64788c; white-space:nowrap; }
+.comparison-hover-metric p { margin:3px 0 0; color:#718395; font-size:11px; overflow-wrap:anywhere; }
+.comparison-hover-card .comparison-movement { padding:1px 4px; border-radius:3px; font-size:11px; }
+.comparison-hover-notes { margin-top:9px; border-top:1px solid #e2e9f0; }
+.comparison-hover-notes section { margin-top:9px; }
+.comparison-hover-notes strong { font-size:11px; color:#5c7186; }
+.comparison-hover-notes p { margin:4px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.comparison-hover-card footer { margin-top:10px; padding-top:8px; border-top:1px solid #e2e9f0; font-size:10px; color:#7d8e9e; }
+
+/* Persistent date navigation and metric identity in the comparison matrix. */
+.comparison-date-scrollbar { flex:0 0 18px; height:18px; overflow-x:scroll; overflow-y:hidden; background:#edf1f5; border-top:1px solid #b8c7d6; scrollbar-width:auto; scrollbar-color:#70879d #edf1f5; }
+.comparison-date-scrollbar:focus-visible { outline:2px solid #3979ba; outline-offset:-2px; }
+.comparison-table .comparison-sp-cell,
+.comparison-table .comparison-sp-head,
+.comparison-table .comparison-date-row th[colspan] { border-right:3px solid #8b9fb5; }
+.comparison-table .comparison-natural-cell .comparison-rank-number { color:#064d91; }
+.comparison-table .comparison-sp-cell .comparison-rank-number { color:#8a239c; }
+.comparison-table thead .comparison-natural-head { color:#064d91; border-top-color:#064d91; }
+.comparison-table thead .comparison-sp-head { color:#8a239c; border-top-color:#8a239c; }

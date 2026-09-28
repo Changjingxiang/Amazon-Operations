@@ -108,9 +108,11 @@ function sourceReport(filePath) {
       trafficShare: nullableNumber(get(row, '该关键词给父体贡献的 全部流量占比')),
       naturalRank: nullableNumber(get(row, '自然排名')),
       naturalRankDate: isoDate(get(row, '自然排名时间')),
+      naturalRankDetail: text(get(row, '自然排名详情')),
       naturalChildAsin: text(get(row, '最新自然排名 对应的子体')),
       spRank: nullableNumber(get(row, 'SP(常规)排名')),
       spRankDate: isoDate(get(row, 'SP(常规)排名时间')),
+      spRankDetail: text(get(row, 'SP(常规)排名详情')),
       spCampaign: text(get(row, 'SP(常规)排名 对应的广告活动')),
       spChildAsin: text(get(row, '最新SP(常规)排名 对应的子体')),
       weeklyAbaRank: nullableNumber(get(row, '周ABA排名')),
@@ -552,7 +554,9 @@ function importReports(toolRoot, exporterPath, cachePath, mode = 'normal') {
   let imported = 0; let skipped = 0; let failed = 0; const errors = [];
   for (const file of files) {
     const fingerprint = `${file.stat.size}:${file.stat.mtimeMs}`;
-    if (mode !== 'force' && store.importedFiles[file.name]?.fingerprint === fingerprint) { skipped++; continue; }
+    // Old imports did not retain rank details; re-read them once when imported again.
+    const knownFile = store.importedFiles[file.name];
+    if (mode !== 'force' && knownFile?.fingerprint === fingerprint && (knownFile.rankDetailsVersion === 1 || knownFile.unsupported)) { skipped++; continue; }
     try {
       const report = sourceReport(file.fullPath); const config = configsByAsin.get(report.parentAsin);
       if (!config) { skipped++; continue; }
@@ -560,7 +564,7 @@ function importReports(toolRoot, exporterPath, cachePath, mode = 'normal') {
       store.histories[config.historySheet] = previous.filter((item) => !(item.parentAsin === config.parentAsin && item.snapshotDate === report.snapshotDate)).concat(
         report.records.map((item) => ({ ...item, modelName: config.modelName, parentAsin: config.parentAsin })),
       );
-      store.importedFiles[file.name] = { fingerprint, parentAsin: config.parentAsin, snapshotDate: report.snapshotDate, importedAt: new Date().toISOString() };
+      store.importedFiles[file.name] = { fingerprint, rankDetailsVersion: 1, parentAsin: config.parentAsin, snapshotDate: report.snapshotDate, importedAt: new Date().toISOString() };
       imported++;
     } catch (error) {
       // Older `asinKeywords_*.xlsx` exports are WPS-protected binary files.

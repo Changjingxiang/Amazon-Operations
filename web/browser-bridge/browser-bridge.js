@@ -1284,6 +1284,8 @@
         note: watch?.note || '',
         naturalValues: dates.map((date) => pointMap.get(`${itemKey}|${date}`)?.naturalRank ?? null),
         spValues: dates.map((date) => pointMap.get(`${itemKey}|${date}`)?.spRank ?? null),
+        naturalRankDetails: dates.map((date) => pointMap.get(`${itemKey}|${date}`)?.naturalRankDetail || ''),
+        spRankDetails: dates.map((date) => pointMap.get(`${itemKey}|${date}`)?.spRankDetail || ''),
         naturalAnnotations: dates.map((date) => annotationMaps.natural.get(`${itemKey}|${date}`) || ''),
         spAnnotations: dates.map((date) => annotationMaps.sp.get(`${itemKey}|${date}`) || ''),
       };
@@ -1922,9 +1924,11 @@
         trafficShare: nullableNumber(get(row, '该关键词给父体贡献的 全部流量占比')),
         naturalRank: nullableNumber(get(row, '自然排名')),
         naturalRankDate: isoDate(get(row, '自然排名时间')),
+        naturalRankDetail: text(get(row, '自然排名详情')),
         naturalChildAsin: text(get(row, '最新自然排名 对应的子体')),
         spRank: nullableNumber(get(row, 'SP(常规)排名')),
         spRankDate: isoDate(get(row, 'SP(常规)排名时间')),
+        spRankDetail: text(get(row, 'SP(常规)排名详情')),
         spCampaign: text(get(row, 'SP(常规)排名 对应的广告活动')),
         spChildAsin: text(get(row, '最新SP(常规)排名 对应的子体')),
         weeklyAbaRank: nullableNumber(get(row, '周ABA排名')),
@@ -2067,7 +2071,9 @@
     const errors = [];
     for (const file of [...files].sort((a, b) => a.lastModified - b.lastModified)) {
       const fingerprint = `${file.size}:${file.lastModified}`;
-      if (mode !== 'force' && store.importedFiles[file.name]?.fingerprint === fingerprint) {
+      // Re-read pre-detail imports once so selecting an old file can fill its page information.
+      const knownFile = store.importedFiles[file.name];
+      if (mode !== 'force' && knownFile?.fingerprint === fingerprint && (knownFile.rankDetailsVersion === 1 || knownFile.unsupported)) {
         skipped++;
         continue;
       }
@@ -2093,6 +2099,7 @@
         const wasKnown = Boolean(store.importedFiles[file.name]);
         store.importedFiles[file.name] = {
           fingerprint,
+          rankDetailsVersion: 1,
           parentAsin: report.parentAsin,
           snapshotDate: report.snapshotDate,
           ownerType: target.kind,
