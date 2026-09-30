@@ -26,7 +26,7 @@ export default function SummaryBand({ metrics, latestDate, loadedAt, mode = 'das
       <img src={appLogo} alt="" className="summary-logo" />
       {items.map(([label, value, tone]) => (
         <div className="summary-item" key={label}>
-          <span>{label === '关键词' ? (mode === 'dashboard' ? '当前筛选关键词' : '摘要日关键词') : label}</span>
+          <span>{label === '关键词' ? (mode === 'dashboard' ? '当前筛选关键词' : '当天关键词') : label}</span>
           <strong className={tone || ''}>{value ?? 0}</strong>
         </div>
       ))}

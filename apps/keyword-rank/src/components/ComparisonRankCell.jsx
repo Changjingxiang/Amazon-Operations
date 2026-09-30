@@ -5,6 +5,13 @@ import { detailPage, positiveRank, rankMovement } from '../lib/comparisonRank.mj
 const HoverContext = createContext(null);
 const rankText = (value) => positiveRank(value) ?? (value === 0 ? '未上榜' : '无记录');
 
+function highlightDate(anchor, date) {
+  const table = anchor.closest('table');
+  if (!table) return;
+  table.querySelectorAll('.comparison-date-hover').forEach((cell) => cell.classList.remove('comparison-date-hover'));
+  if (date) table.querySelectorAll(`[data-comparison-date="${date}"]`).forEach((cell) => cell.classList.add('comparison-date-hover'));
+}
+
 export function ComparisonHoverProvider({ children, resetKey }) {
   const [hover, setHover] = useState(null);
   const [position, setPosition] = useState(null);
@@ -89,11 +96,11 @@ export function ComparisonRankCell({ value, previous, metric, date, selected, ro
   const label = `${date} ${metric === 'natural' ? '自然' : 'SP'}排名 ${rankText(value)}，${page == null ? '页码未知' : `第${page}页`}，${movement.text}${annotation ? `，标注：${annotation}` : ''}`;
   const payload = { row, index, metric, date, previousDate };
   return <td className={`comparison-rank-cell comparison-${metric}-cell ${movement.className} ${selected ? 'selected-date' : ''}`}
-    data-comparison-date={date} data-comparison-metric={metric} data-page={page ?? ''}
+    data-comparison-date={date} data-comparison-metric={metric} data-page={page ?? ''} data-rank-state={positiveRank(value) != null ? 'ranked' : value === 0 ? 'unranked' : 'missing'}
     aria-label={label} tabIndex={0}
-    onMouseEnter={(event) => hover.show(event.currentTarget, payload)} onMouseLeave={hover.leave}
-    onFocus={(event) => hover.show(event.currentTarget, payload, true)} onBlur={hover.leave}>
-    <span className="comparison-rank-line"><span className="comparison-rank-number">{positiveRank(value) ?? ''}</span>{['rank-up', 'rank-down'].includes(movement.className) && <span className="comparison-rank-delta">{movement.text}</span>}</span>
+    onMouseEnter={(event) => { highlightDate(event.currentTarget, date); hover.show(event.currentTarget, payload); }} onMouseLeave={(event) => { highlightDate(event.currentTarget); hover.leave(); }}
+    onFocus={(event) => { highlightDate(event.currentTarget, date); hover.show(event.currentTarget, payload, true); }} onBlur={(event) => { highlightDate(event.currentTarget); hover.leave(); }}>
+    <span className="comparison-rank-line"><span className="comparison-rank-number">{positiveRank(value) ?? (value === 0 ? '—' : '·')}</span>{['rank-up', 'rank-down'].includes(movement.className) && <span className="comparison-rank-delta">{movement.text}</span>}</span>
     {positiveRank(value) != null && page != null && <small className="comparison-page-marker">{`P${page}`}</small>}
     {annotation && <span className="comparison-annotation-corner" aria-hidden="true" />}
   </td>;

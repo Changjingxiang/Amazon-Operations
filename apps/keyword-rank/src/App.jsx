@@ -519,7 +519,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
         <WindowTitlebar onTool={toggleWebTool} activeTool={webTool} />
         <main className="empty-app">
         <BusyOverlay label={busyLabel} />
-          <h1>Amazon关键词每日跟进-v3.0.4</h1>
+          <h1>Amazon关键词每日跟进-v3.1</h1>
           <p>{data?.models?.length === 0 ? '“型号配置”中没有启用的型号。' : '正在准备软件数据…'}</p>
           {data?.models?.length === 0 && <button className="secondary-button" data-guide-add-model onClick={() => setAddModelOpen(true)}>＋ 新增型号</button>}
           <Toast toast={toast} onClose={() => setToast(null)} />
@@ -582,7 +582,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
           </div>
           <footer className="statusbar">
             <span role="status">{pendingWatches > 0 ? `正在后台保存关注（${pendingWatches}）…` : pendingAnnotations > 0 ? `正在后台保存标注（${pendingAnnotations}）…` : '本地数据已保存'} · {activeTab === 'history' ? '历史记录' : trendRow ? '关键词趋势' : `当前显示 ${activeViewCount} 个关键词`} · 源文件 {data.sourceCount} 个</span>
-            <span><b className="legend-up">红色＝上升</b><b className="legend-down">绿色＝下降</b><b className="legend-none">灰色＝未上榜</b></span>
+            <span><b className="legend-up">红色＝上升</b><b className="legend-down">绿色＝下降</b><b className="legend-none">{activeTab === 'comparison' ? '灰底 · 无记录；— 未上榜' : '灰色＝未上榜'}</b></span>
           </footer>
         </main>
         <WatchDrawer
