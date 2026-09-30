@@ -358,7 +358,7 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
           label="高级筛选"
           placeholder="搜索对比关键词…"
         />
-        <div className="comparison-view-actions"><button type="button" disabled={!dates.length} title="滚动到当前展示区间的最新日期" onClick={() => { comparisonScrollRef.current?.querySelectorAll('.comparison-table-scroll').forEach((node) => { node.scrollLeft = node.scrollWidth; }); }}>回到最新日期</button>{copy.controls}<button type="button" aria-pressed={!showTranslation} onClick={toggleTranslation}>{showTranslation ? '收起翻译' : '显示翻译'}</button><button type="button" aria-pressed={focused} onClick={onFocusToggle}>{focused ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{focused ? '退出专注' : '专注矩阵'}</button></div>
+        <div className="comparison-view-actions">{copy.controls}<button type="button" aria-pressed={!showTranslation} onClick={toggleTranslation}>{showTranslation ? '收起翻译' : '显示翻译'}</button><button type="button" aria-pressed={focused} onClick={onFocusToggle}>{focused ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{focused ? '退出专注' : '专注矩阵'}</button></div>
       </div>
       <div className="comparison-period-bar">
         <MatrixPeriodSelect dates={allDates} filter={currentFilter} onChange={onFiltersChange} />
@@ -371,9 +371,8 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
       <div className="comparison-quick-filters" role="group" aria-label="快捷对比关系">
         <button type="button" aria-pressed={!currentFilter.relations.length} onClick={() => onFiltersChange({ ...currentFilter, relations: [] })}>全部 <b>{dates.length ? sourceRows.length : 0}</b></button>
         {COMPARISON_FILTER_OPTIONS.map(({ value, label }) => <button key={value} type="button" aria-pressed={currentFilter.relations.includes(value)} onClick={() => onFiltersChange({ ...currentFilter, relations: currentFilter.relations.includes(value) ? currentFilter.relations.filter((item) => item !== value) : [...currentFilter.relations, value] })}>{label} <b>{categoryCounts[value]}</b></button>)}
-        <span>显示 {displayedCount} / 历史累计 {model?.matrixRows?.length || 0}{activeCategories.length > 1 ? ' · 多组选词已去重计数' : ''}</span>
+        <span>显示 {displayedCount} / 历史 {model?.matrixRows?.length || 0}{activeCategories.length > 1 ? ' · 多组选词已去重计数' : ''}</span>
       </div>
-      <div className="comparison-reading-guide" aria-label="矩阵读数说明"><span className="legend-up">红 ↑ 排名上升</span><span className="legend-down">绿 ↓ 排名下降</span><span>— 未上榜</span><span>· 无记录</span><span>P 页码</span><span>蓝色折角：有标注</span><span className="comparison-guide-hint">悬停查看详情 · 拖动表头边界调整列宽</span></div>
       <div ref={comparisonScrollRef} className="comparison-scroll">
         {activeCategories.map((category) => (
           <ComparisonSection

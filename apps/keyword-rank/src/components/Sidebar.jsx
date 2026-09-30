@@ -18,7 +18,7 @@ export default function Sidebar({ models, activeIndex, onSelect, onChooseIcon, o
             key={model.parentAsin}
           >
             <ProductImagePreview model={model} onOpen={onChooseIcon} />
-            <button type="button" className="model-copy" onClick={() => onSelect(index)} onDoubleClick={() => openProduct(model)} title={`${model.modelName} · ${model.parentAsin} · 双击进入商品页面`}>
+            <button type="button" className="model-copy" onClick={() => onSelect(index)} onDoubleClick={() => openProduct(model)} title="双击进入商品页面">
               <strong>{model.modelName}</strong>
               <small>{model.parentAsin}</small>
             </button>
