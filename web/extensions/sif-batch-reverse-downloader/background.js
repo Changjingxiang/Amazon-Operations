@@ -29,6 +29,9 @@ const ready = restoreState();
 
 function isTrackerTab(tab) {
   const url = String(tab?.url || "");
+  try {
+    if (new URL(url).origin === "https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site") return true;
+  } catch {}
   return /^(?:file:\/\/\/|https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/)/i.test(url)
     && /(?:^|[\\/])index\.html(?:[?#]|$)/i.test(url);
 }

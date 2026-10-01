@@ -11,6 +11,7 @@
   }
 
   function isTrackerPage() {
+    if (new URL(location.href).origin === "https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site") return true;
     return /(?:^|[\\/])index\.html(?:[?#]|$)/i.test(location.href);
   }
 

@@ -131,6 +131,8 @@ The following detailed guides are currently in Chinese:
 
 ### Latest updates — v3.0.4 · September 28, 2026
 
+- October 1 hotfix: bundled SIF extension v1.1.7 handles missing parent overview cards when the keyword table is available and starts the download timeout at the download step. Current-product and all-products import support both the local app and GPT Site. Update and reload existing extension installations.
+
 - The comparison matrix now has a bottom date scrollbar, clearer day separators, distinct colors for organic and SP ranks, and hover annotations. Page numbers come from the imported rank detail fields. See the [v3.0.4 notes](docs/releases/web-v3.0.4.md).
 
 ### v3.0.3 · September 27, 2026
