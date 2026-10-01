@@ -129,6 +129,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     if (message?.type === "TASK_PROGRESS" && sender.tab?.id) {
       if (activeRun?.tabOwners.get(sender.tab.id) === message.asin) {
+        if (message.status === "downloading") armDownloadTimeout(message.asin);
         await updateTask(message.asin, { status: message.status || "working", error: null });
       }
       sendResponse({ ok: true });
@@ -285,6 +286,9 @@ async function processOne(run, task) {
     const item = await withDownloadGate(async () => {
       if (run.stopped) throw new Error("STOPPED");
       const downloadPromise = expectDownload(asin);
+      // Observe rejection immediately while the content script is still
+      // waiting for its report capture response.
+      downloadPromise.catch(() => {});
       let captureReady = true;
       try {
         await chrome.scripting.executeScript({
@@ -313,6 +317,7 @@ async function processOne(run, task) {
       }
 
       await updateTask(asin, { status: "downloading" });
+      armDownloadTimeout(asin);
       try {
         const download = await downloadPromise;
         return { download, file: response?.file || null };
@@ -455,14 +460,19 @@ function waitForTabComplete(tabId, timeoutMs, run) {
 function expectDownload(asin) {
   cancelExpectedDownload(asin, new Error("新的下载任务已替换旧任务。"));
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      expectedDownloads.delete(asin);
-      const error = new Error("DOWNLOAD_BLOCKED");
-      error.noRetry = true;
-      reject(error);
-    }, DOWNLOAD_START_TIMEOUT_MS);
-    expectedDownloads.set(asin, { resolve, reject, timer, createdAt: Date.now() });
+    expectedDownloads.set(asin, { resolve, reject, timer: null, createdAt: Date.now() });
   });
+}
+
+function armDownloadTimeout(asin) {
+  const pending = expectedDownloads.get(asin);
+  if (!pending || pending.timer !== null) return;
+  pending.timer = setTimeout(() => {
+    expectedDownloads.delete(asin);
+    const error = new Error("DOWNLOAD_BLOCKED");
+    error.noRetry = true;
+    pending.reject(error);
+  }, DOWNLOAD_START_TIMEOUT_MS);
 }
 
 function cancelExpectedDownload(asin, error) {

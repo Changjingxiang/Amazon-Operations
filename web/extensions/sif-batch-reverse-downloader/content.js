@@ -109,13 +109,21 @@
         await waitFor(() => new URL(location.href).searchParams.get("asin")?.toUpperCase() === asin, 30_000);
       }
 
-      const parentCard = await waitFor(() => {
+      const parentState = await waitFor(() => {
         const cards = [...document.querySelectorAll(".single_variant_wrap.pasin_item, .single_variant_wrap")];
-        return cards.find((card) => {
+        const card = cards.find((card) => {
           const header = card.querySelector(".single_variant_header.all, .single_variant_header");
           return header?.textContent.trim() === "父体";
         });
+        if (card) return { card };
+        // SIF sometimes loses its overview/variant cards for a parent ASIN
+        // while retaining the keyword table. Require its explicit parent
+        // notice and the target URL before accepting that table.
+        if (new URL(location.href).searchParams.get("asin")?.toUpperCase() === asin
+          && /当前查询的是\s*父体\s*ASIN/u.test(document.body?.innerText || "")
+          && !hasVisibleLoadingMask() && tableFingerprint()) return { card: null };
       }, TIMEOUT_MS);
+      const parentCard = parentState.card;
 
       // SIF can briefly render the parent card as selected before it finishes
       // loading the initially selected child table.  Let the first table
@@ -123,7 +131,7 @@
       await waitForTableReady("", false, INITIAL_TABLE_SETTLE_DELAY_MS);
       const previousTableFingerprint = tableFingerprint();
       let parentSelectionChanged = false;
-      if (!parentCard.classList.contains("isActive")) {
+      if (parentCard && !parentCard.classList.contains("isActive")) {
         parentCard.click();
         await waitFor(() => parentCard.classList.contains("isActive"), 20_000);
         parentSelectionChanged = true;
