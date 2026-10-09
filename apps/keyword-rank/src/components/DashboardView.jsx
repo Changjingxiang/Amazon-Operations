@@ -1,11 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowDownAZ, ArrowUpAZ, Star, Maximize2, Minimize2 } from 'lucide-react';
+import { Star, Maximize2, Minimize2 } from 'lucide-react';
 import Sparkline from './Sparkline.jsx';
 import KeywordTrendThumbnail from './KeywordTrendThumbnail.jsx';
 import { integer, percent } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import FilterCascade, { WATCH_FILTER_OPTIONS } from './FilterCascade.jsx';
+import DashboardSort from './DashboardSort.jsx';
+import { sortDashboardRows } from '../lib/dashboardSort.mjs';
 
 function RankCell({ value, direction }) {
   const className = value == null ? 'rank-unranked' : direction === 'up' ? 'rank-up' : direction === 'down' ? 'rank-down' : 'rank-neutral';
@@ -38,52 +40,19 @@ function previewPoint(event) {
 
 export default function DashboardView({ rows, sourceRows, model, filters, onFiltersChange, onToggleWatch, onManage, onOpenTrend, onAI }) {
   const [expanded, setExpanded] = useState(false);
-  useEffect(() => { const escape = (event) => { if (event.key === 'Escape') setExpanded(false); }; window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape); }, []);
-  const [sort, setSort] = useState({ field: null, direction: 'asc' });
+  useEffect(() => { const escape = (event) => { if (event.key === 'Escape' && !event.defaultPrevented) setExpanded(false); }; window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape); }, []);
+  const [sortConditions, setSortConditions] = useState([]);
   const [hovered, setHovered] = useState(null);
   const defaults = useMemo(() => ({ star: 52, traffic: 72, keyword: 190, translation: 130, naturalTrend: 92, spTrend: 92, trafficShare: 105, naturalRank: 82, spRank: 82, weeklyAbaRank: 98, weeklySearchVolume: 98, status: 128 }), []);
   const { widths, nudgeWidth, startResize } = useColumnWidths('keyword-tracker:columns:dashboard', defaults);
-  const sortedRows = useMemo(() => {
-    if (!sort.field) return rows;
-    const direction = sort.direction === 'asc' ? 1 : -1;
-    return [...rows].sort((a, b) => {
-      // Pin关注词 first, preserving the explicit order from the watch drawer.
-      // Do this before comparing the selected metric so asc/desc never moves a
-      // watched row below an ordinary traffic row.
-      if (Boolean(a.watched) !== Boolean(b.watched)) return a.watched ? -1 : 1;
-      if (a.watched && b.watched) {
-        const orderDiff = (a.watchOrder ?? Number.MAX_SAFE_INTEGER) - (b.watchOrder ?? Number.MAX_SAFE_INTEGER);
-        if (orderDiff !== 0) return orderDiff;
-      }
-      const av = a[sort.field];
-      const bv = b[sort.field];
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      const valueDiff = (Number(av) - Number(bv)) * direction;
-      if (valueDiff !== 0) return valueDiff;
-      // A deterministic tie-break makes repeated toggles predictable without
-      // changing the requested metric ordering.
-      return String(a.keyword || '').localeCompare(String(b.keyword || ''), 'en', { sensitivity: 'base' });
-    });
-  }, [rows, sort]);
+  const sortedRows = useMemo(() => sortDashboardRows(rows, sortConditions), [rows, sortConditions]);
 
   useEffect(() => { setHovered(null); }, [model?.parentAsin, model?.selectedYear, rows]);
 
-  const chooseSort = (field, direction) => setSort({ field, direction });
   const widthStyle = (column) => ({ width: widths[column], minWidth: widths[column] });
   const resizeHandle = (column, label) => <ResizeHandle columnKey={column} onResize={startResize} onNudge={nudgeWidth} label={label} />;
   const showTrend = (row, event) => setHovered({ keyword: row.keyword, style: previewPoint(event) });
   const updateTrend = (row, event) => { const point = previewPoint(event); setHovered((current) => current?.keyword === row.keyword ? { ...current, style: point } : current); };
-  const sortButton = (field, direction, label, Icon) => (
-    <button
-      type="button"
-      className={`sort-button ${sort.field === field && sort.direction === direction ? 'active' : ''}`}
-      onClick={() => chooseSort(field, direction)}
-      aria-label={`${label}${direction === 'asc' ? '升序' : '降序'}`}
-      title={`${label}${direction === 'asc' ? '升序' : '降序'}`}
-    ><Icon size={14} />{label}{direction === 'asc' ? '升' : '降'}</button>
-  );
 
   const content = (
     <section className={`dashboard-panel ${expanded ? 'dashboard-expanded' : ''}`}>
@@ -97,13 +66,7 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
           label="筛选"
           placeholder="搜索看板关键词…"
         />
-        <div className="sort-controls" aria-label="看板排序">
-          <span className="sort-label">排序</span>
-          {sortButton('weeklyAbaRank', 'asc', '周ABA', ArrowUpAZ)}
-          {sortButton('weeklyAbaRank', 'desc', '周ABA', ArrowDownAZ)}
-          {sortButton('weeklySearchVolume', 'asc', '周搜索量', ArrowUpAZ)}
-          {sortButton('weeklySearchVolume', 'desc', '周搜索量', ArrowDownAZ)}
-        </div>
+        <DashboardSort conditions={sortConditions} onChange={setSortConditions} />
         <button type="button" className="manage-watch-button" onClick={onManage}><Star size={17} fill="currentColor" />管理关注词</button>
       </div>
       <div className="dashboard-scroll">

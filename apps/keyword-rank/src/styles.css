@@ -20,6 +20,8 @@
   --focus-ring: 0 0 0 3px rgba(39,199,217,.16);
   --radius-control: 9px;
   --radius-panel: 12px;
+  --layer-expanded-table: 45;
+  --layer-table-popover: 200;
 }
 
 * { box-sizing: border-box; }
@@ -845,7 +847,37 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .k-loading-content:before,.busy-overlay-video > div:before { content:'';position:absolute;inset:-60px -90px;z-index:-1;background:rgba(255,253,245,.2);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);mask-image:radial-gradient(ellipse,#000 28%,transparent 72%);pointer-events:none; }
 .k-loading .k-loading-video,.busy-overlay-video .busy-k-video { mask-image:radial-gradient(ellipse,#000 22%,rgba(0,0,0,.9) 38%,rgba(0,0,0,.35) 56%,transparent 72%); }
 
-.dashboard-panel.dashboard-expanded { position: fixed; inset: 48px 12px 12px 232px; width: auto; height: auto; z-index: 45; margin: 0; background: #fff; box-shadow: 0 6px 28px #173b6426; }
+.dashboard-panel.dashboard-expanded { position: fixed; inset: 48px 12px 12px 232px; width: auto; height: auto; z-index: var(--layer-expanded-table); margin: 0; background: #fff; box-shadow: 0 6px 28px #173b6426; }
+/* Portalled table controls must sit above the enlarged table, below dialogs. */
+.cascade-popover, .dashboard-sort-popover { z-index: var(--layer-table-popover); }
+.dashboard-panel .table-toolbar { flex-basis: auto; flex-wrap: wrap; gap: 7px 12px; padding-top: 5px; padding-bottom: 5px; }
+.dashboard-panel .table-toolbar > button, .dashboard-panel .table-toolbar > .cascade-filter { flex-shrink: 0; }
+.dashboard-sort-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dashboard-sort-trigger { flex: 0 0 auto; height: 31px; }
+.dashboard-sort-trigger b { min-width: 16px; height: 16px; display: inline-grid; place-items: center; padding: 0 4px; background: var(--navy); color: #fff; font-size: 9px; border-radius: 8px; }
+.dashboard-sort-summary { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #536174; font-size: 10px; }
+.dashboard-sort-popover { position: fixed; width: min(490px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: auto; background: #fff; color: #334052; border: 1px solid #9eabb9; border-radius: 11px; box-shadow: 0 15px 34px #173b6438, 0 2px 7px #173b641a; }
+.dashboard-sort-hint { margin: 10px 12px; color: #6c7888; font-size: 11px; line-height: 1.6; }
+.dashboard-sort-list { list-style: none; display: grid; gap: 7px; padding: 0 12px; margin: 0; }
+.dashboard-sort-row { display: flex; align-items: center; gap: 7px; }
+.dashboard-sort-priority { flex: 0 0 21px; height: 21px; display: grid; place-items: center; background: #eafcff; color: #0b7483; border-radius: 5px; font-size: 11px; font-weight: 800; }
+.dashboard-sort-row select { flex: 1 1 110px; width: 110px; min-width: 0; height: 31px; padding: 0 6px; border: 1px solid #c1ccd6; border-radius: 6px; background: #fff; font-size: 11px; }
+.dashboard-sort-directions { flex: 0 0 auto; display: flex; gap: 3px; }
+.dashboard-sort-directions button { height: 31px; display: inline-flex; align-items: center; gap: 2px; padding: 0 7px; border: 1px solid #c1ccd6; border-radius: 6px; background: #fff; color: #6c7888; font-size: 11px; }
+.dashboard-sort-directions button[aria-pressed="true"] { border-color: #168da0; background: #eafcff; color: #0b7483; font-weight: 800; }
+.dashboard-sort-row-actions { flex: 0 0 auto; display: flex; gap: 2px; }
+.dashboard-sort-row-actions button { display: grid; place-items: center; width: 24px; height: 28px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: #6c7888; }
+.dashboard-sort-row-actions button:hover:not(:disabled) { background: #edf5f8; color: var(--navy); }
+.dashboard-sort-empty { margin: 10px 12px; color: #8995a1; font-size: 11px; }
+.dashboard-sort-add { display: inline-flex; align-items: center; gap: 4px; height: 29px; margin: 10px 12px; padding: 0 8px; border: 1px solid #b7dbe0; border-radius: 6px; background: #f0fdff; color: #0b7483; font-size: 11px; }
+.dashboard-sort-popover .dashboard-sort-clear { background: transparent; border-color: #c1ccd6; color: #536174; }
+@media (max-width: 600px) {
+  .dashboard-sort-summary { display: none; }
+  .dashboard-sort-row { flex-wrap: wrap; }
+  .dashboard-sort-row select { flex-grow: 1; }
+  .dashboard-sort-row-actions { margin-left: auto; }
+  .dashboard-panel.dashboard-expanded { left: 12px; }
+}
 .competitor-image-button { flex: 0 0 28px; width: 28px; height: 32px; padding: 2px; border: 1px solid #ffffff55; border-radius: 6px; background: #fff; cursor: pointer; }
 .competitor-image-button img { width: 100%; height: 100%; object-fit: contain; }
 .matrix-competitor-bubble-row .competitor-movement { display: block; font-size: 9px; text-align: right; font-weight: 500; color: #718092; }
