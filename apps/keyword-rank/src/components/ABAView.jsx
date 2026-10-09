@@ -104,6 +104,7 @@ export default function ABAView({ model, rows: filteredRows, filters, onFiltersC
         <button type="button" className="secondary-button aba-import-entry" onClick={onImport}>导入月 ABA CSV</button>
         <label>年份 <select aria-label="ABA年份" value={year} onChange={(event) => onFiltersChange({ ...filters, abaYear: Number(event.target.value) })}>{(model.abaYears || [model.selectedYear]).map((value) => <option key={value} value={value}>{value}年</option>)}</select></label>
       </div>
+      {copy.feedback}
       <div ref={scrollRef} className="matrix-scroll">
         <table key={year} data-aba-year={year} style={stickyLayoutStyle} className={`matrix-table aba-table aba-group-table matrix-layout-transition ${layoutAnimating ? 'is-animating' : ''}`}>
           <colgroup>

@@ -373,6 +373,7 @@ export default function ComparisonMatrixView({ model, rows: visibleRows, filters
         {COMPARISON_FILTER_OPTIONS.map(({ value, label }) => <button key={value} type="button" aria-pressed={currentFilter.relations.includes(value)} onClick={() => onFiltersChange({ ...currentFilter, relations: currentFilter.relations.includes(value) ? currentFilter.relations.filter((item) => item !== value) : [...currentFilter.relations, value] })}>{label} <b>{categoryCounts[value]}</b></button>)}
         <span>显示 {displayedCount} / 历史 {model?.matrixRows?.length || 0}{activeCategories.length > 1 ? ' · 多组选词已去重计数' : ''}</span>
       </div>
+      {copy.feedback}
       <div ref={comparisonScrollRef} className="comparison-scroll">
         {activeCategories.map((category) => (
           <ComparisonSection

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Copy, Keyboard, X } from 'lucide-react';
+import searchMascot from '../assets/keyword-copy/k-search.webp';
+import successMascot from '../assets/keyword-copy/k-copy-success.webp';
 
 const SHORTCUT_KEY = 'keyword-tracker:matrix-copy-shortcut';
 const DEFAULT_SHORTCUT = 'Ctrl+Alt+K';
@@ -16,7 +18,7 @@ function isEditable(target) {
 }
 
 function hasOpenDialog() {
-  return [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].some(
+  return [...document.querySelectorAll('[role="dialog"]')].some(
     (dialog) => !dialog.closest('[aria-hidden="true"], [hidden]') && dialog.getClientRects().length > 0,
   );
 }
@@ -49,9 +51,15 @@ async function writeClipboard(value) {
     input.setAttribute('readonly', '');
     input.style.cssText = 'position:fixed;left:-9999px;top:0;';
     document.body.appendChild(input);
-    input.select();
-    const copied = document.execCommand('copy');
-    input.remove();
+    const previousFocus = document.activeElement;
+    let copied = false;
+    try {
+      input.select();
+      copied = document.execCommand('copy');
+    } finally {
+      input.remove();
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
+    }
     if (!copied) throw new Error('无法写入剪贴板');
   }
 }
@@ -61,15 +69,47 @@ export function useMatrixKeywordCopy(scope) {
   const [selected, setSelected] = useState(() => new Map());
   const shortcut = useCopyShortcut();
   const [status, setStatus] = useState('');
+  const [phase, setPhase] = useState('selecting');
+  const [copying, setCopying] = useState(false);
+  const [copiedCount, setCopiedCount] = useState(0);
+  const [successId, setSuccessId] = useState(0);
   const dragRef = useRef(null);
   const ignoreClickRef = useRef(null);
+  const feedbackTimerRef = useRef(null);
+  const contextRef = useRef(0);
+  const activeRef = useRef(false);
+  const copyingRef = useRef(false);
 
-  useEffect(() => { setActive(false); setSelected(new Map()); setStatus(''); dragRef.current = null; }, [scope]);
+  const clearFeedbackTimer = useCallback(() => {
+    window.clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = null;
+  }, []);
+
+  const showSelecting = useCallback(() => {
+    clearFeedbackTimer();
+    setStatus('');
+    setPhase('selecting');
+  }, [clearFeedbackTimer]);
+
+  useEffect(() => {
+    contextRef.current += 1;
+    activeRef.current = false;
+    copyingRef.current = false;
+    setActive(false);
+    setSelected(new Map());
+    setCopying(false);
+    showSelecting();
+    dragRef.current = null;
+    ignoreClickRef.current = null;
+    return () => { contextRef.current += 1; clearFeedbackTimer(); };
+  }, [scope, clearFeedbackTimer, showSelecting]);
 
   const toggleActive = useCallback(() => {
-    setActive((value) => !value);
-    setStatus('');
-  }, []);
+    activeRef.current = !activeRef.current;
+    setActive(activeRef.current);
+    showSelecting();
+    dragRef.current = null;
+  }, [showSelecting]);
 
   const toggleKeyword = useCallback((keyword) => {
     const value = String(keyword || '').trim();
@@ -81,8 +121,8 @@ export function useMatrixKeywordCopy(scope) {
       else next.set(key, value);
       return next;
     });
-    setStatus('');
-  }, []);
+    showSelecting();
+  }, [showSelecting]);
 
   const selectKeywords = useCallback((keywords) => {
     setSelected((current) => {
@@ -93,18 +133,34 @@ export function useMatrixKeywordCopy(scope) {
       }
       return next;
     });
-    setStatus('');
-  }, []);
+    showSelecting();
+  }, [showSelecting]);
 
   const copy = useCallback(async () => {
+    if (copyingRef.current) return;
     if (!selected.size) { setStatus('请先选择关键词'); return; }
+    const context = contextRef.current;
+    const count = selected.size;
+    copyingRef.current = true;
+    setCopying(true);
+    clearFeedbackTimer();
+    setStatus('');
+    setPhase('copying');
     try {
       await writeClipboard([...selected.values()].join('\n'));
-      setStatus(`已复制 ${selected.size} 个关键词，每行一个`);
+      if (context !== contextRef.current || !activeRef.current) return;
+      setCopiedCount(count);
+      setSuccessId((value) => Math.max(Date.now(), value + 1));
+      setPhase('success');
+      feedbackTimerRef.current = window.setTimeout(() => { setPhase('idle'); feedbackTimerRef.current = null; }, 2000);
     } catch {
+      if (context !== contextRef.current || !activeRef.current) return;
       setStatus('复制失败，请检查剪贴板权限后重试');
+      setPhase('selecting');
+    } finally {
+      if (context === contextRef.current) { copyingRef.current = false; setCopying(false); }
     }
-  }, [selected]);
+  }, [selected, clearFeedbackTimer]);
 
   useEffect(() => {
     const handleKey = (event) => {
@@ -112,7 +168,7 @@ export function useMatrixKeywordCopy(scope) {
       if (active && event.key === 'Escape') {
         event.preventDefault();
         event.stopImmediatePropagation();
-        setActive(false);
+        toggleActive();
         return;
       }
       const keywordCell = event.target?.closest?.('.matrix-copy-selectable');
@@ -156,7 +212,7 @@ export function useMatrixKeywordCopy(scope) {
       pointerId: event.pointerId,
       keyword: cell.dataset.copyKeyword,
       startCell: cell,
-      root: cell.closest('.matrix-scroll, .comparison-scroll'),
+      root: cell.closest('.matrix-scroll, .comparison-scroll, .dashboard-scroll'),
       dragged: false,
     };
   }, [active]);
@@ -193,12 +249,21 @@ export function useMatrixKeywordCopy(scope) {
   const controls = (
     <div className="matrix-copy-controls" role="group" aria-label="批量复制关键词">
       <button type="button" className={active ? 'is-active' : ''} aria-pressed={active} onClick={toggleActive}><Copy size={14} />{active ? '退出多选' : '多选复制'}</button>
-      {active && <><span className="matrix-copy-count">已选 {selected.size} · 按 Enter 复制</span><button type="button" disabled={!selected.size} onClick={copy}><Check size={14} />复制关键词</button><button type="button" disabled={!selected.size} onClick={() => { setSelected(new Map()); setStatus(''); }}>清空</button></>}
+      {active && <><span className="matrix-copy-count">已选 {selected.size} · 按 Enter 复制</span><button type="button" disabled={!selected.size || copying} onClick={copy}><Check size={14} />{copying ? '正在复制…' : '复制关键词'}</button><button type="button" disabled={!selected.size} onClick={() => { setSelected(new Map()); showSelecting(); }}>清空</button></>}
       {status && <span role="status" className="matrix-copy-status">{status}</span>}
     </div>
   );
 
-  return { active, selected, isSelected, toggleKeyword, consumePointerClick, cellHandlers, controls };
+  const feedback = active ? (
+    <div className="keyword-copy-feedback-slot" role="status" aria-live="polite" aria-atomic="true">
+      {phase !== 'idle' && <div key={successId} className={`keyword-copy-feedback ${phase === 'success' ? 'is-success' : ''}`} data-copy-phase={phase}>
+        <img src={phase === 'success' ? `${successMascot}?copy=${successId}` : searchMascot} width="80" height="80" alt="" aria-hidden="true" draggable="false" />
+        <span>{phase === 'success' ? `复制成功 · ${copiedCount} 个关键词，每行一个` : phase === 'copying' ? '正在复制关键词…' : selected.size ? `正在选择 · ${selected.size} 个关键词` : '正在寻找关键词…'}</span>
+      </div>}
+    </div>
+  ) : null;
+
+  return { active, selected, isSelected, toggleKeyword, consumePointerClick, cellHandlers, controls, feedback };
 }
 
 export function MatrixCopyShortcutSetting() {
@@ -218,7 +283,7 @@ export function MatrixCopyShortcutSetting() {
     setMessage(`已设为 ${next}`);
   };
   return <div className="settings-matrix-shortcut">
-    <div><strong>多选复制关键词快捷键</strong><small>适用于自然、SP、对比和 ABA 矩阵；点选或按住鼠标左键拖选，按 Enter 复制。</small></div>
+    <div><strong>多选复制关键词快捷键</strong><small>适用于看板、自然、SP、对比和 ABA 矩阵；点选或按住鼠标左键拖选，按 Enter 复制。</small></div>
     <button type="button" className={recording ? 'is-recording' : ''} onClick={() => { setRecording((value) => !value); setMessage(''); }} onKeyDown={recording ? recordKey : undefined} onBlur={() => setRecording(false)}><Keyboard size={16} />{recording ? '请按新快捷键…' : shortcut}</button>
     {recording && <button type="button" className="settings-shortcut-cancel" onClick={() => setRecording(false)} aria-label="取消设置快捷键"><X size={15} /></button>}
     {message && <small role="status" className="settings-shortcut-status">{message}</small>}

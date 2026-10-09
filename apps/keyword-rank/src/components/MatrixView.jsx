@@ -413,6 +413,7 @@ export default function MatrixView({ reviewState = EMPTY_REVIEWS, onAcceptReview
         <button type="button" className="matrix-translation-toggle" aria-pressed={!showTranslation} onClick={toggleTranslation}>{showTranslation ? '收起翻译' : '显示翻译'}</button>
       </div>
       <MatrixPeriodSelect dates={model.dates || []} filter={filters} onChange={onFiltersChange} />
+      {copy.feedback}
       <div ref={scrollRef} className="matrix-scroll">
         <div ref={columnOverlayRef} className="matrix-column-hover-overlay" hidden aria-hidden="true" />
         <table ref={tableRef} data-annotation-editor-open={editing ? 'true' : undefined} style={stickyLayoutStyle} className="matrix-table matrix-group-table matrix-clean-table">

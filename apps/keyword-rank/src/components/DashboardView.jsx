@@ -7,6 +7,7 @@ import { integer, percent } from '../lib/format.js';
 import { ResizeHandle, useColumnWidths } from '../lib/columnWidths.jsx';
 import FilterCascade, { WATCH_FILTER_OPTIONS } from './FilterCascade.jsx';
 import DashboardSort from './DashboardSort.jsx';
+import { KeywordCopyButton, useMatrixKeywordCopy } from './MatrixKeywordCopy.jsx';
 import { sortDashboardRows } from '../lib/dashboardSort.mjs';
 
 function RankCell({ value, direction }) {
@@ -43,15 +44,16 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
   useEffect(() => { const escape = (event) => { if (event.key === 'Escape' && !event.defaultPrevented) setExpanded(false); }; window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape); }, []);
   const [sortConditions, setSortConditions] = useState([]);
   const [hovered, setHovered] = useState(null);
+  const copy = useMatrixKeywordCopy(model?.parentAsin);
   const defaults = useMemo(() => ({ star: 52, traffic: 72, keyword: 190, translation: 130, naturalTrend: 92, spTrend: 92, trafficShare: 105, naturalRank: 82, spRank: 82, weeklyAbaRank: 98, weeklySearchVolume: 98, status: 128 }), []);
   const { widths, nudgeWidth, startResize } = useColumnWidths('keyword-tracker:columns:dashboard', defaults);
   const sortedRows = useMemo(() => sortDashboardRows(rows, sortConditions), [rows, sortConditions]);
 
-  useEffect(() => { setHovered(null); }, [model?.parentAsin, model?.selectedYear, rows]);
+  useEffect(() => { setHovered(null); }, [model?.parentAsin, model?.selectedYear, rows, copy.active]);
 
   const widthStyle = (column) => ({ width: widths[column], minWidth: widths[column] });
   const resizeHandle = (column, label) => <ResizeHandle columnKey={column} onResize={startResize} onNudge={nudgeWidth} label={label} />;
-  const showTrend = (row, event) => setHovered({ keyword: row.keyword, style: previewPoint(event) });
+  const showTrend = (row, event) => { if (!copy.active) setHovered({ keyword: row.keyword, style: previewPoint(event) }); };
   const updateTrend = (row, event) => { const point = previewPoint(event); setHovered((current) => current?.keyword === row.keyword ? { ...current, style: point } : current); };
 
   const content = (
@@ -67,8 +69,10 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
           placeholder="搜索看板关键词…"
         />
         <DashboardSort conditions={sortConditions} onChange={setSortConditions} />
+        {copy.controls}
         <button type="button" className="manage-watch-button" onClick={onManage}><Star size={17} fill="currentColor" />管理关注词</button>
       </div>
+      {copy.feedback}
       <div className="dashboard-scroll">
         <table className="dashboard-table">
           <colgroup>{Object.keys(defaults).map((column) => <col key={column} style={widthStyle(column)} />)}</colgroup>
@@ -91,17 +95,20 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
                 </td>
                 <td>{row.trafficRank ?? '—'}</td>
                 <td
-                  className="keyword-cell"
+                  className={`keyword-cell ${copy.active ? 'matrix-copy-selectable' : ''}`}
                   data-keyword={row.keyword}
-                  aria-label={`${row.keyword}，悬停查看 ABA 对照`}
+                  data-copy-keyword={copy.active ? row.keyword : undefined}
+                  aria-label={`${row.keyword}，${copy.active ? '点选或拖选，按 Enter 复制' : '悬停查看 ABA 对照'}`}
                   onMouseEnter={(event) => showTrend(row, event)}
                   onMouseMove={(event) => updateTrend(row, event)}
                   onMouseLeave={() => setHovered(null)}
                   onFocus={(event) => showTrend(row, event)}
                   onBlur={() => setHovered(null)}
-                  onDoubleClick={() => onOpenTrend?.(model.matrixRows?.find((item) => keywordKey(item.keyword) === keywordKey(row.keyword)) || row)}
+                  onDoubleClick={copy.active ? undefined : () => onOpenTrend?.(model.matrixRows?.find((item) => keywordKey(item.keyword) === keywordKey(row.keyword)) || row)}
+                  {...(copy.active ? copy.cellHandlers : {})}
+                  onKeyDown={copy.active ? (event) => { if (event.key === ' ') { event.preventDefault(); copy.toggleKeyword(row.keyword); } } : undefined}
                   tabIndex="0"
-                >{onAI ? <><span className="ai-keyword-label">{row.keyword}</span><button className="ai-row-button" title={`AI 分析 ${row.keyword}`} onClick={e => { e.stopPropagation(); onAI(row.keyword); }}>AI</button></> : row.keyword}</td>
+                >{copy.active ? <><KeywordCopyButton keyword={row.keyword} selected={copy.isSelected(row.keyword)} onToggle={copy.toggleKeyword} onConsumeClick={copy.consumePointerClick} /><span className="dashboard-copy-keyword-label" style={{ maxWidth: Math.max(24, widths.keyword - (onAI ? 62 : 34)) }}>{row.keyword}</span></> : onAI ? <span className="ai-keyword-label">{row.keyword}</span> : row.keyword}{onAI && <button className="ai-row-button" title={`AI 分析 ${row.keyword}`} onPointerDown={event => event.stopPropagation()} onClick={e => { e.stopPropagation(); onAI(row.keyword); }}>AI</button>}</td>
                 <td title={row.translation}>{row.translation || '—'}</td>
                 <td><Sparkline values={row.naturalTrend || []} /></td>
                 <td><Sparkline values={row.spTrend || []} color="#FF6B6B" /></td>
