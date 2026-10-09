@@ -1862,7 +1862,7 @@
   }
 
   function chooseFiles(accept, multiple) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = accept;
@@ -1870,15 +1870,30 @@
       input.style.display = 'none';
       document.body.appendChild(input);
       let settled = false;
+      const cleanup = () => {
+        input.removeEventListener('change', onChange);
+        input.removeEventListener('cancel', onCancel);
+        input.remove();
+      };
       const finish = (files) => {
         if (settled) return;
         settled = true;
-        input.remove();
+        cleanup();
         resolve(files);
       };
-      input.addEventListener('change', () => finish([...input.files]));
-      window.addEventListener('focus', () => setTimeout(() => finish([...input.files]), 350), { once: true });
-      input.click();
+      const onChange = () => finish([...input.files]);
+      const onCancel = () => finish([]);
+      // Focus can return before the browser delivers the selected files.
+      // Only the file input's result events can finish this selection.
+      input.addEventListener('change', onChange);
+      input.addEventListener('cancel', onCancel);
+      try {
+        input.click();
+      } catch (error) {
+        settled = true;
+        cleanup();
+        reject(error);
+      }
     });
   }
 
@@ -2484,11 +2499,16 @@
     return window.KeywordCurrentExcelExport.download(buffer, now);
   }
 
-  async function importBackup() {
+  async function importBackup(onProgress) {
+    const progress = (message) => { if (typeof onProgress === 'function') onProgress(message); };
     const files = await chooseFiles('.json,application/json', false);
-    if (!files.length) return;
+    if (!files.length) return false;
     if (window.keywordAI?.kind === 'electron' && files[0].size > 100 * 1024 * 1024) throw new Error('备份超过 100 MB，请拆分后导入。');
-    const parsed = JSON.parse(await files[0].text());
+    progress('正在读取备份文件…');
+    const contents = await files[0].text();
+    progress('正在校验备份数据…');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const parsed = JSON.parse(contents);
     if (parsed.adReviews) {
       if (!Array.isArray(parsed.adReviews.reports) || !Array.isArray(parsed.adReviews.decisions)) throw new Error('广告分析备份结构无效');
       parsed.adReviews.reports = parsed.adReviews.reports.map(report => reviewCore().validate(report));
@@ -2497,14 +2517,16 @@
       if (parsed.adReviews.decisions.some(d => !d || typeof d.accepted !== 'boolean' || !parsed.adReviews.reports.some(r => r.runId === d.runId && r.items.some(i => i.itemId === d.itemId)))) throw new Error('广告分析采纳记录无效');
     }
     if (!Array.isArray(parsed.configs) || !parsed.histories || typeof parsed.histories !== 'object') throw new Error('所选文件不是有效的关键词排名数据备份。');
+    progress('正在保存数据，请稍候…');
     if (window.keywordAI?.kind === 'electron') {
       if (files[0].size > 100 * 1024 * 1024 || parsed.configs.length > 1000 || Array.isArray(parsed.histories)) throw new Error('备份大小或结构超出支持范围。');
       if (Object.values(parsed.histories).some(rows => !Array.isArray(rows) || rows.some(row => !row || typeof row.keyword !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(row.snapshotDate)))) throw new Error('排名历史记录格式无效，未导入。');
       const current = clone(await ensureStore());
       const next = normalizeStore({ ...parsed, updatedAt: new Date().toISOString(), storageRevision: newStorageRevision() });
       await enqueuePersistence(() => persistMainAndBackup(next, text(current.storageRevision || current.updatedAt) || null, current));
+      progress('导入完成，正在刷新页面…');
       location.reload();
-      return;
+      return true;
     }
     await enqueuePersistence(async () => {
       if (pendingSave) throw new Error('当前有未保存数据，请先导出或解决后再恢复备份。');
@@ -2514,7 +2536,9 @@
       else await persistMainAndBackup(next, text(current.storageRevision || current.updatedAt) || null, current);
       memoryStore = next;
     });
+    progress('导入完成，正在刷新页面…');
     location.reload();
+    return true;
   }
 
   let dataManagerGeneration = 0;
@@ -2552,6 +2576,7 @@
         <div class="browser-manager-actions">
           <button data-action="export">导出数据备份</button>
           <button data-action="import">导入数据备份</button>
+          <small data-backup-import-status role="status" aria-live="polite" hidden></small>
           <button data-action="export-excel">导出当前 Excel</button>
           <button data-action="download-sif">下载 SIF 在线版扩展</button>
           <button data-action="install-sif">不会安装？查看安装教程</button>
@@ -2574,6 +2599,9 @@
       .browser-manager-card{position:absolute;top:8px;right:12px;width:min(480px,calc(100vw - 24px));max-height:calc(100dvh - 66px);overflow:auto;padding:20px;border:1px solid #b6c9d8;border-radius:10px;box-shadow:0 12px 32px #173b6430;animation:web-tool-enter 180ms ease-out}
       .browser-manager-card h2{font-size:18px;color:#173b64}.browser-manager-card p{font-size:12px}
       .browser-manager-actions button,.browser-manager-actions a{border-width:1px;border-radius:7px;padding:9px 12px;font-size:12px}
+      .browser-manager-actions [data-action="import"]:disabled{cursor:wait;opacity:.65}
+      .browser-manager-actions [data-backup-import-status]{margin:0;line-height:1.5;overflow-wrap:anywhere}
+      .browser-manager-actions [data-backup-import-status][hidden]{display:none}
       @media(prefers-reduced-motion:reduce){.browser-manager-card{animation:none}}
     `;
     overlay.appendChild(style);
@@ -2588,7 +2616,27 @@
       catch (error) { button.textContent = '导出当前 Excel'; alert(`Excel 导出失败：${error.message}`); }
       finally { button.disabled = false; }
     };
-    overlay.querySelector('[data-action="import"]').onclick = () => importBackup().catch((error) => alert(error.message));
+    overlay.querySelector('[data-action="import"]').onclick = async (event) => {
+      const button = event.currentTarget;
+      const status = overlay.querySelector('[data-backup-import-status]');
+      const showStatus = (message) => { status.hidden = false; status.textContent = message; };
+      button.disabled = true;
+      button.textContent = '正在选择备份…';
+      showStatus('请选择 JSON 数据备份。');
+      try {
+        const imported = await importBackup((message) => {
+          button.textContent = '正在导入备份…';
+          showStatus(message);
+        });
+        if (!imported) showStatus('已取消选择，未导入备份。');
+      } catch (error) {
+        showStatus(`导入失败：${error.message}`);
+        alert(error.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = '导入数据备份';
+      }
+    };
     overlay.querySelector('[data-action="download-sif"]').onclick = () => {
       const status = overlay.querySelector('[data-sif-download-status]');
       status.hidden = false;
