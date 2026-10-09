@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, Copy, Keyboard, X } from 'lucide-react';
 import searchMascot from '../assets/keyword-copy/k-search.webp';
 import successMascot from '../assets/keyword-copy/k-copy-success.webp';
@@ -62,6 +63,69 @@ async function writeClipboard(value) {
     }
     if (!copied) throw new Error('无法写入剪贴板');
   }
+}
+
+function KeywordCopyFeedback({ phase, selectedCount, copiedCount, successId }) {
+  const [placement, setPlacement] = useState(null);
+
+  useLayoutEffect(() => {
+    const header = document.querySelector('.topbar');
+    const titlebar = document.querySelector('.window-titlebar');
+    const actions = header?.querySelector('.header-actions');
+    const title = header?.querySelector('h1');
+    const subtitle = header?.querySelector('p');
+    const dragSpace = titlebar?.querySelector('.window-drag-space');
+    const textRight = (element) => {
+      if (!element) return 0;
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return range.getBoundingClientRect().right;
+    };
+    const place = () => {
+      const headerBox = header?.getBoundingClientRect();
+      const actionsBox = actions?.getBoundingClientRect();
+      let gap = headerBox && actionsBox && headerBox.height && !document.querySelector('.dashboard-expanded')
+        ? { left: Math.max(headerBox.left + 16, textRight(title) + 20, textRight(subtitle) + 20), right: actionsBox.left - 16, top: headerBox.top, height: headerBox.height }
+        : null;
+      let compact = false;
+      // Use the existing titlebar space when the product header is hidden,
+      // covered by the expanded dashboard, or too crowded for the feedback.
+      if (!gap || gap.right - gap.left < 260) {
+        const dragBox = dragSpace?.getBoundingClientRect();
+        gap = dragBox?.height ? { left: dragBox.left + 8, right: dragBox.right - 8, top: dragBox.top, height: dragBox.height } : null;
+        compact = true;
+      }
+      const size = compact ? Math.min(34, gap?.height || 0) : 64;
+      const width = Math.min(compact ? 240 : 260, gap ? gap.right - gap.left : 0);
+      const next = width >= size && size > 0 ? {
+        left: Math.max(gap.left, Math.min(window.innerWidth / 2 - width / 2, gap.right - width)),
+        top: gap.top + (gap.height - size) / 2, width, size, compact,
+        hideLabel: width < size + 100,
+      } : null;
+      setPlacement((previous) => JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
+    };
+    place();
+    const resize = new ResizeObserver(place);
+    [header, actions, title, subtitle, titlebar, dragSpace].filter(Boolean).forEach((element) => resize.observe(element));
+    const changes = new MutationObserver(place);
+    changes.observe(document.body, { childList: true });
+    const main = document.querySelector('.main-area');
+    if (main) changes.observe(main, { attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => { resize.disconnect(); changes.disconnect(); window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
+  }, []);
+
+  const message = phase === 'success' ? `复制成功 · ${copiedCount} 个关键词` : phase === 'copying' ? '正在复制关键词…' : selectedCount ? `正在选择 · ${selectedCount} 个关键词` : '正在寻找关键词…';
+  if (phase === 'idle') return null;
+  return createPortal(
+    <div className={`keyword-copy-feedback-slot ${placement?.compact ? 'is-compact' : ''} ${placement?.hideLabel ? 'is-icon-only' : ''}`} role="status" aria-live="polite" aria-atomic="true" data-copy-placement={placement?.compact ? 'titlebar' : 'header'} style={placement ? { left: placement.left, top: placement.top, width: placement.width, '--copy-feedback-size': `${placement.size}px` } : { visibility: 'hidden' }}>
+      <div key={successId} className={`keyword-copy-feedback ${phase === 'success' ? 'is-success' : ''}`} data-copy-phase={phase}>
+        <img src={phase === 'success' ? `${successMascot}?copy=${successId}` : searchMascot} width="64" height="64" alt="" aria-hidden="true" draggable="false" />
+        <span>{message}</span>
+      </div>
+    </div>, document.body,
+  );
 }
 
 export function useMatrixKeywordCopy(scope) {
@@ -249,19 +313,12 @@ export function useMatrixKeywordCopy(scope) {
   const controls = (
     <div className="matrix-copy-controls" role="group" aria-label="批量复制关键词">
       <button type="button" className={active ? 'is-active' : ''} aria-pressed={active} onClick={toggleActive}><Copy size={14} />{active ? '退出多选' : '多选复制'}</button>
-      {active && <><span className="matrix-copy-count">已选 {selected.size} · 按 Enter 复制</span><button type="button" disabled={!selected.size || copying} onClick={copy}><Check size={14} />{copying ? '正在复制…' : '复制关键词'}</button><button type="button" disabled={!selected.size} onClick={() => { setSelected(new Map()); showSelecting(); }}>清空</button></>}
+      {active && <><span className="matrix-copy-count" title="按 Enter 复制所选关键词">已选 {selected.size}<span className="matrix-copy-key-hint"> · 按 Enter 复制</span></span><button type="button" disabled={!selected.size || copying} onClick={copy}><Check size={14} />{copying ? '正在复制…' : '复制关键词'}</button><button type="button" disabled={!selected.size} onClick={() => { setSelected(new Map()); showSelecting(); }}>清空</button></>}
       {status && <span role="status" className="matrix-copy-status">{status}</span>}
     </div>
   );
 
-  const feedback = active ? (
-    <div className="keyword-copy-feedback-slot" role="status" aria-live="polite" aria-atomic="true">
-      {phase !== 'idle' && <div key={successId} className={`keyword-copy-feedback ${phase === 'success' ? 'is-success' : ''}`} data-copy-phase={phase}>
-        <img src={phase === 'success' ? `${successMascot}?copy=${successId}` : searchMascot} width="80" height="80" alt="" aria-hidden="true" draggable="false" />
-        <span>{phase === 'success' ? `复制成功 · ${copiedCount} 个关键词，每行一个` : phase === 'copying' ? '正在复制关键词…' : selected.size ? `正在选择 · ${selected.size} 个关键词` : '正在寻找关键词…'}</span>
-      </div>}
-    </div>
-  ) : null;
+  const feedback = active ? <KeywordCopyFeedback phase={phase} selectedCount={selected.size} copiedCount={copiedCount} successId={successId} /> : null;
 
   return { active, selected, isSelected, toggleKeyword, consumePointerClick, cellHandlers, controls, feedback };
 }

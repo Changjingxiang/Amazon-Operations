@@ -43,11 +43,12 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
   const [expanded, setExpanded] = useState(false);
   useEffect(() => { const escape = (event) => { if (event.key === 'Escape' && !event.defaultPrevented) setExpanded(false); }; window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape); }, []);
   const [sortConditions, setSortConditions] = useState([]);
+  const [sortWatched, setSortWatched] = useState(false);
   const [hovered, setHovered] = useState(null);
   const copy = useMatrixKeywordCopy(model?.parentAsin);
   const defaults = useMemo(() => ({ star: 52, traffic: 72, keyword: 190, translation: 130, naturalTrend: 92, spTrend: 92, trafficShare: 105, naturalRank: 82, spRank: 82, weeklyAbaRank: 98, weeklySearchVolume: 98, status: 128 }), []);
   const { widths, nudgeWidth, startResize } = useColumnWidths('keyword-tracker:columns:dashboard', defaults);
-  const sortedRows = useMemo(() => sortDashboardRows(rows, sortConditions), [rows, sortConditions]);
+  const sortedRows = useMemo(() => sortDashboardRows(rows, sortConditions, { sortWatched }), [rows, sortConditions, sortWatched]);
 
   useEffect(() => { setHovered(null); }, [model?.parentAsin, model?.selectedYear, rows, copy.active]);
 
@@ -68,7 +69,7 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
           label="筛选"
           placeholder="搜索看板关键词…"
         />
-        <DashboardSort conditions={sortConditions} onChange={setSortConditions} />
+        <DashboardSort conditions={sortConditions} onChange={setSortConditions} sortWatched={sortWatched} onSortWatchedChange={setSortWatched} />
         {copy.controls}
         <button type="button" className="manage-watch-button" onClick={onManage}><Star size={17} fill="currentColor" />管理关注词</button>
       </div>

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ArrowDown, ArrowUp, ListOrdered, Plus, Trash2, X } from 'lucide-react';
 import { DASHBOARD_SORT_FIELDS } from '../lib/dashboardSort.mjs';
 
-export default function DashboardSort({ conditions, onChange }) {
+export default function DashboardSort({ conditions, onChange, sortWatched, onSortWatchedChange }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ visibility: 'hidden' });
   const triggerRef = useRef(null);
@@ -85,6 +85,7 @@ export default function DashboardSort({ conditions, onChange }) {
           </ol>
           {!conditions.length && <p className="dashboard-sort-empty">尚未设置排序条件，按原有流量顺序显示。</p>}
           <button type="button" className="dashboard-sort-add" disabled={!available.length} onClick={() => onChange([...conditions, { field: available[0].field, direction: 'asc' }])}><Plus size={14} />添加排序条件</button>
+          <label className="dashboard-sort-watch"><input type="checkbox" checked={sortWatched} onChange={(event) => onSortWatchedChange(event.target.checked)} /><span>关注词参与排序<small>未勾选时保留关注顺序</small></span></label>
           <div className="cascade-popover-foot"><button type="button" className="dashboard-sort-clear" disabled={!conditions.length} onClick={() => onChange([])}>清除排序</button><span>修改即时生效 · 缺失值排在最后</span><button type="button" onClick={close}>完成</button></div>
         </div>, document.body,
       )}

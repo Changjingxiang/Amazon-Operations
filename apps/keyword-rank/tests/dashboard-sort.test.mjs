@@ -53,6 +53,27 @@ test('watch drawer order stays pinned ahead of metric sorting', () => {
   assert.deepEqual(keywords(sortDashboardRows(sample, conditions)).slice(0, 2), ['first watch', 'second watch']);
 });
 
+test('opting watch words into sorting applies all conditions and keeps the group pinned', () => {
+  const sample = [
+    { keyword: 'first watch', watched: true, watchOrder: 1, weeklyAbaRank: 200, spRank: 1, naturalRank: 1 },
+    { keyword: 'second watch', watched: true, watchOrder: 2, weeklyAbaRank: 100, spRank: 9, naturalRank: 8 },
+    { keyword: 'third watch', watched: true, watchOrder: 3, weeklyAbaRank: 100, spRank: 9, naturalRank: 3 },
+    { keyword: 'missing watch', watched: true, watchOrder: 4, weeklyAbaRank: null },
+    { keyword: 'best unwatched', weeklyAbaRank: 1 },
+  ];
+  assert.deepEqual(keywords(sortDashboardRows(sample, conditions, { sortWatched: true })), ['third watch', 'second watch', 'first watch', 'missing watch', 'best unwatched']);
+  assert.deepEqual(keywords(sortDashboardRows(sample, [{ ...conditions[0], direction: 'desc' }, ...conditions.slice(1)], { sortWatched: true })), ['first watch', 'third watch', 'second watch', 'missing watch', 'best unwatched']);
+  assert.deepEqual(keywords(sortDashboardRows(sample, conditions, { sortWatched: false })), keywords(sample));
+  assert.equal(sortDashboardRows(sample, [], { sortWatched: true }), sample);
+});
+
+test('watch words without an explicit manual order retain incoming order unless opted in', () => {
+  const sample = [{ keyword: 'watch unranked', watched: true }, { keyword: 'watch ranked', watched: true, spRank: 1 }];
+  const bySP = [{ field: 'spRank', direction: 'asc' }];
+  assert.deepEqual(keywords(sortDashboardRows(sample, bySP)), ['watch unranked', 'watch ranked']);
+  assert.deepEqual(keywords(sortDashboardRows(sample, bySP, { sortWatched: true })), ['watch ranked', 'watch unranked']);
+});
+
 test('clear restores the exact incoming order; search volume remains numeric', () => {
   assert.equal(sortDashboardRows(rows, []), rows);
   const sample = [{ keyword: 'ten', weeklySearchVolume: '10' }, { keyword: 'two', weeklySearchVolume: 2 }, { keyword: 'missing', weeklySearchVolume: null }];

@@ -870,6 +870,9 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .dashboard-sort-row-actions button:hover:not(:disabled) { background: #edf5f8; color: var(--navy); }
 .dashboard-sort-empty { margin: 10px 12px; color: #8995a1; font-size: 11px; }
 .dashboard-sort-add { display: inline-flex; align-items: center; gap: 4px; height: 29px; margin: 10px 12px; padding: 0 8px; border: 1px solid #b7dbe0; border-radius: 6px; background: #f0fdff; color: #0b7483; font-size: 11px; }
+.dashboard-sort-watch { display: flex; align-items: flex-start; gap: 7px; margin: 0 12px 12px; color: #334052; font-size: 12px; cursor: pointer; }
+.dashboard-sort-watch input { width: 14px; height: 14px; margin: 1px 0 0; accent-color: #0b7483; cursor: pointer; }
+.dashboard-sort-watch small { display: block; margin-top: 3px; color: #6c7888; font-size: 11px; }
 .dashboard-sort-popover .dashboard-sort-clear { background: transparent; border-color: #c1ccd6; color: #536174; }
 @media (max-width: 600px) {
   .dashboard-sort-summary { display: none; }
@@ -1000,11 +1003,13 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .matrix-copy-controls button:focus-visible, .matrix-translation-toggle:focus-visible, .matrix-copy-row-button:focus-visible { outline: 2px solid #086f85; outline-offset: 2px; }
 .matrix-copy-count { font-weight: 800; white-space: nowrap; }
 .matrix-copy-status { max-width: 260px; color: #086f7d; line-height: 1.3; }
-.keyword-copy-feedback-slot { height: 80px; flex: 0 0 80px; display: flex; align-items: center; justify-content: center; overflow: hidden; pointer-events: none; }
-.keyword-copy-feedback { display: flex; align-items: center; justify-content: center; gap: 8px; max-width: 100%; color: #426076; font-size: 12px; font-weight: 600; }
-.keyword-copy-feedback img { width: 80px; height: 80px; flex: 0 0 80px; object-fit: contain; }
-.keyword-copy-feedback span { overflow-wrap: anywhere; }
+.keyword-copy-feedback-slot { position: fixed; z-index: calc(var(--layer-expanded-table) + 1); height: var(--copy-feedback-size, 64px); pointer-events: none; }
+.keyword-copy-feedback { display: flex; height: 100%; align-items: center; justify-content: center; gap: 8px; max-width: 100%; color: #426076; font-size: 12px; font-weight: 600; }
+.keyword-copy-feedback img { width: var(--copy-feedback-size, 64px); height: var(--copy-feedback-size, 64px); flex: 0 0 var(--copy-feedback-size, 64px); object-fit: contain; }
+.keyword-copy-feedback span { overflow-wrap: anywhere; line-height: 1.4; }
 .keyword-copy-feedback.is-success { color: #087e71; animation: keyword-copy-success-fade 2s ease-out forwards; }
+.keyword-copy-feedback-slot.is-compact .keyword-copy-feedback { color: #e3fbff; font-size: 11px; }
+.keyword-copy-feedback-slot.is-icon-only span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 @keyframes keyword-copy-success-fade { 0%, 55% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .keyword-copy-feedback.is-success { animation: none; } }
 .matrix-copy-selectable { cursor: pointer !important; user-select: none; -webkit-user-select: none; }
@@ -1018,6 +1023,12 @@ body > #keyword-tracker-matrix-competitor-bubble .matrix-competitor-bubble-annot
 .dashboard-table .keyword-cell.matrix-copy-selectable { position: relative; padding-left: 28px; }
 .dashboard-table .keyword-cell .matrix-copy-row-button { position: absolute; left: 5px; top: 50%; transform: translateY(-50%); margin: 0; }
 .dashboard-copy-keyword-label { display: inline-block; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+@media (max-width: 1450px) {
+  .matrix-copy-key-hint { display: none; }
+  .dashboard-panel .table-toolbar:has(.matrix-copy-controls .is-active) > span { display: none; }
+  .comparison-note:has(.matrix-copy-controls .is-active) .comparison-note-copy { flex-basis: 140px; }
+  .comparison-note:has(.matrix-copy-controls .is-active) .comparison-note-copy span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
 @media (max-width: 1100px) {
   .matrix-workspace .topbar { flex-wrap: wrap; }
   .matrix-workspace .summary-item { min-width: 0; padding-inline: 8px; gap: 6px; }
