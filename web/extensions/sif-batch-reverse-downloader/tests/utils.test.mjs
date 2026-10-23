@@ -5,6 +5,7 @@ import {
   extractAsin,
   isSifDownload,
   normalizeConcurrency,
+  normalizeCountryCode,
   parseAsins,
   suggestedFilename
 } from "../utils.mjs";
@@ -24,6 +25,14 @@ assert.equal(url.searchParams.get("country"), "CA");
 assert.equal(url.searchParams.get("asin"), "B0FF4HCVXT");
 assert.equal(url.searchParams.get("isListingSearch"), "false");
 assert.equal(new URL(buildSifReverseUrl("B0FF4HCVXT", "DE")).searchParams.get("country"), "DE");
+
+for (const [code, name] of [["MX", "墨西哥站"], ["AU", "澳大利亚站"]]) {
+  assert.equal(normalizeCountryCode(code.toLowerCase()), code);
+  assert.equal(normalizeCountryCode(name), code);
+  assert.equal(new URL(buildSifReverseUrl("B0FF4HCVXT", name)).searchParams.get("country"), code);
+  assert.equal(suggestedFilename("B0FF4HCVXT", { filename: "report.xlsx" }, new Date(2026, 9, 23), name), `Sif反查流量词_${code}_B0FF4HCVXT_2026-10-23.xlsx`);
+}
+assert.equal(normalizeCountryCode("澳洲站"), "AU");
 
 assert.equal(normalizeConcurrency(0), 1);
 assert.equal(normalizeConcurrency(3), 3);

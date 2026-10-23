@@ -19,12 +19,14 @@ export const SIF_COUNTRIES = [
   { code: "CA", label: "加拿大站" },
   { code: "FR", label: "法国站" },
   { code: "ES", label: "西班牙站" },
-  { code: "IT", label: "意大利站" }
+  { code: "IT", label: "意大利站" },
+  { code: "MX", label: "墨西哥站" },
+  { code: "AU", label: "澳大利亚站" }
 ];
 const SIF_COUNTRY_CODES = new Set(SIF_COUNTRIES.map(({ code }) => code));
 
 export function normalizeCountryCode(value) {
-  const raw = String(value || "").trim();
+  const raw = String(value || "").trim().replace(/澳洲/g, "澳大利亚");
   const upper = raw.toUpperCase();
   if (SIF_COUNTRY_CODES.has(upper)) return upper;
   const found = SIF_COUNTRIES.find(({ label }) => raw.includes(label.replace(/站$/u, "")) || raw.includes(label));

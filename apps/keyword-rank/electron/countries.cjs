@@ -7,6 +7,8 @@ const SIF_COUNTRIES = Object.freeze([
   { code: 'FR', label: '法国站' },
   { code: 'ES', label: '西班牙站' },
   { code: 'IT', label: '意大利站' },
+  { code: 'MX', label: '墨西哥站' },
+  { code: 'AU', label: '澳大利亚站' },
 ]);
 
 const COUNTRY_BY_CODE = new Map(SIF_COUNTRIES.map((item) => [item.code, item]));
@@ -16,7 +18,7 @@ function text(value) {
 }
 
 function normalizeCountryCode(value, fallback = 'CA') {
-  const raw = text(value).toUpperCase();
+  const raw = text(value).replace(/澳洲/g, '澳大利亚').toUpperCase();
   if (COUNTRY_BY_CODE.has(raw)) return raw;
   const matched = SIF_COUNTRIES.find((item) => raw === item.label.toUpperCase() || raw.includes(item.label.replace(/站$/, '').toUpperCase()));
   return matched?.code || fallback;

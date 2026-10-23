@@ -113,6 +113,8 @@
     { code: 'FR', label: '法国站' },
     { code: 'ES', label: '西班牙站' },
     { code: 'IT', label: '意大利站' },
+    { code: 'MX', label: '墨西哥站' },
+    { code: 'AU', label: '澳大利亚站' },
   ];
   const SIF_COUNTRY_CODES = new Set(SIF_COUNTRIES.map((item) => item.code));
   const SIF_ORIGIN = 'https://www.sif.com';
@@ -165,7 +167,7 @@
   }
 
   function normalizeCountryCode(value) {
-    const raw = text(value);
+    const raw = text(value).replace(/澳洲/g, '澳大利亚');
     const upper = raw.toUpperCase();
     if (SIF_COUNTRY_CODES.has(upper)) return upper;
     const matched = SIF_COUNTRIES.find((item) => raw.includes(item.label.replace('站', '')) || raw.includes(item.label));
@@ -257,6 +259,11 @@
     if (!normalizedItems.length) throw new Error('没有可自动导入的产品。');
     const ping = await requestWebExtension('PING_WEB_BRIDGE', null, 1800);
     if (!ping?.ok) throw new Error('未检测到 SIF 自动导入扩展。请先加载扩展并允许它访问本地网页。');
+    const [major, minor, patch] = String(ping.version || '').split('.').map(Number);
+    const supportsNewCountries = major > 1 || (major === 1 && (minor > 1 || (minor === 1 && patch >= 8)));
+    if (normalizedItems.some((item) => ['MX', 'AU'].includes(item.countryCode)) && !supportsNewCountries) {
+      throw new Error('墨西哥站和澳大利亚站需要 SIF 扩展 v1.1.8 或更新版本。请从“数据与工具”下载新版扩展，在扩展管理页重新加载，再刷新软件页面。');
+    }
 
     const expected = new Map(normalizedItems.map((item) => [item.asin, item]));
     const terminal = new Set();
@@ -2486,7 +2493,7 @@
   async function exportBackup() {
     const store = pendingSave?.store || await ensureStore();
     const date = new Date().toISOString().slice(0, 10);
-    downloadBlob(`${JSON.stringify(store)}\n`, `Amazon关键词每日跟进-v3.0.4-数据_${date}.json`, 'application/json;charset=utf-8');
+    downloadBlob(`${JSON.stringify(store)}\n`, `Amazon关键词每日跟进-v3.0.6-数据_${date}.json`, 'application/json;charset=utf-8');
   }
 
   async function exportCurrentExcel() {

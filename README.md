@@ -6,10 +6,10 @@
 
 **简体中文** · [English](README.en.md)
 
-> 关键词排名每日跟进 v3.0.5：把自然排名、SP、ABA 与竞品变化，整理成一张可追踪的运营工作台。
+> 关键词排名每日跟进 v3.0.6：把自然排名、SP、ABA 与竞品变化，整理成一张可追踪的运营工作台。
 
 > [!TIP]
-> ## v3.0.5 在线体验 · ChatGPT 站点版
+> ## v3.0.6 在线体验 · ChatGPT 站点版
 >
 > **[立即打开关键词跟进工作台 →](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**
 >
@@ -18,16 +18,16 @@
 > [!IMPORTANT]
 > ## 下载到本机使用
 >
-> **Amazon关键词每日跟进-v3.0.5**
+> **Amazon关键词每日跟进-v3.0.6**
 >
-> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.5/keyword-rank-web-v3.0.5.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.6/keyword-rank-web-v3.0.6.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 >
 > 下载后请先“解压全部”，再双击压缩包里的 `打开网页版.cmd`。**不要用 GitHub 的 `Code → Download ZIP`**，那是源码，不是给普通用户直接打开的发布包。
 
 本次对比矩阵更新加入底部日期滚动条，按导入详情读取自然/SP页码，悬停查看标注，并用深蓝和紫色区分排名数字。此前矩阵更新还修复了列错位；自然、SP、对比和 ABA 矩阵均可收起翻译，并可点选或按住鼠标左键拖选关键词。按 Enter 复制所选关键词，每词一行；多选快捷键可在右上角“设置”中自定义。
 
 <p align="center">
-  <a href="https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/">在线体验 v3.0.5</a> ·
+  <a href="https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/">在线体验 v3.0.6</a> ·
   <a href="web/docs/使用说明.md">网页版使用说明</a> ·
   <a href="#快速开始">快速开始</a> ·
   <a href="web/extensions/sif-batch-reverse-downloader/README.md">SIF 扩展</a> ·
@@ -49,7 +49,7 @@
 
 ### 直接在线体验（推荐先看这里）
 
-1. 打开 **[v3.0.5 ChatGPT 站点版](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**，无需下载或启动本地程序。
+1. 打开 **[v3.0.6 ChatGPT 站点版](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**，无需下载或启动本地程序。
 2. 从「使用指南」熟悉操作，查看示例产品的自然/SP 矩阵、竞品排名与 ABA 月榜。
 3. 日常使用前检查产品与站点设置；需要从旧版本迁移时，先导出 JSON 备份，再参考「使用指南 → 从老版本迁移数据」。
 
@@ -85,7 +85,7 @@
 
 ### 产品与数据管理
 
-- 产品管理覆盖美国、德国、英国、日本、加拿大、法国、西班牙、意大利 8 个站点。
+- 产品管理覆盖美国、德国、英国、日本、加拿大、法国、西班牙、意大利、墨西哥、澳大利亚 10 个站点。
 - 自有产品和展开列表中的竞品图片支持悬停预览、双击居中放大和历史图叠放查看；可选择简略图标或更换自定义图片。图片历史从升级后开始积累。
 - 自家产品与竞品均支持内置服装图标和自定义图片；共享竞品解除关联不删除历史，即使所有关联均已解除，也可从共享库重新关联。
 - 网页版工具文件夹支持导出/导入 JSON 备份、下载随包原始 Excel 和恢复上周的数据。
@@ -132,7 +132,7 @@ npm run dist:win
 npm run release:web
 
 # 对指定发布目录做浏览器 smoke check
-npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0.4"
+npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0.6"
 ```
 
 `npm run release:web` 始终从 `apps/keyword-rank` 和 `web/` 重新构建，并生成 `outputs/Amazon关键词每日跟进-v<版本>`。目标目录已存在时命令会安全退出；确认要替换同一版本时才使用：
@@ -176,7 +176,13 @@ npm run release:web -- --force
 <details>
 <summary>展开查看近期更新</summary>
 
-### 最新更新 · v3.0.5（2026-10-09）
+### 最新更新 · v3.0.6（2026-10-23）
+
+- 增加墨西哥站（MX）和澳大利亚站（AU），配齐产品、竞品、月 ABA、备份恢复和对应 Amazon 商品链接。
+- 配套 SIF 扩展 v1.1.8 支持两站反查与下载，弹窗可选择站点。已安装旧扩展需更新并重新加载。
+- 新站点遇到旧扩展时会提示更新，避免被错误识别成加拿大。详见 [v3.0.6 更新说明](docs/releases/web-v3.0.6.md)。
+
+### v3.0.5（2026-10-09）
 
 - 看板增加多条件排序，周ABA、SP、自然排名和周搜索量可分别设置升降序及优先级。排序下方可勾选「关注词参与排序」，默认保留关注顺序，勾选后按条件排序，关注词仍置顶。
 - 修复放大看板后的筛选和排序层级；看板增加与矩阵一致的点选、拖选和 Enter 多选复制。

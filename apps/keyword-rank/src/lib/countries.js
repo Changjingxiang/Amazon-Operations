@@ -7,6 +7,8 @@ export const SIF_COUNTRIES = [
   { code: 'FR', label: '法国站' },
   { code: 'ES', label: '西班牙站' },
   { code: 'IT', label: '意大利站' },
+  { code: 'MX', label: '墨西哥站' },
+  { code: 'AU', label: '澳大利亚站' },
 ];
 
 export function countryLabel(code) {

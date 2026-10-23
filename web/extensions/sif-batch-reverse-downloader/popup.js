@@ -1,10 +1,11 @@
-import { parseAsins, normalizeConcurrency } from "./utils.mjs";
+import { parseAsins, normalizeConcurrency, normalizeCountryCode, SIF_COUNTRIES } from "./utils.mjs";
 
 const elements = {
   input: document.querySelector("#asin-input"),
   counter: document.querySelector("#asin-counter"),
   validation: document.querySelector("#validation-message"),
   concurrency: document.querySelector("#concurrency"),
+  country: document.querySelector("#country"),
   start: document.querySelector("#start-button"),
   stop: document.querySelector("#stop-button"),
   retry: document.querySelector("#retry-button"),
@@ -14,6 +15,9 @@ const elements = {
 };
 
 let latestState = null;
+
+document.querySelector("#site-count").textContent = `${SIF_COUNTRIES.length} 站点`;
+elements.country.replaceChildren(...SIF_COUNTRIES.map(({ code, label }) => new Option(`${label}（${code}）`, code)));
 
 function inputState() {
   return parseAsins(elements.input.value);
@@ -64,6 +68,7 @@ function renderState(state) {
   elements.retry.hidden = running || failed === 0;
   elements.input.disabled = running;
   elements.concurrency.disabled = running;
+  elements.country.disabled = running;
 
   if (!tasks.length) {
     elements.list.innerHTML = '<li class="empty-state">输入 ASIN 后开始，扩展会在后台工作。</li>';
@@ -111,13 +116,17 @@ elements.concurrency.addEventListener("change", () => {
   chrome.storage.local.set({ concurrency: normalizeConcurrency(elements.concurrency.value) });
 });
 
+elements.country.addEventListener("change", () => {
+  chrome.storage.local.set({ popupCountry: normalizeCountryCode(elements.country.value) });
+});
+
 elements.start.addEventListener("click", async () => {
   const parsed = inputState();
   if (!parsed.accepted.length || parsed.invalid.length || parsed.overflow.length) return;
   const response = await chrome.runtime.sendMessage({
     type: "START_BATCH",
     payload: {
-      asins: parsed.accepted,
+      items: parsed.accepted.map(asin => ({ asin, countryCode: normalizeCountryCode(elements.country.value) })),
       concurrency: normalizeConcurrency(elements.concurrency.value)
     }
   });
@@ -146,9 +155,10 @@ chrome.runtime.onMessage.addListener((message) => {
   if (message?.type === "STATE_UPDATED") renderState(message.state);
 });
 
-const saved = await chrome.storage.local.get(["popupDraft", "concurrency"]);
+const saved = await chrome.storage.local.get(["popupDraft", "concurrency", "popupCountry"]);
 elements.input.value = saved.popupDraft || "";
 elements.concurrency.value = String(normalizeConcurrency(saved.concurrency || 3));
+elements.country.value = normalizeCountryCode(saved.popupCountry || "CA");
 renderValidation();
 await getState();
 setInterval(getState, 1200);

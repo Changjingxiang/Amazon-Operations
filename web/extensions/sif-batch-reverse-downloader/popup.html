@@ -13,7 +13,7 @@
           <p class="eyebrow">SIF · MULTI-SITE</p>
           <h1>批量反查流量词</h1>
         </div>
-        <span class="site-pill">8 站点</span>
+        <span class="site-pill" id="site-count"></span>
       </header>
 
       <section class="panel input-panel">
@@ -23,6 +23,11 @@
         </div>
         <textarea id="asin-input" rows="7" spellcheck="false" placeholder="每行一个 ASIN，也支持逗号或空格分隔&#10;例如：B0FF4HCVXT"></textarea>
         <p id="validation-message" class="validation" aria-live="polite">最多 15 个，重复项会自动去除。</p>
+
+        <div class="settings-row">
+          <label for="country">国家 / 站点</label>
+          <select id="country"></select>
+        </div>
 
         <div class="settings-row">
           <label for="concurrency">并发速度</label>

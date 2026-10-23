@@ -6,10 +6,10 @@
 
 [简体中文](README.md) · **English**
 
-Keyword rank tracker v3.0.5: a local-first workspace for daily organic rankings, sponsored product (SP) rankings, ABA trends, and competitor comparisons. The application interface is currently in Chinese.
+Keyword rank tracker v3.0.6: a local-first workspace for daily organic rankings, sponsored product (SP) rankings, ABA trends, and competitor comparisons. The application interface is currently in Chinese.
 
 > [!TIP]
-> ## Try v3.0.5 online · Hosted on ChatGPT Sites
+> ## Try v3.0.6 online · Hosted on ChatGPT Sites
 >
 > **[Open the keyword tracking workspace →](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**
 >
@@ -24,12 +24,12 @@ Keyword rank tracker v3.0.5: a local-first workspace for daily organic rankings,
 - Link one shared competitor to multiple owned products, reuse its images and history, and compare ranks and daily movement. Unlinking preserves data.
 - Monthly ABA CSV imports with selectable historical years and year-over-year trends.
 - Resizable columns, date and keyword filters, saved keyword combinations, hover photo previews, an expandable image history, custom product images, and parent ASIN editing.
-- Product settings for the US, Germany, UK, Japan, Canada, France, Spain, and Italy.
+- Product settings for the US, Germany, UK, Japan, Canada, France, Spain, Italy, Mexico, and Australia.
 - Web data stored in browser IndexedDB; desktop data stored locally through the Electron bridge.
 
 ## Quick start: try it online
 
-1. Open the **[v3.0.5 ChatGPT-hosted site](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**. No download or local launcher is needed.
+1. Open the **[v3.0.6 ChatGPT-hosted site](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**. No download or local launcher is needed.
 2. Use the Chinese-language usage guide and explore the example product, ranking matrices, competitors, and ABA monthly view.
 3. Before using your own data, check product and marketplace settings. To migrate, export a JSON backup from your existing version and follow the migration guide.
 
@@ -39,7 +39,7 @@ The hosted site and a locally opened web release use separate site storage; data
 
 The complete web package needs no Node.js, Python, or Codex installation. GitHub’s **Code → Download ZIP** downloads source code, not the latest ready-to-use package.
 
-**[Download the latest v3.0.5 ZIP](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.5/keyword-rank-web-v3.0.5.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+**[Download the latest v3.0.6 ZIP](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.6/keyword-rank-web-v3.0.6.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 
 The organic, SP, comparison, and ABA matrices now align their columns, support hiding translations, and let you click or drag across keywords to select them. Press Enter to copy one keyword per line; customize the selection shortcut in the top-right Settings menu.
 
@@ -87,7 +87,7 @@ npm run dist:win
 npm run release:web
 
 # Check a generated web release
-npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0.5"
+npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0.6"
 ```
 
 Use `npm run release:web -- --output outputs/my-release` for a unique output directory. Existing release directories are not overwritten by default. Use `--force` only when intentionally replacing a release.
@@ -129,7 +129,13 @@ The following detailed guides are currently in Chinese:
 <details>
 <summary>Show recent updates</summary>
 
-### Latest updates — v3.0.5 · October 9, 2026
+### Latest updates — v3.0.6 · October 23, 2026
+
+- Added Mexico (MX) and Australia (AU) throughout products, competitors, monthly ABA import, backup restoration, and Amazon product links.
+- Bundled SIF extension v1.1.8 preserves the selected marketplace and adds a marketplace selector to the standalone popup. Update and reload existing extension installations.
+- New-marketplace imports require the updated extension so older versions cannot silently use Canada. See the [v3.0.6 notes](docs/releases/web-v3.0.6.md).
+
+### v3.0.5 · October 9, 2026
 
 - Sort the dashboard by multiple prioritized fields, each with its own ascending or descending direction. Watched keywords retain their manual order by default; an optional checkbox applies the same conditions within the pinned watch group.
 - Fixed filter and sorting popovers on the expanded dashboard. The dashboard now supports keyword selection by click or drag and copying with Enter, matching the matrices.

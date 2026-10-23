@@ -1,7 +1,7 @@
 import { ChevronRight, Download, FolderOpen, Plus, Settings } from 'lucide-react';
 import ProductImagePreview from './ProductImagePreview.jsx';
 
-const MARKETPLACES = { US: 'amazon.com', CA: 'amazon.ca', UK: 'amazon.co.uk', GB: 'amazon.co.uk', DE: 'amazon.de', JP: 'amazon.co.jp', FR: 'amazon.fr', ES: 'amazon.es', IT: 'amazon.it' };
+const MARKETPLACES = { US: 'amazon.com', CA: 'amazon.ca', UK: 'amazon.co.uk', GB: 'amazon.co.uk', DE: 'amazon.de', JP: 'amazon.co.jp', FR: 'amazon.fr', ES: 'amazon.es', IT: 'amazon.it', MX: 'amazon.com.mx', AU: 'amazon.com.au' };
 function openProduct(model) {
   const asin = String(model.parentAsin || '').trim().toUpperCase();
   const host = MARKETPLACES[String(model.countryCode || 'CA').toUpperCase()];

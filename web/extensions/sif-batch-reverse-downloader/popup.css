@@ -39,8 +39,11 @@ h1 { margin: 0; font-size: 23px; letter-spacing: -.03em; }
 
 .site-pill {
   display: grid;
-  width: 42px;
+  width: 64px;
+  min-width: 64px;
   height: 42px;
+  white-space: nowrap;
+  font-size: 12px;
   place-items: center;
   border: 1px solid rgba(28,107,255,.22);
   border-radius: 13px;
