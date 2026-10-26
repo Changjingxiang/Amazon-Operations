@@ -18,16 +18,17 @@
   function initTrackerPage() {
     if (globalThis.__KEYWORD_TRACKER_EXTENSION_BRIDGE_LOADED__) return;
     globalThis.__KEYWORD_TRACKER_EXTENSION_BRIDGE_LOADED__ = true;
+    const sessionId = crypto.randomUUID();
 
     window.addEventListener("message", (event) => {
       if (event.source !== window || event.data?.source !== WEB_SOURCE) return;
       const { type, requestId, payload } = event.data;
       const messageType = type === "PING_WEB_BRIDGE" ? "PING_WEB_BRIDGE"
         : type === "START_WEB_BATCH" ? "START_WEB_BATCH"
-          : type === "STOP_WEB_BATCH" ? "STOP_WEB_BATCH" : null;
+          : ["STOP_WEB_BATCH", "WEB_BATCH_HEARTBEAT", "WEB_BATCH_ACK"].includes(type) ? type : null;
       if (!messageType || !requestId) return;
       Promise.resolve()
-        .then(() => chrome.runtime.sendMessage({ type: messageType, payload }))
+        .then(() => chrome.runtime.sendMessage({ type: messageType, payload, sessionId }))
         .then((response) => window.postMessage({
           source: EXT_SOURCE,
           type: "WEB_BRIDGE_REPLY",

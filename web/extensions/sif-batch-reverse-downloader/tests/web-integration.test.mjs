@@ -18,12 +18,12 @@ for (const currentOnly of [true, false]) {
     const jobs = [], imported = [];
     const listeners = new Set();
     const context = vm.createContext({
-      window: { setTimeout, clearTimeout }, console,
+      window: { setTimeout, clearTimeout, setInterval, clearInterval }, console,
       document: { querySelector: () => ({ textContent: 'ASIN: B0CJQBTQ8V' }), querySelectorAll: () => [] },
       text: value => String(value || '').trim(),
       normalizeCountryCode,
-      readData: async () => data,
-      pingWebExtension: async () => ({ ok: true, version: '1.1.8' }),
+      readData: async () => data, getImportTargets: async () => data, lastPersistenceStatus: {},
+      pingWebExtension: async () => ({ ok: true, version: '1.1.9' }),
       installWebBridgeListener() {},
       webBatchListeners: listeners,
       emitSifProgress() {},
@@ -32,11 +32,12 @@ for (const currentOnly of [true, false]) {
       importReports: async (mode, files) => { imported.push(files[0].asin); return { ok: true }; },
       result: async output => ({ ok: true, output }),
       requestWebExtension: async (type, payload) => {
-        if (type === 'PING_WEB_BRIDGE') return { ok: true, version: '1.1.8' };
+        if (type === 'PING_WEB_BRIDGE') return { ok: true, version: '1.1.9' };
+        if (type !== 'START_WEB_BATCH') return { ok: true };
         jobs.push(JSON.parse(JSON.stringify(payload)));
         queueMicrotask(() => {
-          for (const item of payload.items) for (const listener of listeners) listener({ type: 'WEB_BATCH_REPORT', asin: item.asin, file: { asin: item.asin } });
-          for (const listener of listeners) listener({ type: 'WEB_BATCH_COMPLETED', state: { tasks: payload.items.map(item => ({ ...item, status: 'done' })) } });
+          for (const item of payload.items) for (const listener of listeners) listener({ type: 'WEB_BATCH_REPORT', runId: payload.runId, asin: item.asin, file: { asin: item.asin } });
+          for (const listener of listeners) listener({ type: 'WEB_BATCH_COMPLETED', runId: payload.runId, state: { tasks: payload.items.map(item => ({ ...item, status: 'done' })) } });
         });
         return { ok: true };
       },
@@ -62,9 +63,9 @@ for (const currentOnly of [true, false]) {
 }
 }
 
-for (const countryCode of ['MX', 'AU']) {
+for (const countryCode of ['CA', 'MX', 'AU']) {
   test(`${countryCode} cannot start through an old extension that silently falls back to Canada`, async () => {
-    for (const version of ['1.1.7', '', undefined]) {
+    for (const version of ['1.1.7', '1.1.8', '', undefined]) {
       const requests = [];
       const context = vm.createContext({
         text: value => String(value ?? '').trim(), normalizeCountryCode,
@@ -72,7 +73,7 @@ for (const countryCode of ['MX', 'AU']) {
         requestWebExtension: async type => { requests.push(type); return { ok: true, version }; },
       });
       vm.runInContext(between(bridge, '  async function runWebExtensionBatch(', '  function delay('), context);
-      await assert.rejects(context.runWebExtensionBatch([{ asin: 'B0CJQBTQ8V', countryCode }]), /v1\.1\.8/);
+      await assert.rejects(context.runWebExtensionBatch([{ asin: 'B0CJQBTQ8V', countryCode }]), /v1\.1\.9/);
       assert.deepEqual(requests, ['PING_WEB_BRIDGE']);
     }
   });

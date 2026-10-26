@@ -96,6 +96,11 @@
     }
     return seedPromise;
   }
+  function releaseOriginalSeed() {
+    originalSeed = null;
+    seedPromise = null;
+    delete window.__KEYWORD_TRACKER_SEED__;
+  }
   const INITIAL_ICONS = {
     B0C1CGFWDX: 'bomber-jacket',
     B089B4RBX8: 'bomber-jacket',
@@ -260,10 +265,10 @@
     const ping = await requestWebExtension('PING_WEB_BRIDGE', null, 1800);
     if (!ping?.ok) throw new Error('未检测到 SIF 自动导入扩展。请先加载扩展并允许它访问本地网页。');
     const [major, minor, patch] = String(ping.version || '').split('.').map(Number);
-    const supportsNewCountries = major > 1 || (major === 1 && (minor > 1 || (minor === 1 && patch >= 8)));
-    if (normalizedItems.some((item) => ['MX', 'AU'].includes(item.countryCode)) && !supportsNewCountries) {
-      throw new Error('墨西哥站和澳大利亚站需要 SIF 扩展 v1.1.8 或更新版本。请从“数据与工具”下载新版扩展，在扩展管理页重新加载，再刷新软件页面。');
+    if (!(major > 1 || (major === 1 && (minor > 1 || (minor === 1 && patch >= 9))))) {
+      throw new Error('请先更新并重新加载包内 SIF 扩展 v1.1.9，再刷新页面。新版扩展可在页面中断时停止任务，并等待每份报表保存后再继续。');
     }
+    const runId = `batch-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     const expected = new Map(normalizedItems.map((item) => [item.asin, item]));
     const terminal = new Set();
@@ -275,12 +280,16 @@
     let finishResolve;
     let finishReject;
     const finished = new Promise((resolve, reject) => { finishResolve = resolve; finishReject = reject; });
+    // The background can fail before START_WEB_BATCH's reply reaches us.
+    finished.catch(() => {});
     const maybeFinish = () => {
       if (settled || !completed || terminal.size < expected.size) return;
       settled = true;
       importChain.then(() => finishResolve()).catch(finishReject);
     };
     const onEvent = (event) => {
+      if (event.runId !== runId) return;
+      if (event.type === 'WEB_BATCH_FAILED') { finishReject(new Error(event.error || '扩展任务异常终止。')); return; }
       if (event.type === 'WEB_BATCH_COMPLETED') {
         completed = true;
         for (const task of event.state?.tasks || []) {
@@ -303,13 +312,17 @@
           try {
             const item = expected.get(asin);
             const file = extensionFileToBlob(event.file, asin, item.countryCode);
-            const report = await sourceReport(file);
-            if (report.parentAsin !== asin) throw new Error(`报表属于 ${report.parentAsin}，不是 ${asin}。`);
-            const response = await importReports('force', [file]);
+            const response = await importReports('force', [file], { expectedAsin: asin, includeData: false });
             if (!response.ok) throw new Error(response.output || '导入失败。');
             imported += 1;
+            const ack = await requestWebExtension('WEB_BATCH_ACK', { runId, asin, ok: true }, 5000);
+            if (!ack?.ok) throw new Error(ack?.error || '扩展任务已中断。');
           } catch (error) {
             errors.push(`${asin}：${text(error?.message || error)}`);
+            await requestWebExtension('WEB_BATCH_ACK', { runId, asin, ok: false, error: text(error?.message || error) }, 5000).catch(() => {});
+          } finally {
+            // Release the base64 payload as soon as persistence finishes.
+            event.file = null;
           }
         }).finally(maybeFinish);
       } else if (event.type === 'WEB_BATCH_REPORT_ERROR' || event.type === 'WEB_BATCH_TASK_FAILED') {
@@ -320,8 +333,11 @@
       }
     };
     webBatchListeners.add(onEvent);
+    let heartbeat;
+    let started = false;
     try {
       const response = await requestWebExtension('START_WEB_BATCH', {
+        runId, protocolVersion: 2,
         items: normalizedItems,
         // Phased imports pass concurrency=1 so the extension cannot start a
         // later ASIN until the previous one has completed.  The default keeps
@@ -329,17 +345,34 @@
         concurrency: Math.max(1, Math.min(Number(options.concurrency) || Math.min(3, normalizedItems.length), normalizedItems.length)),
       }, 5000);
       if (!response?.ok) throw new Error(response?.error || '无法启动 SIF 批量导入。');
+      started = true;
+      let heartbeatPending = false;
+      heartbeat = window.setInterval(async () => {
+        if (heartbeatPending || completed) return;
+        heartbeatPending = true;
+        try {
+          const reply = await requestWebExtension('WEB_BATCH_HEARTBEAT', { runId }, 10000);
+          if (!reply?.ok && !completed) finishReject(new Error(reply?.error || '扩展任务已中断。'));
+        } catch (error) { if (!completed) finishReject(error); }
+        finally { heartbeatPending = false; }
+      }, 5000);
       const timeout = window.setTimeout(() => finishReject(new Error('SIF 批量导入等待超时，请查看扩展任务状态后重试。')), 15 * 60 * 1000);
       try {
         await finished;
       } finally {
         window.clearTimeout(timeout);
       }
+    } catch (error) {
+      if (started) await requestWebExtension('STOP_WEB_BATCH', { runId }, 15000).catch(() => {});
+      // A timeout must not leave a pending local write racing a later retry.
+      await importChain;
+      throw error;
     } finally {
+      window.clearInterval(heartbeat);
       webBatchListeners.delete(onEvent);
     }
     const output = `${options.phaseLabel ? `${options.phaseLabel}：` : ''}SIF 批量报表已下载并导入：成功 ${imported} 个，失败 ${errors.length} 个。${errors.length ? `\n${errors.slice(0, 8).join('\n')}` : ''}`;
-    const resultValue = await result(output);
+    const resultValue = options.single ? await result(output) : { output, persistence: lastPersistenceStatus };
     resultValue.ok = errors.length === 0 && imported === normalizedItems.length;
     resultValue.batchSummary = { label: options.phaseLabel || '导入结果', total: normalizedItems.length, succeeded: imported, failed: errors.length, errors, failedItems: normalizedItems.filter(item => errors.some(message => message.startsWith(`${item.asin}：`))) };
     if (options.single && !resultValue.ok) resultValue.output = output;
@@ -990,9 +1023,10 @@
     if (cloudMode) {
       if (!cloudStorage) throw new Error('云端连接未建立，请从飞书云端工作台入口打开。');
       const savedCloud = await cloudStorage.read();
-      const next = normalizeStore(savedCloud || clone(await ensureOriginalSeed()));
+      const next = normalizeStore(savedCloud || await ensureOriginalSeed());
       if (!savedCloud) await cloudStorage.write(next);
       memoryStore = next;
+      releaseOriginalSeed();
       return clone(memoryStore);
     }
     let saved;
@@ -1009,6 +1043,7 @@
     }
     if (saved) {
       memoryStore = normalizeStore(saved);
+      releaseOriginalSeed();
       try {
         await writeDailyBackup(memoryStore);
         lastPersistenceStatus = { main: { ok: true }, backup: { ok: true } };
@@ -1021,9 +1056,10 @@
     // First run: no store exists, so this is the one launch that pays for the
     // packaged seed. Awaited here rather than at module scope so a returning
     // user never downloads or parses it.
-    const initial = normalizeStore(clone(await ensureOriginalSeed()));
+    const initial = normalizeStore(await ensureOriginalSeed());
     const next = normalizeStore({ ...initial, updatedAt: new Date().toISOString(), storageRevision: newStorageRevision() });
     await persistMainAndBackup(next, null);
+    releaseOriginalSeed();
     return memoryStore;
   }
 
@@ -1034,6 +1070,7 @@
   }
 
   async function writeStore(store) {
+    dataProjectionCache = null;
     if (cloudMode) {
       if (!cloudStorage) throw new Error('云端连接未建立，数据尚未保存。');
       const next = normalizeStore({ ...store, updatedAt: new Date().toISOString() });
@@ -1376,8 +1413,20 @@
     };
   }
 
+  // Batch planning needs only product identities. Building every historical
+  // matrix here used to keep an additional full projection alive all run long.
+  async function getImportTargets() {
+    const store = await ensureStore();
+    return { ownModels: store.configs.map(config => ({ ...config, kind: 'own' })),
+      competitors: store.competitors.map(config => ({ ...config, kind: 'competitor' })) };
+  }
+
+  let dataProjectionCache = null;
   async function readData() {
     const store = await ensureStore();
+    const revision = store.storageRevision || store.updatedAt;
+    if (dataProjectionCache?.store === store && dataProjectionCache.revision === revision
+      && dataProjectionCache.pendingSave === pendingSave) return dataProjectionCache.data;
     const ownModels = store.configs.map((config) => ({
       ...buildModel(config, store.histories[config.historySheet] || [], store.watches, store.annotations, store.abaMonthly),
       iconKey: store.iconSelections[config.parentAsin] || defaultIconKey(config.modelName),
@@ -1419,7 +1468,7 @@
     // enhancement hides these appended rows in the sidebar/settings and
     // renders them under their owning product instead.
     const models = [...ownModels, ...competitors];
-    return {
+    const data = {
       toolRoot: '浏览器本地存储',
       adReviews: store.adReviews,
       workbookPath: '',
@@ -1433,6 +1482,8 @@
       loadedAt: new Date().toISOString(),
       storage: pendingSave ? 'browser-memory-unsaved' : (indexedDbAvailable ? 'browser-indexeddb' : 'browser-indexeddb-error'),
     };
+    dataProjectionCache = { store, revision, pendingSave, data };
+    return data;
   }
 
   async function result(output) {
@@ -2066,7 +2117,7 @@
     return response;
   }
 
-  async function importReports(mode, providedFiles = null) {
+  async function importReports(mode, providedFiles = null, options = {}) {
     if (mode === 'refresh') return result('浏览器本地数据已刷新。');
     const supplied = providedFiles == null ? null : [...providedFiles].filter((file) => file && typeof file.arrayBuffer === 'function');
     const files = supplied || await chooseFiles('.xlsx,.xls', true);
@@ -2101,6 +2152,9 @@
       }
       try {
         const report = await sourceReport(file);
+        if (options.expectedAsin && report.parentAsin !== options.expectedAsin) {
+          throw new Error(`报表属于 ${report.parentAsin}，不是 ${options.expectedAsin}。`);
+        }
         const target = configsByAsin.get(report.parentAsin);
         if (!target) {
           skipped++;
@@ -2141,8 +2195,9 @@
     }
     await writeStore(store);
     const suffix = errors.length ? `\n${errors.slice(0, 5).join('\n')}` : '';
-    const response = await result(`本地导入完成：${imported} 个文件，跳过 ${skipped} 个，失败 ${failed} 个。${suffix}`);
-    response.ok = failed === 0;
+    const output = `本地导入完成：${imported} 个文件，跳过 ${skipped} 个，失败 ${failed} 个。${suffix}`;
+    const response = options.includeData === false ? { output, persistence: lastPersistenceStatus } : await result(output);
+    response.ok = failed === 0 && (!options.expectedAsin || imported === files.length);
     return response;
   }
 
@@ -2393,7 +2448,7 @@
 
   async function startSifBatchImport(payload = {}) {
     if (sifBatchImportInFlight) throw new Error('已有 SIF 批量自动导入任务正在运行，请等待当前任务完成。');
-    const data = await readData();
+    const data = await getImportTargets();
     const ownModels = data.ownModels || (data.models || []).filter((model) => model.kind !== 'competitor');
     const ownAsins = new Set(ownModels.map((model) => text(model.parentAsin).toUpperCase()).filter(Boolean));
     const competitorAsins = new Set((data.competitors || []).map((model) => text(model.parentAsin).toUpperCase()).filter(Boolean));
@@ -2445,20 +2500,29 @@
       const phases = [];
       let allOk = true;
       let firstError = null;
-      for (const [items, label] of [[ownItems, '第一阶段（自己产品）'], [competitorItems, '第二阶段（竞品）']]) {
+      let ownPhaseFailed = false;
+      for (const [phaseIndex, [items, label]] of [[ownItems, '第一阶段（自己产品）'], [competitorItems, '第二阶段（竞品）']].entries()) {
         try {
           const response = await runPhase(items, label);
           outputs.push(response?.output || `${label}完成。`);
           if (response?.batchSummary) phases.push(response.batchSummary);
-          if (!response?.ok) allOk = false;
+          if (!response?.ok) { allOk = false; ownPhaseFailed = phaseIndex === 0; break; }
         } catch (error) {
           allOk = false;
+          ownPhaseFailed = phaseIndex === 0;
           firstError ||= error;
           outputs.push(`${label}失败：${text(error?.message || error)}`);
           phases.push({ label, total: items.length, succeeded: null, failed: null, errors: [text(error?.message || error)], failedItems: [] });
+          break;
         }
       }
-      const response = await result(`SIF 分阶段批量导入完成。\n${outputs.join('\n')}`);
+      if (ownPhaseFailed && competitorItems.length) {
+        const message = '竞品阶段尚未启动，请先完成自己产品的导入。';
+        outputs.push(message);
+        phases.push({ label: '第二阶段（竞品）', total: competitorItems.length, succeeded: 0, failed: 0, skipped: true,
+          errors: [message], failedItems: firstError ? [] : competitorItems });
+      }
+      const response = { output: `SIF 分阶段批量导入${allOk ? '完成' : '已停止'}。\n${outputs.join('\n')}`, persistence: lastPersistenceStatus };
       response.ok = allOk;
       response.phases = phases;
       if (!allOk && firstError) response.error = firstError.message;
@@ -2690,6 +2754,7 @@
     downloadSifExtension,
     checkSifExtension: async () => ({ connected: Boolean(await pingWebExtension()) }),
     getData: readData,
+    getImportTargets,
     runImport: (mode = 'normal') => importReports(mode),
     importAbaMonthlyCsv,
     startSifImport,

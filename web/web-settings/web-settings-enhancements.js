@@ -1720,7 +1720,7 @@
     const phases = response.phases || [];
     const failedItems = phases.flatMap(phase => phase.failedItems || []);
     const heading = response.ok ? '导入已完成' : phases.length ? '导入已结束，部分任务未完成' : '导入未完成';
-    overlay.innerHTML = `<section role="dialog" aria-modal="true" aria-label="导入结果" style="width:560px;max-width:100%;max-height:85vh;overflow:auto;background:white;border-radius:14px;padding:24px;color:#25354d;box-shadow:0 16px 48px #173b6433;font:13px/1.7 'Microsoft YaHei',sans-serif"><h2 style="margin:0 0 16px;font-size:20px">${heading}</h2>${phases.map(phase => `<div style="padding:10px 0;border-bottom:1px solid #e2eaf0"><b>${escapeHtml(phase.label)}</b><div>${phase.succeeded == null ? '阶段异常，完成数量未确认，请查看详情。' : `成功 ${phase.succeeded} 个 · 失败 ${phase.failed} 个`}</div></div>`).join('')}<p data-save-state role="status">正在核对数据保存状态…</p><details><summary style="cursor:pointer">查看${response.ok ? '导入' : '失败'}详情</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.7 inherit">${escapeHtml(phases.flatMap(phase => phase.errors || []).join('\n') || response.output || '')}</pre></details><div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-top:22px"><button data-export>导出备份</button><button data-save hidden>重试保存</button><button data-retry hidden>仅重试失败项</button><button data-confirm disabled>确定并刷新</button></div></section>`;
+    overlay.innerHTML = `<section role="dialog" aria-modal="true" aria-label="导入结果" style="width:560px;max-width:100%;max-height:85vh;overflow:auto;background:white;border-radius:14px;padding:24px;color:#25354d;box-shadow:0 16px 48px #173b6433;font:13px/1.7 'Microsoft YaHei',sans-serif"><h2 style="margin:0 0 16px;font-size:20px">${heading}</h2>${phases.map(phase => `<div style="padding:10px 0;border-bottom:1px solid #e2eaf0"><b>${escapeHtml(phase.label)}</b><div>${phase.skipped ? '尚未启动：请先完成自己产品阶段。' : phase.succeeded == null ? '阶段异常，完成数量未确认，请查看详情。' : `成功 ${phase.succeeded} 个 · 失败 ${phase.failed} 个`}</div></div>`).join('')}<p data-save-state role="status">正在核对数据保存状态…</p><details><summary style="cursor:pointer">查看${response.ok ? '导入' : '失败'}详情</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.7 inherit">${escapeHtml(phases.flatMap(phase => phase.errors || []).join('\n') || response.output || '')}</pre></details><div style="display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-top:22px"><button data-export>导出备份</button><button data-save hidden>重试保存</button><button data-retry hidden>仅重试失败项</button><button data-confirm disabled>确定并刷新</button></div></section>`;
     overlay.querySelectorAll('button').forEach(button => { button.style.cssText = 'padding:8px 14px;border:1px solid #b9cddf;border-radius:7px;background:#f4f8fc;color:#173b64;cursor:pointer;font:inherit'; });
     document.body.appendChild(overlay);
     const message = overlay.querySelector('[data-save-state]');
@@ -1776,9 +1776,7 @@
     setStatus('正在读取产品、竞品和国家设置……');
     let outcome;
     try {
-      const data = await api.getData();
-      sidebarDataCache = data;
-      matrixDataCache = data;
+      const data = await (api.getImportTargets ? api.getImportTargets() : api.getData());
       const items = retryItems || batchItemsFromData(data, currentAsin);
       if (!items.length) throw new Error('当前没有已登记产品或竞品。');
       // startSifBatchImport submits one extension job for own products and

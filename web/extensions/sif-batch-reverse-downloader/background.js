@@ -41,8 +41,45 @@ function isLocalSender(sender) {
 }
 
 function sendToWeb(run, message) {
-  if (!run?.webTabId) return Promise.resolve();
-  return chrome.tabs.sendMessage(run.webTabId, message).catch(() => {});
+  if (!Number.isInteger(run?.webTabId)) return Promise.resolve();
+  return chrome.tabs.sendMessage(run.webTabId, { ...message, runId: run.id });
+}
+
+// A web job belongs to one document, not just a browser tab. A reload must
+// finish cancelling the old queue before that tab can submit another job.
+chrome.tabs?.onRemoved?.addListener((tabId) => {
+  if (activeRun?.webTabId === tabId) void stopBatch().catch(console.warn);
+});
+chrome.tabs?.onUpdated?.addListener((tabId, change) => {
+  if (activeRun?.webTabId === tabId && (change.status === "loading" || change.discarded)) {
+    void stopBatch().catch(console.warn);
+  }
+});
+
+function waitForReportAck(run, task, file) {
+  return new Promise((resolve, reject) => {
+    const finish = (error) => {
+      clearTimeout(timer);
+      run.acks.delete(task.asin);
+      run.cancelWaits.delete(cancel);
+      error ? reject(Object.assign(error, { noRetry: true })) : resolve();
+    };
+    const cancel = () => finish(new Error("STOPPED"));
+    const timer = setTimeout(() => finish(new Error("网页未确认报表已保存，已停止导入。请重新打开页面后重试。")), 120_000);
+    run.acks.set(task.asin, finish);
+    run.cancelWaits.add(cancel);
+    sendToWeb(run, { type: "WEB_BATCH_REPORT", asin: task.asin,
+      countryCode: task.countryCode, modelName: task.modelName, file }).catch(finish);
+  });
+}
+
+function untilStopped(run, operation) {
+  if (run.stopped) return Promise.reject(new Error("STOPPED"));
+  return new Promise((resolve, reject) => {
+    const cancel = () => reject(new Error("STOPPED"));
+    run.cancelWaits.add(cancel);
+    Promise.resolve(operation).then(resolve, reject).finally(() => run.cancelWaits.delete(cancel));
+  });
 }
 
 async function restoreState() {
@@ -94,7 +131,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ ok: false, error: "仅允许关键词排名网页版连接。" });
         return;
       }
+      if (activeRun?.webTabId === sender.tab.id && activeRun.sessionId !== message.sessionId) await stopBatch();
       sendResponse({ ok: true, version: chrome.runtime.getManifest().version });
+      return;
+    }
+    if (["WEB_BATCH_HEARTBEAT", "WEB_BATCH_ACK"].includes(message?.type)) {
+      const run = activeRun;
+      if (!isLocalSender(sender) || !run || run.webTabId !== sender.tab.id
+        || run.sessionId !== message.sessionId || run.id !== message.payload?.runId || run.stopped) {
+        sendResponse({ ok: false, error: "导入任务已中断，请重新发起导入。" });
+        return;
+      }
+      run.lastSeen = Date.now();
+      if (message.type === "WEB_BATCH_ACK") {
+        run.acks.get(message.payload.asin)?.(message.payload.ok ? null : new Error(message.payload.error || "报表保存失败。"));
+      }
+      sendResponse({ ok: true });
       return;
     }
     if (message?.type === "START_WEB_BATCH") {
@@ -102,12 +154,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ ok: false, error: "仅允许关键词排名网页版发起任务。" });
         return;
       }
-      sendResponse(await startBatch(message.payload, sender.tab.id));
+      if (message.payload?.protocolVersion !== 2 || !message.sessionId || typeof message.payload.runId !== 'string' || !message.payload.runId) {
+        sendResponse({ ok: false, error: "请刷新关键词软件页面后再导入。" });
+        return;
+      }
+      sendResponse(await startBatch(message.payload, sender.tab.id, message.sessionId));
       return;
     }
     if (message?.type === "STOP_WEB_BATCH") {
       if (!isLocalSender(sender)) {
         sendResponse({ ok: false, error: "仅允许关键词排名网页版停止任务。" });
+        return;
+      }
+      if (activeRun && (activeRun.webTabId !== sender.tab.id || activeRun.sessionId !== message.sessionId
+        || activeRun.id !== message.payload?.runId)) {
+        sendResponse({ ok: false, error: "不能停止其他页面的任务。" });
         return;
       }
       sendResponse(await stopBatch());
@@ -143,8 +204,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-async function startBatch(payload = {}, webTabId = null) {
-  if (activeRun && !activeRun.stopped) return { ok: false, error: "已有任务正在运行。" };
+async function startBatch(payload = {}, webTabId = null, sessionId = null) {
+  if (activeRun) return { ok: false, error: "已有任务正在运行或停止中，请等待扩展结束当前任务。" };
 
   const rawItems = Array.isArray(payload.items) && payload.items.length
     ? payload.items
@@ -167,40 +228,55 @@ async function startBatch(payload = {}, webTabId = null) {
   if (items.some(({ asin }) => !ASIN_PATTERN.test(asin))) return { ok: false, error: "ASIN 格式不正确。" };
 
   const run = {
-    id: crypto.randomUUID(),
+    id: webTabId !== null ? payload.runId : crypto.randomUUID(),
     stopped: false,
     tabs: new Set(),
     tabOwners: new Map(),
-    webTabId: Number.isInteger(webTabId) ? webTabId : null
+    webTabId: Number.isInteger(webTabId) ? webTabId : null,
+    sessionId, lastSeen: Date.now(), acks: new Map(), cancelWaits: new Set()
   };
   activeRun = run;
   state = {
     status: "running",
-    concurrency: normalizeConcurrency(payload.concurrency),
+    concurrency: webTabId !== null ? 1 : normalizeConcurrency(payload.concurrency),
     startedAt: Date.now(),
     updatedAt: Date.now(),
     tasks: items.map((item) => ({ ...item, status: "queued", error: null, attempts: 0 }))
   };
-  await persistState();
-  await sendToWeb(run, { type: "WEB_BATCH_STARTED", state });
-  runQueue(run).catch(async (error) => {
+  run.done = (async () => {
+    await persistState();
+    await sendToWeb(run, { type: "WEB_BATCH_STARTED", state });
+    if (run.webTabId !== null) run.watchdog = setInterval(() => {
+      if (Date.now() - run.lastSeen > 90_000) void stopBatch().catch(console.warn);
+    }, 10_000);
+    await runQueue(run);
+  })().catch(async (error) => {
     if (activeRun === run) {
       state.status = "failed";
       state.fatalError = publicError(error);
       await persistState();
-      await sendToWeb(run, { type: "WEB_BATCH_FAILED", error: state.fatalError, state });
+      await sendToWeb(run, { type: "WEB_BATCH_FAILED", error: state.fatalError, state }).catch(() => {});
     }
+  }).finally(() => {
+    clearInterval(run.watchdog);
+    if (activeRun === run) activeRun = null;
   });
+  run.done.catch(console.warn);
   return { ok: true };
 }
 
 async function stopBatch() {
-  if (!activeRun || activeRun.stopped) return { ok: true };
-  activeRun.stopped = true;
+  const run = activeRun;
+  if (!run) return { ok: true };
+  if (run.stopped) { await run.done; return { ok: true }; }
+  run.stopped = true;
+  for (const cancel of [...run.cancelWaits]) cancel();
+  for (const asin of run.tabOwners.values()) cancelExpectedDownload(asin, new Error("STOPPED"));
   state.status = "stopping";
   await persistState();
-  await Promise.allSettled([...activeRun.tabs].map((tabId) => chrome.tabs.remove(tabId)));
-  await sendToWeb(activeRun, { type: "WEB_BATCH_STOPPING", state });
+  await Promise.allSettled([...run.tabs].map((tabId) => chrome.tabs.remove(tabId)));
+  await sendToWeb(run, { type: "WEB_BATCH_STOPPING", state }).catch(() => {});
+  await run.done;
   return { ok: true };
 }
 
@@ -224,8 +300,10 @@ async function runQueue(run) {
   state.status = run.stopped ? "stopped" : "completed";
   state.completedAt = Date.now();
   await persistState();
-  await sendToWeb(run, { type: "WEB_BATCH_COMPLETED", state });
+  clearInterval(run.watchdog);
+  // Release before notifying the page, which may immediately start phase 2.
   if (activeRun === run) activeRun = null;
+  await sendToWeb(run, { type: "WEB_BATCH_COMPLETED", state }).catch(() => {});
 }
 
 async function executeTask(run, task) {
@@ -234,20 +312,19 @@ async function executeTask(run, task) {
     task.attempts = attempt;
     try {
       const result = await processOne(run, task);
-      if (result?.file) {
-        await sendToWeb(run, {
-          type: "WEB_BATCH_REPORT",
-          asin: task.asin,
-          countryCode: task.countryCode,
-          modelName: task.modelName,
-          file: result.file
-        });
-      } else if (run.webTabId) {
-        await sendToWeb(run, {
-          type: "WEB_BATCH_REPORT_ERROR",
-          asin: task.asin,
-          error: "已下载文件，但未能把文件内容回传给网页版。请检查扩展是否允许访问本地网页。"
-        });
+      if (run.stopped) throw new Error("STOPPED");
+      if (result?.file && run.webTabId !== null) {
+        try { await waitForReportAck(run, task, result.file); }
+        catch (error) {
+          // Never download more files into a dead or unsaved page.
+          run.stopped = true;
+          run.stopReason = publicError(error);
+          throw error;
+        }
+      } else if (run.webTabId !== null) {
+        run.stopped = true;
+        run.stopReason = "文件已下载，但未能回传保存，任务已停止。请用本地导入补录，并检查扩展的文件网址权限。";
+        throw new Error(run.stopReason);
       }
       await updateTask(task.asin, { status: "done", error: null, finishedAt: Date.now() });
       return;
@@ -261,14 +338,14 @@ async function executeTask(run, task) {
   }
   await updateTask(task.asin, {
     status: run.stopped ? "cancelled" : "failed",
-    error: run.stopped ? "任务已停止。" : publicError(lastError)
+    error: run.stopReason || (run.stopped ? "任务已停止。" : publicError(lastError))
   });
   await sendToWeb(run, {
     type: "WEB_BATCH_TASK_FAILED",
     asin: task.asin,
     modelName: task.modelName,
-    error: run.stopped ? "任务已停止。" : publicError(lastError)
-  });
+    error: run.stopReason || (run.stopped ? "任务已停止。" : publicError(lastError))
+  }).catch(() => {});
 }
 
 async function processOne(run, task) {
@@ -282,6 +359,7 @@ async function processOne(run, task) {
   run.tabOwners.set(tabId, asin);
 
   try {
+    if (run.stopped) throw new Error("STOPPED");
     await waitForTabComplete(tabId, PAGE_TIMEOUT_MS, run);
     if (run.stopped) throw new Error("STOPPED");
     await updateTask(asin, { status: "working" });
@@ -305,7 +383,7 @@ async function processOne(run, task) {
       }
       let response;
       try {
-        response = await sendTaskToTab(tabId, asin, { captureReady });
+        response = await sendTaskToTab(tabId, asin, { captureReady, run });
       } catch (error) {
         cancelExpectedDownload(asin, error);
         await downloadPromise.catch(() => {});
@@ -330,7 +408,7 @@ async function processOne(run, task) {
       }
     });
     downloadOwners.set(item.download.id, { asin, countryCode: task.countryCode });
-    await waitForDownloadComplete(item.download.id, DOWNLOAD_FINISH_TIMEOUT_MS);
+    await waitForDownloadComplete(item.download.id, DOWNLOAD_FINISH_TIMEOUT_MS, run);
     return item;
   } finally {
     run.tabs.delete(tabId);
@@ -342,13 +420,15 @@ async function processOne(run, task) {
 async function sendTaskToTab(tabId, asin, options = {}) {
   let injected = false;
   for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (options.run.stopped) throw new Error("STOPPED");
     try {
-      return await chrome.tabs.sendMessage(tabId, {
+      return await untilStopped(options.run, chrome.tabs.sendMessage(tabId, {
         type: "RUN_SIF_DOWNLOAD",
         asin,
         captureReady: options.captureReady !== false
-      });
+      }));
     } catch (error) {
+      if (options.run.stopped) throw new Error("STOPPED");
       if (!injected) {
         await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
         injected = true;
@@ -440,6 +520,8 @@ function installDownloadCaptureMain() {
 function waitForTabComplete(tabId, timeoutMs, run) {
   return new Promise(async (resolve, reject) => {
     const current = await chrome.tabs.get(tabId).catch(() => null);
+    if (run.stopped) return reject(new Error("STOPPED"));
+    if (!current) return reject(new Error("工作页被关闭。"));
     if (current?.status === "complete") return resolve();
 
     const timer = setTimeout(() => finish(new Error("PAGE_TIMEOUT")), timeoutMs);
@@ -514,7 +596,7 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
   suggest({ filename: suggestedFilename(asin, item, new Date(), owner?.countryCode || "CA"), conflictAction: "uniquify" });
 });
 
-async function waitForDownloadComplete(downloadId, timeoutMs) {
+async function waitForDownloadComplete(downloadId, timeoutMs, run) {
   const existing = (await chrome.downloads.search({ id: downloadId }))[0];
   if (existing?.state === "complete") return existing;
   if (existing?.state === "interrupted") {
@@ -524,6 +606,7 @@ async function waitForDownloadComplete(downloadId, timeoutMs) {
   }
 
   return new Promise((resolve, reject) => {
+    const cancel = () => finish(new Error("STOPPED"));
     const timer = setTimeout(() => finish(new Error("DOWNLOAD_FAILED")), timeoutMs);
     const listener = async (delta) => {
       if (delta.id !== downloadId || !delta.state) return;
@@ -537,11 +620,14 @@ async function waitForDownloadComplete(downloadId, timeoutMs) {
     const finish = (error, result) => {
       clearTimeout(timer);
       chrome.downloads.onChanged.removeListener(listener);
+      run.cancelWaits.delete(cancel);
       downloadOwners.delete(downloadId);
       if (error) error.noRetry = true;
       error ? reject(error) : resolve(result);
     };
     chrome.downloads.onChanged.addListener(listener);
+    run.cancelWaits.add(cancel);
+    if (run.stopped) cancel();
   });
 }
 

@@ -106,13 +106,13 @@ async function main() {
 
     result.models = await page.locator('.model-item').count();
     result.tabs = await page.locator('.tabs button').allTextContents();
-    result.bridgeFunctions = await page.evaluate(() => ({
+    result.bridgeFunctions = await page.evaluate(async () => ({
       hasBridge: Boolean(window.keywordTracker),
       hasSeed: Boolean(window.__KEYWORD_TRACKER_SEED__),
       methods: ['getData', 'setWatch', 'addModel', 'addCompetitor', 'renameModel', 'changeModelAsin', 'releaseModelAlias', 'importAbaMonthlyCsv']
         .filter((name) => typeof window.keywordTracker?.[name] === 'function'),
-      seedConfigs: window.__KEYWORD_TRACKER_SEED__?.configs?.length || 0,
-      seedModels: (window.__KEYWORD_TRACKER_SEED__?.configs?.length || 0) + (window.__KEYWORD_TRACKER_SEED__?.competitors?.length || 0),
+      configuredOwn: (await window.keywordTracker.getImportTargets()).ownModels.length,
+      configuredModels: (await window.keywordTracker.getData()).models.length,
     }));
 
     const tabChecks = {};
@@ -153,16 +153,16 @@ async function main() {
       scrollWidth: document.body.scrollWidth,
       clientWidth: document.body.clientWidth,
     }));
-    result.ok = result.models === result.bridgeFunctions.seedModels
+    result.ok = result.models === result.bridgeFunctions.configuredModels
       && result.eagerSeedTags === 0
-      && result.bridgeFunctions.hasSeed
+      && !result.bridgeFunctions.hasSeed
       && result.tabs.length >= 5
       && Object.values(tabChecks).every(Boolean)
       && result.bridgeFunctions.hasBridge
-      && result.bridgeFunctions.seedConfigs >= 1
+      && result.bridgeFunctions.configuredOwn >= 1
       && result.settings.modal
       && result.settings.asinEditors >= 1
-      && result.settings.nameEditors >= result.bridgeFunctions.seedConfigs
+      && result.settings.nameEditors >= result.bridgeFunctions.configuredOwn
       && result.bridgeFunctions.methods.includes('renameModel')
       && result.bridgeFunctions.methods.includes('releaseModelAlias')
       && result.settings.competitorSettings >= 1
