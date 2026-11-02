@@ -1104,7 +1104,9 @@
       <div class="settings-competitor-list" data-competitor-list></div>`;
     const resetButton = modal.querySelector('.settings-reset-button');
     const abaSection = modal.querySelector('.settings-aba-import');
-    if (abaSection) abaSection.after(section);
+    const competitorSlot = modal.querySelector('[data-settings-competitor-slot]');
+    if (competitorSlot) competitorSlot.appendChild(section);
+    else if (abaSection) abaSection.after(section);
     else if (resetButton) resetButton.after(section);
     else modal.querySelector('.drawer-header')?.after(section);
 
@@ -1739,7 +1741,15 @@
         return state.saved;
       } catch (error) { save.hidden = false; message.textContent = `无法确认保存状态：${error.message}。请先导出备份。`; return false; }
     };
-    confirm.onclick = async () => { if (await inspect()) location.reload(); };
+    confirm.onclick = async () => {
+      if (!(await inspect())) return;
+      if (response.ok) {
+        overlay.remove();
+        const cache = api.__keywordRankGetDataCache;
+        if (cache) cache.value = null;
+        window.dispatchEvent(new CustomEvent('keyword-tracker-import-completed', { detail: { ok: true } }));
+      } else location.reload();
+    };
     save.onclick = async () => { save.disabled = true; try { await api.retryImportSave(); await inspect(); } catch (error) { message.textContent = `保存失败：${error.message}。请导出备份后再处理。`; } finally { save.disabled = false; } };
     overlay.querySelector('[data-export]').onclick = async () => { try { await api.exportImportBackup(); } catch (error) { message.textContent = `导出失败：${error.message}`; } };
     retryButton.onclick = async () => { if (await inspect()) { overlay.remove(); retry(failedItems); } };
@@ -1766,6 +1776,7 @@
     const currentAsin = currentOnly ? getCurrentAsin() : null;
     if (currentOnly && !currentAsin) { setStatus('无法识别当前产品，请重新选择产品。', true); return; }
     batchImportRunning = true;
+    window.dispatchEvent(new Event('keyword-tracker-import-started'));
     const actions = [...document.querySelectorAll('.header-actions button')].map(button => [button, button.disabled]);
     actions.forEach(([button]) => { button.disabled = true; });
     trigger.setAttribute('aria-busy', 'true');
@@ -1796,6 +1807,20 @@
       trigger.removeAttribute('aria-busy');
       delete trigger.dataset.batchBusy;
       if (peer) delete peer.dataset.batchBusy;
+    }
+    // Successful imports no longer require an unconditional confirmation.
+    // React refreshes once after BOTH phases and only opens a notice for an
+    // exceeded traffic threshold. Retain the existing recovery UI on failure.
+    if (outcome?.ok) {
+      try {
+        const state = await api.getImportSaveState();
+        if (state.saved && state.persistence?.backup?.ok !== false) {
+          const cache = api.__keywordRankGetDataCache;
+          if (cache) cache.value = null;
+          window.dispatchEvent(new CustomEvent('keyword-tracker-import-completed', { detail: { ok: true } }));
+          return;
+        }
+      } catch { /* The recovery dialog verifies persistence and offers retry. */ }
     }
     await showBatchResult(outcome, items => runAllBatchImport({ trigger, peer, status, setStatus, currentOnly, retryItems: items }));
   }

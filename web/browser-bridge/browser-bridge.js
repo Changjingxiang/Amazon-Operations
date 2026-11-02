@@ -2557,7 +2557,7 @@
   async function exportBackup() {
     const store = pendingSave?.store || await ensureStore();
     const date = new Date().toISOString().slice(0, 10);
-    downloadBlob(`${JSON.stringify(store)}\n`, `Amazon关键词每日跟进-v3.0.6-数据_${date}.json`, 'application/json;charset=utf-8');
+    downloadBlob(`${JSON.stringify(store)}\n`, `Amazon关键词每日跟进-v3.0.7-数据_${date}.json`, 'application/json;charset=utf-8');
   }
 
   async function exportCurrentExcel() {
@@ -2804,8 +2804,12 @@
     ...(window.keywordAI ? { importBackup } : {}),
     openWorkbook: () => exportCurrentExcel().catch((error) => alert(`Excel 导出失败：${error.message}`)),
     openSourceFolder: async () => {
+      window.dispatchEvent(new Event('keyword-tracker-import-started'));
       const response = await importReports('normal');
-      if (response.output && !response.output.startsWith('未选择')) location.reload();
+      if (response.output && !response.output.startsWith('未选择')) {
+        if (response.ok) window.dispatchEvent(new CustomEvent('keyword-tracker-import-completed', { detail: response }));
+        else location.reload();
+      }
       return response;
     },
     openToolFolder: () => dataManager(),
@@ -2825,8 +2829,12 @@
       if (action === 'export') return exportBackup();
       if (action === 'import-backup') return importBackup();
       if (action === 'import') {
+        window.dispatchEvent(new Event('keyword-tracker-import-started'));
         const response = await importReports('normal');
-        if (!response.output?.startsWith('未选择')) location.reload();
+        if (!response.output?.startsWith('未选择')) {
+          if (response.ok) window.dispatchEvent(new CustomEvent('keyword-tracker-import-completed', { detail: response }));
+          else location.reload();
+        }
       }
     };
   }

@@ -1,12 +1,33 @@
-import { AlertTriangle, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { SIF_COUNTRIES } from '../lib/countries.js';
 import AbaImportSection from './AbaImportSection.jsx';
 import { MatrixCopyShortcutSetting } from './MatrixKeywordCopy.jsx';
+import useDialogFocus from '../lib/useDialogFocus.js';
+import { validThreshold } from '../lib/trafficPreferences.mjs';
+import './SettingsDrawer.css';
 
 const ASIN_PATTERN = /^B0[A-Z0-9]{8}$/;
 
-export default function SettingsModal({ open, onClose, onResetWidths, models = [], activeModel, onDeleteModel, onAddModel, onSetCountry, onRenameModel, onChangeModelAsin, onReleaseModelAlias, abaMonthlyImports = [], onImportAba }) {
+function SettingsSection({ title, description, children, initialOpen = false, id }) {
+  const [expanded, setExpanded] = useState(initialOpen);
+  return <details className="settings-feature" id={id} open={expanded} onToggle={event => setExpanded(event.currentTarget.open)}>
+    <summary><div><strong>{title}</strong><small>{description}</small></div><ChevronDown size={18} /></summary>
+    <div className="settings-feature-body">{children}</div>
+  </details>;
+}
+
+export default function SettingsModal({ open, onClose, onResetWidths, models = [], activeModel, onDeleteModel, onAddModel, onSetCountry, onRenameModel, onChangeModelAsin, onReleaseModelAlias, abaMonthlyImports = [], onImportAba, trafficThreshold = 20, onTrafficThresholdChange }) {
+  const dialogRef = useDialogFocus(open, onClose);
+  const [thresholdDraft, setThresholdDraft] = useState(String(trafficThreshold));
+  const [thresholdMessage, setThresholdMessage] = useState('');
+  useEffect(() => { if (open) setThresholdDraft(String(trafficThreshold)); }, [open, trafficThreshold]);
+  useEffect(() => { if (open) setThresholdMessage(''); }, [open]);
+  const saveThreshold = value => {
+    if (!validThreshold(value)) { setThresholdMessage('请输入 1–1000 之间的整数百分比。'); return; }
+    try { onTrafficThresholdChange?.(Number(value)); setThresholdDraft(String(value)); setThresholdMessage(`已保存：涨跌超过 ${value}% 时公示。`); }
+    catch { setThresholdMessage('设置未能保存，请检查浏览器存储后重试。'); }
+  };
   const [pendingAsin, setPendingAsin] = useState('');
   const [pendingAlias, setPendingAlias] = useState('');
   const [editingName, setEditingName] = useState('');
@@ -32,26 +53,31 @@ export default function SettingsModal({ open, onClose, onResetWidths, models = [
       return changed ? next : current;
     });
   }, [open, models]);
-  useEffect(() => {
-    if (!open) return undefined;
-    const handleKeyDown = (event) => { if (event.key === 'Escape') onClose?.(); };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div className="settings-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="settings-modal settings-drawer" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="settings-title" tabIndex={-1}>
         <div className="drawer-header settings-modal-header">
-          <h2 id="settings-title">设置</h2>
-          <button type="button" onClick={onClose} aria-label="关闭设置"><X size={20} /></button>
+          <div><span className="settings-kicker">工作台偏好</span><h2 id="settings-title">设置</h2><p>按功能展开，调整你的日常工作方式。</p></div>
+          <button type="button" data-dialog-close onClick={onClose} aria-label="关闭设置"><X size={20} /></button>
         </div>
         <div className="settings-modal-scroll">
-          <p className="settings-intro">表格列宽会自动保存在本机。拖动表头最右侧的细线即可调整，恢复后自然矩阵、SP 矩阵、ABA 月榜和看板都会回到默认宽度。每个产品的国家也在这里保存，点击“自动导入今日报表”时会按对应国家打开 SIF。</p>
+          <SettingsSection title="曝光异动提醒" description="整批导入完成后，仅公示超过阈值的涨跌；没有异动就直接返回。" initialOpen id="settings-traffic">
+            <form className="traffic-threshold-form" onSubmit={event => { event.preventDefault(); saveThreshold(thresholdDraft); }}>
+              <label htmlFor="traffic-alert-threshold">涨跌幅阈值<div><input id="traffic-alert-threshold" type="number" min="1" max="1000" step="1" value={thresholdDraft} onChange={event => { setThresholdDraft(event.target.value); setThresholdMessage(''); }} aria-describedby="traffic-threshold-help" /><span>%</span></div></label>
+              <button type="submit">保存阈值</button><button type="button" className="traffic-threshold-reset" onClick={() => saveThreshold(20)}>恢复默认 20%</button>
+            </form>
+            <p id="traffic-threshold-help" className="settings-feature-note">自然、SP 广告和综合指数分别检查，严格超过阈值才提醒。设置保存在本机；已查看的同一份异动不会反复弹出。</p>
+            {thresholdMessage && <p className="settings-save-message" role="status">{thresholdMessage}</p>}
+          </SettingsSection>
+          <SettingsSection title="表格与快捷键" description="恢复各表格的列宽，或设置多选复制关键词的快捷键。">
+          <p className="settings-feature-note">拖动表头右侧的细线调整列宽，修改会自动保存在本机。</p>
           <button type="button" className="secondary-button settings-reset-button" onClick={onResetWidths}>
             <RotateCcw size={17} />还原原表宽度
           </button>
           <MatrixCopyShortcutSetting />
+          </SettingsSection>
+          <SettingsSection title="月 ABA 数据" description="按站点、年份和月份导入 CSV，管理月度搜索频率排名。">
           <AbaImportSection
             imports={abaMonthlyImports}
             defaultCountry={activeModel?.countryCode || models[0]?.countryCode || 'CA'}
@@ -59,7 +85,9 @@ export default function SettingsModal({ open, onClose, onResetWidths, models = [
             defaultMonth={activeModel?.latestDate ? Number(activeModel.latestDate.slice(5, 7)) : (models[0]?.latestDate ? Number(models[0].latestDate.slice(5, 7)) : new Date().getMonth() + 1)}
             onImport={onImportAba}
           />
-          <div className="settings-divider" />
+          </SettingsSection>
+          {window.keywordTracker?.isWeb && <SettingsSection title="共享竞品库" description="为自有产品添加或关联竞品，共用图片、排名和历史。"><div data-settings-competitor-slot /></SettingsSection>}
+          <SettingsSection title="产品管理" description="编辑名称、站点和父体 ASIN，管理历史别名及产品。">
           <div className="settings-section-heading"><div><h3>产品管理</h3><p>可单独修改产品名称。修改父体 ASIN 会保留旧 ASIN 为历史别名；只有确认旧 ASIN 填错且不应再匹配时，才解除历史别名。删除产品会同时移除本地历史、关注词、标注和图标配置，源报表文件不会被删除。</p></div><div className="settings-section-actions"><button type="button" className="settings-add-button" onClick={() => { onClose?.(); onAddModel?.(); }}><Plus size={16} />新增型号</button><Trash2 size={19} /></div></div>
           <div className="settings-delete-list">
             {models.map((item) => {
@@ -106,7 +134,9 @@ export default function SettingsModal({ open, onClose, onResetWidths, models = [
             })}
             {!models.length && <div className="settings-empty">暂无已登记产品。</div>}
           </div>
+          </SettingsSection>
         </div>
+        <footer className="settings-drawer-footer"><span>修改会保存在当前设备</span><button type="button" onClick={onClose}>完成</button></footer>
       </section>
     </div>
   );

@@ -1,11 +1,11 @@
-# Amazon关键词每日跟进-v3.0.6 使用 SOP
+# Amazon关键词每日跟进-v3.0.7 使用 SOP
 
 ## 1. 文档信息
 
 | 项目 | 内容 |
 |---|---|
 | 软件名称 | Amazon关键词每日跟进 |
-| 软件版本 | v3.0.6 |
+| 软件版本 | v3.0.7 |
 | 适用人员 | 亚马逊运营、广告投放及关键词排名跟进人员 |
 | 推荐浏览器 | Microsoft Edge、Google Chrome 最新版 |
 | 数据保存位置 | 当前电脑、当前浏览器的 IndexedDB 本地数据库 |
@@ -153,6 +153,8 @@
 - 导入操作只写入当前浏览器，不会修改源 Excel 文件。
 
 ### 第四步：核对导入结果
+
+v3.0.7 起，整批成功且确认保存后自动返回软件；只有自有产品的自然、SP 或综合指数较前一天严格超过阈值，才显示异动公示。默认阈值 20%，可在“设置 → 曝光异动提醒”调整。公示中的快捷入口可直接进入对应产品看板或矩阵；失败或保存问题仍显示恢复面板。
 
 导入完成后至少检查：
 
@@ -523,7 +525,7 @@ Amazon关键词每日跟进-v3.0-数据_YYYY-MM-DD_操作人.json
 
 向新使用者发送以下文件：
 
-1. [v3.0.6 最新发布包](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)中的 ZIP；
+1. [v3.0.7 最新发布包](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)中的 ZIP；
 2. 本 SOP；
 3. 如需同步最新进度，再附上最新导出的 JSON 数据备份。
 

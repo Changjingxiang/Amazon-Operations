@@ -8,6 +8,9 @@ import ComparisonMatrixView from './components/ComparisonMatrixView.jsx';
 import KeywordTrendView from './components/KeywordTrendView.jsx';
 import DashboardView from './components/DashboardView.jsx';
 import DashboardComparisonOverview from './components/DashboardComparisonOverview.jsx';
+import TrafficOverview from './components/TrafficOverview.jsx';
+import TrafficAlertDialog from './components/TrafficAlertDialog.jsx';
+import useTrafficAlerts from './lib/useTrafficAlerts.jsx';
 import WatchDrawer from './components/WatchDrawer.jsx';
 import ABAView from './components/ABAView.jsx';
 import HistoryView from './components/HistoryView.jsx';
@@ -105,6 +108,7 @@ function syncWebBridgeData(data) {
 
 export default function App({ onStartupSettled, startupReady = true }) {
   const [data, setData] = useState(null);
+  const traffic = useTrafficAlerts(data);
   const annotationQueue = useRef(Promise.resolve());
   const watchQueue = useRef(Promise.resolve());
   const watchJobs = useRef(new Map());
@@ -202,9 +206,34 @@ export default function App({ onStartupSettled, startupReady = true }) {
     if (progress?.message) setBusyLabel(progress.message);
   }), []);
 
+  useEffect(() => {
+    const started = () => traffic.capture();
+    const completed = async event => {
+      if (event.detail?.ok === false) return;
+      setBusyLabel('正在更新曝光指数…');
+      try {
+        await watchQueue.current;
+        const cache = window.keywordTracker?.__keywordRankGetDataCache;
+        if (cache) cache.value = null;
+        const next = event.detail?.data || await api.getData();
+        traffic.review(next);
+        setData(next);
+        setToast({ type: 'success', title: '导入完成', message: '数据已保存，曝光指数已更新。' });
+      } catch (error) {
+        setToast({ type: 'error', title: '指数更新未完成', message: error.message });
+      } finally { setBusyLabel(''); }
+    };
+    window.addEventListener('keyword-tracker-import-started', started);
+    window.addEventListener('keyword-tracker-import-completed', completed);
+    return () => {
+      window.removeEventListener('keyword-tracker-import-started', started);
+      window.removeEventListener('keyword-tracker-import-completed', completed);
+    };
+  }, []);
+
   const model = data?.models?.[activeIndex];
   activeModelRef.current = model;
-  const guide = window.keywordTracker?.isWeb ? <UsageGuide ready={startupReady && Boolean(data)} blocked={Boolean(busyLabel || pendingWatches || pendingAnnotations || watchOpen || addModelOpen || iconModel || settingsOpen)} hasModel={Boolean(model)} onPrepare={prepareGuide} onRestore={restoreGuide} onCloseTools={closeWebTools} onOpenBackup={() => { setWebTool('files'); api.openToolFolder(); }} /> : null;
+  const guide = window.keywordTracker?.isWeb ? <UsageGuide ready={startupReady && Boolean(data)} blocked={Boolean(busyLabel || pendingWatches || pendingAnnotations || watchOpen || addModelOpen || iconModel || settingsOpen || traffic.alerts.length)} hasModel={Boolean(model)} onPrepare={prepareGuide} onRestore={restoreGuide} onCloseTools={closeWebTools} onOpenBackup={() => { setWebTool('files'); api.openToolFolder(); }} /> : null;
   useEffect(() => {
     if (!model) return;
     setSelectedDate((currentDate) => {
@@ -284,11 +313,13 @@ export default function App({ onStartupSettled, startupReady = true }) {
     });
   };
 
-  const runAction = async (label, action, successTitle) => {
+  const runAction = async (label, action, successTitle, imported = false) => {
+    if (imported) traffic.capture();
     setBusyLabel(label);
     try {
       await watchQueue.current;
       const result = await action();
+      if (imported && result.ok !== false && result.data) traffic.review(result.data);
       applyResult(result, successTitle);
       return true;
     } catch (error) {
@@ -501,6 +532,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
     `正在为 ${model.modelName} 自动下载今日报表…`,
     () => api.startSifImport({ parentAsin: model.parentAsin, countryCode: model.countryCode || 'CA' }),
     '今日报表已下载并导入',
+    true,
   );
 
   const saveModelIcon = async (iconKey) => {
@@ -513,18 +545,35 @@ export default function App({ onStartupSettled, startupReady = true }) {
     return ok;
   };
 
+  const openTrafficItem = (item, tab) => {
+    const index = data.models.findIndex(candidate => candidate.parentAsin === item.parentAsin && (candidate.countryCode || 'CA') === item.countryCode);
+    traffic.dismiss();
+    if (index < 0) return;
+    closeWebTools();
+    setWatchOpen(false);
+    setActiveIndex(index);
+    setActiveTab(tab);
+    setSelectedDate(item.date);
+    setTrendRow(null);
+    setViewFilters(initialViewFilters());
+    setOverviewCollapsed(false);
+    requestAnimationFrame(() => document.querySelector('.main-area')?.scrollTo({ top: 0 }));
+  };
+  const settings = <SettingsModal open={settingsOpen} onClose={closeWebTools} onResetWidths={resetWidths} models={data?.ownModels || data?.models || []} activeModel={model} onDeleteModel={deleteModel} onAddModel={() => setAddModelOpen(true)} onSetCountry={setModelCountry} onRenameModel={renameModel} onChangeModelAsin={changeModelAsin} onReleaseModelAlias={releaseModelAlias} abaMonthlyImports={data?.abaMonthlyImports} onImportAba={importAbaMonthlyCsv} trafficThreshold={traffic.threshold} onTrafficThresholdChange={traffic.saveThreshold} />;
+
   if (!data || !model) {
     return (
       <div className={`app-root ${window.keywordTracker?.isWeb ? 'web-edition' : ''}`}>
         <WindowTitlebar onTool={toggleWebTool} activeTool={webTool} />
         <main className="empty-app">
         <BusyOverlay label={busyLabel} />
-          <h1>Amazon关键词每日跟进-v3.0.6</h1>
+          <h1>Amazon关键词每日跟进-v3.0.7</h1>
           <p>{data?.models?.length === 0 ? '“型号配置”中没有启用的型号。' : '正在准备软件数据…'}</p>
           {data?.models?.length === 0 && <button className="secondary-button" data-guide-add-model onClick={() => setAddModelOpen(true)}>＋ 新增型号</button>}
           <Toast toast={toast} onClose={() => setToast(null)} />
         </main>
         <AddModelModal open={addModelOpen} onClose={() => setAddModelOpen(false)} onSubmit={addModel} />
+        {settings}
         {guide}
       </div>
     );
@@ -544,7 +593,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
           onOpenFolder={() => api.openToolFolder()}
           onSettings={() => setSettingsOpen(true)}
         />
-        <main className={`main-area ${['natural', 'sp', 'comparison'].includes(activeTab) ? 'matrix-workspace' : ''} ${activeTab === 'comparison' && matrixFocused && !trendRow ? 'matrix-focused' : ''}`}>
+        <main className={`main-area ${activeTab === 'dashboard' && !trendRow ? 'dashboard-workspace' : ''} ${['natural', 'sp', 'comparison'].includes(activeTab) ? 'matrix-workspace' : ''} ${activeTab === 'comparison' && matrixFocused && !trendRow ? 'matrix-focused' : ''}`}>
           <Header
             model={model}
             activeTab={activeTab}
@@ -553,7 +602,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
             onDate={setSelectedDate}
             busy={Boolean(busyLabel)}
             onRefresh={() => runAction('正在刷新看板和矩阵…', () => api.runImport('refresh'), '刷新完成')}
-            onImport={() => runAction('正在导入每日关键词报表…', () => api.runImport('normal'), '导入完成')}
+            onImport={() => runAction('正在导入每日关键词报表…', () => api.runImport('normal'), '导入完成', true)}
             onSifImport={startSifImport}
 
           />
@@ -568,7 +617,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
                 loadedAt={data.loadedAt}
                 mode={activeTab}
               />
-              {activeTab === 'dashboard' && <><div className="overview-toggle-bar"><strong>自然 / SP 对比总览</strong><button type="button" aria-expanded={!overviewCollapsed} onClick={() => setOverviewCollapsed((current) => { try { localStorage.setItem('keyword-tracker:overview:collapsed', String(!current)); } catch {} return !current; })}>{overviewCollapsed ? '展开总览' : '收起总览，查看更多关键词'}</button></div>{!overviewCollapsed && <DashboardComparisonOverview rows={dashboardRows} selectedDate={selectedDate || model.latestDate} onDetails={openComparison} />}</>}
+              {activeTab === 'dashboard' && <><div className="overview-toggle-bar"><strong>自然 / SP 对比总览</strong><button type="button" aria-expanded={!overviewCollapsed} onClick={() => setOverviewCollapsed((current) => { try { localStorage.setItem('keyword-tracker:overview:collapsed', String(!current)); } catch {} return !current; })}>{overviewCollapsed ? '展开总览' : '收起总览，查看更多关键词'}</button></div>{!overviewCollapsed && <><TrafficOverview model={model} selectedDate={selectedDate || model.latestDate} onDate={setSelectedDate} threshold={traffic.threshold} onSettings={() => { setWebTool('settings'); setSettingsOpen(true); }} /><DashboardComparisonOverview rows={dashboardRows} selectedDate={selectedDate || model.latestDate} onDetails={openComparison} /></>}</>}
             </>
           )}
           <div className={`content-area view-transition ${trendRow ? 'content-area-trend' : ''}`}>
@@ -597,9 +646,10 @@ export default function App({ onStartupSettled, startupReady = true }) {
         {abaImportOpen && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setAbaImportOpen(false); }}><section className="settings-modal aba-import-dialog" role="dialog" aria-modal="true" aria-label="导入月 ABA CSV"><div className="drawer-header"><h2>导入月 ABA CSV</h2><button type="button" autoFocus onClick={() => setAbaImportOpen(false)} aria-label="关闭 ABA 导入">×</button></div><div className="settings-modal-scroll"><AbaImportSection imports={data.abaMonthlyImports || []} defaultCountry={model.countryCode || 'CA'} defaultYear={abaYear} defaultMonth={Number((selectedDate || model.latestDate)?.slice(5, 7)) || 1} onImport={importAbaMonthlyCsv} /></div></section></div>}
         <IconPickerModal model={iconModel} onClose={() => setIconModel(null)} onSelect={saveModelIcon} />
         {webTool === 'history' && <div className="web-tool-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeWebTools(); }}><section className="web-tool-panel" role="dialog" aria-label="导入日志"><div className="drawer-header"><h2>导入日志</h2><button onClick={closeWebTools} aria-label="关闭导入日志">×</button></div><HistoryView model={model} sourceCount={data.sourceCount} workbookModifiedAt={data.workbookModifiedAt} storage={data.storage} onOpenWorkbook={() => api.openWorkbook()} onOpenSourceFolder={() => api.openSourceFolder()} /></section></div>}
-        <SettingsModal open={settingsOpen} onClose={closeWebTools} onResetWidths={resetWidths} models={data.models} activeModel={model} onDeleteModel={deleteModel} onAddModel={() => setAddModelOpen(true)} onSetCountry={setModelCountry} onRenameModel={renameModel} onChangeModelAsin={changeModelAsin} onReleaseModelAlias={releaseModelAlias} abaMonthlyImports={data.abaMonthlyImports} onImportAba={importAbaMonthlyCsv} />
+        {settings}
         <BusyOverlay label={busyLabel} />
         <Toast toast={toast} onClose={() => setToast(null)} />
+        {startupReady && !busyLabel && traffic.alerts.length > 0 && <TrafficAlertDialog alerts={traffic.alerts} threshold={traffic.threshold} onClose={traffic.dismiss} onOpen={openTrafficItem} />}
       </div>
       {guide}
     </div>

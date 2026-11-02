@@ -15,10 +15,12 @@ for (const countries of [['CA', 'US'], ['MX', 'AU']]) {
 
 for (const currentOnly of [true, false]) {
   test(`${countries.join('/')} ${currentOnly ? 'current product' : 'all products'} action sends reports through staged extension import`, async () => {
-    const jobs = [], imported = [];
+    const jobs = [], imported = [], events = [];
     const listeners = new Set();
     const context = vm.createContext({
-      window: { setTimeout, clearTimeout, setInterval, clearInterval }, console,
+      window: { setTimeout, clearTimeout, setInterval, clearInterval, dispatchEvent: event => events.push({ type: event.type, imported: imported.length }) }, console,
+      Event: class { constructor(type) { this.type = type; } },
+      CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options?.detail; } },
       document: { querySelector: () => ({ textContent: 'ASIN: B0CJQBTQ8V' }), querySelectorAll: () => [] },
       text: value => String(value || '').trim(),
       normalizeCountryCode,
@@ -41,7 +43,7 @@ for (const currentOnly of [true, false]) {
         });
         return { ok: true };
       },
-      showBatchResult: async response => { assert.equal(response.ok, true); },
+      showBatchResult: async () => { assert.fail('successful saved imports must not open an unconditional result dialog'); },
     });
     vm.runInContext(`let sifBatchImportInFlight = null; let batchImportRunning = false; let sidebarDataCache, matrixDataCache;\n`
       + between(settings, '  function ownModelsFromData(', '  function ownerModelForAsin(')
@@ -49,7 +51,8 @@ for (const currentOnly of [true, false]) {
       + between(settings, '  async function runAllBatchImport(', '  function installBatchButton(')
       + between(bridge, '  async function runWebExtensionBatch(', '  function delay(')
       + between(bridge, '  async function startSifBatchImport(', '  function downloadBlob('), context);
-    context.window.keywordTracker = { getData: async () => data, startSifBatchImport: context.startSifBatchImport };
+    context.window.keywordTracker = { getData: async () => data, startSifBatchImport: context.startSifBatchImport,
+      getImportSaveState: async () => ({ saved: true, persistence: { main: { ok: true }, backup: { ok: true } } }) };
     const trigger = { dataset: {}, setAttribute() {}, removeAttribute() {} };
     await context.runAllBatchImport({ trigger, setStatus() {}, currentOnly });
     assert.deepEqual(jobs.map(job => job.items.map(item => item.asin)), currentOnly
@@ -57,6 +60,7 @@ for (const currentOnly of [true, false]) {
       : [['B0CJQBTQ8V', 'B0AAAAAAAA'], ['B0BBBBBBBB', 'B0CCCCCCCC']]);
     assert.ok(jobs.every(job => job.concurrency === 1));
     assert.deepEqual(imported, jobs.flatMap(job => job.items.map(item => item.asin)));
+    assert.deepEqual(events, [{ type: 'keyword-tracker-import-started', imported: 0 }, { type: 'keyword-tracker-import-completed', imported: imported.length }]);
     assert.equal(jobs[0].items[0].countryCode, countries[0]);
     if (!currentOnly) assert.equal(jobs[0].items[1].countryCode, countries[1]);
   });
