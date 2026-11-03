@@ -617,7 +617,7 @@ export default function App({ onStartupSettled, startupReady = true }) {
                 loadedAt={data.loadedAt}
                 mode={activeTab}
               />
-              {activeTab === 'dashboard' && <><div className="overview-toggle-bar"><strong>自然 / SP 对比总览</strong><button type="button" aria-expanded={!overviewCollapsed} onClick={() => setOverviewCollapsed((current) => { try { localStorage.setItem('keyword-tracker:overview:collapsed', String(!current)); } catch {} return !current; })}>{overviewCollapsed ? '展开总览' : '收起总览，查看更多关键词'}</button></div>{!overviewCollapsed && <><TrafficOverview model={model} selectedDate={selectedDate || model.latestDate} onDate={setSelectedDate} threshold={traffic.threshold} onSettings={() => { setWebTool('settings'); setSettingsOpen(true); }} /><DashboardComparisonOverview rows={dashboardRows} selectedDate={selectedDate || model.latestDate} onDetails={openComparison} /></>}</>}
+              {activeTab === 'dashboard' && <><TrafficOverview model={model} selectedDate={selectedDate || model.latestDate} onDate={setSelectedDate} threshold={traffic.threshold} onSettings={() => { setWebTool('settings'); setSettingsOpen(true); }} /><DashboardComparisonOverview rows={dashboardRows} selectedDate={selectedDate || model.latestDate} onDetails={openComparison} collapsed={overviewCollapsed} onToggle={() => setOverviewCollapsed(current => { try { localStorage.setItem('keyword-tracker:overview:collapsed', String(!current)); } catch {} return !current; })} /></>}
             </>
           )}
           <div className={`content-area view-transition ${trendRow ? 'content-area-trend' : ''}`}>

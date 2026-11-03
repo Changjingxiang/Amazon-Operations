@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { integer } from '../lib/format.js';
 
 const PAGE_BUCKETS = [
@@ -169,15 +170,15 @@ function FirstPagePanel({ overview }) {
   );
 }
 
-export default function DashboardComparisonOverview({ rows, selectedDate, onDetails }) {
+export default function DashboardComparisonOverview({ rows, selectedDate, onDetails, collapsed = false, onToggle }) {
   const overview = useMemo(() => buildOverview(rows), [rows]);
   return (
-    <section className="dashboard-overview" data-dashboard-overview aria-labelledby="dashboard-overview-title">
+    <section className={`dashboard-overview${collapsed ? ' is-collapsed' : ''}`} data-dashboard-overview aria-labelledby="dashboard-overview-title">
       <div className="dashboard-overview-titlebar">
         <div><h2 id="dashboard-overview-title">自然/SP对比总览</h2><span>关键词：{integer(overview.total)}</span></div>
-        <span>{selectedDate || '当前日期'} · 排名数字越小越好</span>
+        <div className="dashboard-overview-actions"><span>{selectedDate || '当前日期'} · 排名数字越小越好</span>{onToggle && <button type="button" className="dashboard-overview-toggle" onClick={onToggle} aria-expanded={!collapsed} aria-controls="dashboard-overview-content" aria-label={collapsed ? '展开自然/SP对比总览' : '收起自然/SP对比总览'} title={collapsed ? '展开对比总览' : '收起对比总览'}><ChevronDown size={16} /></button>}</div>
       </div>
-      <div className="dashboard-overview-layout">
+      {!collapsed && <div className="dashboard-overview-layout" id="dashboard-overview-content">
         <div className="dashboard-overview-main">
           <div className="dashboard-overview-primary-grid">
             <OverviewMetric label="共同上榜" value={overview.common} total={overview.total} detail="自然 & SP 均有排名" tone="common" onDetails={onDetails ? () => onDetails('common') : undefined} />
@@ -192,7 +193,7 @@ export default function DashboardComparisonOverview({ rows, selectedDate, onDeta
           <FirstPagePanel overview={overview} />
           <DifferencePanel overview={overview} />
         </div>
-      </div>
+      </div>}
     </section>
   );
 }

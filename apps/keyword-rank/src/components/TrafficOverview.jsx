@@ -7,6 +7,8 @@ import './TrafficOverview.css';
 const number = value => value == null ? '—' : Number(value).toLocaleString('zh-CN', { maximumFractionDigits: 1 });
 const change = value => value == null ? '暂无可比数据' : `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
 const html = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+const changeTone = value => value == null || value === 0 ? 'flat' : value > 0 ? 'up' : 'down';
+const changeMarkup = value => `<span class="traffic-change traffic-change-${changeTone(value)}">${value > 0 ? '↑ ' : value < 0 ? '↓ ' : ''}${change(value)}</span>`;
 function rankText(point, metric) {
   if (!point) return '无记录';
   const state = point[`${metric}State`];
@@ -14,19 +16,58 @@ function rankText(point, metric) {
 }
 function movement(now, before, metric) {
   const current = rankText(now, metric), prior = rankText(before, metric);
-  if (now?.[`${metric}State`] !== 'ranked' || before?.[`${metric}State`] !== 'ranked') return `${prior} → ${current}`;
-  const delta = before[`${metric}Rank`] - now[`${metric}Rank`];
-  return `${prior} → ${current} ${delta > 0 ? `↑${delta}` : delta < 0 ? `↓${-delta}` : '持平'}`;
+  const nowState = now?.[`${metric}State`], beforeState = before?.[`${metric}State`];
+  let delta = null, label = '';
+  if (nowState === 'ranked' && beforeState === 'ranked') {
+    delta = before[`${metric}Rank`] - now[`${metric}Rank`];
+    label = delta > 0 ? `↑${delta}` : delta < 0 ? `↓${-delta}` : '持平';
+  } else if (beforeState === 'unranked' && nowState === 'ranked') { delta = 1; label = '↑ 上榜'; }
+  else if (beforeState === 'ranked' && nowState === 'unranked') { delta = -1; label = '↓ 未上榜'; }
+  return `<span class="traffic-rank-route">${html(prior)} → ${html(current)}</span>${label ? ` <b class="traffic-change traffic-change-${changeTone(delta)}">${label}</b>` : ''}`;
 }
 
 export function trafficTooltip(detail) {
   if (!detail) return '';
-  const rows = detail.topKeywords.map(item => `<tr><td title="${html(item.keyword)}">${html(item.keyword)}</td><td>${number(item.now?.volume)}</td><td>${html(movement(item.now, item.before, 'natural'))}</td><td>${html(movement(item.now, item.before, 'sp'))}</td><td>${number(item.now?.natural)}</td><td>${number(item.now?.sp)}</td><td>${change(item.change)}</td></tr>`).join('');
-  return `<div class="traffic-tooltip"><div class="traffic-tooltip-heading"><b>${html(detail.date)}</b><span>有效搜索量 ${detail.volumeCount} / ${detail.count} 词</span></div><div class="traffic-tooltip-totals"><span>自然 <b>${number(detail.natural)}</b></span><span>SP 广告 <b>${number(detail.sp)}</b></span><span>综合 <b>${number(detail.total)}</b></span></div><p>较前一天 · 综合 ${change(detail.comparison.total.change)} · 自然 ${change(detail.comparison.natural.change)} · SP ${change(detail.comparison.sp.change)}</p><strong class="traffic-tooltip-subtitle">贡献关键词 TOP 5</strong><table><thead><tr><th>关键词</th><th>周搜索量</th><th>自然排名</th><th>SP 排名</th><th>自然分</th><th>广告分</th><th>综合变化</th></tr></thead><tbody>${rows || '<tr><td colspan="7">暂无可计算的关键词</td></tr>'}</tbody></table><small>按今日 / 昨日较高贡献排序；涨跌仅比较两日数据有效的同一批词。<br>— 表示未计分；旧排名及缺少搜索量不补零。排名日期须为快照当日或前一天。</small></div>`;
+  const rows = detail.topKeywords.map(item => `<tr><td title="${html(item.keyword)}">${html(item.keyword)}</td><td>${number(item.now?.volume)}</td><td>${movement(item.now, item.before, 'natural')}</td><td>${movement(item.now, item.before, 'sp')}</td><td>${number(item.now?.natural)}</td><td>${number(item.now?.sp)}</td><td>${changeMarkup(item.change)}</td></tr>`).join('');
+  return `<div class="traffic-tooltip"><div class="traffic-tooltip-heading"><div><b>${html(detail.date)}</b><strong class="traffic-tooltip-subtitle">贡献关键词 TOP 5</strong></div><span>有效搜索量 ${detail.volumeCount} / ${detail.count} 词</span></div><div class="traffic-tooltip-totals"><span>自然 <b>${number(detail.natural)}</b></span><span>SP 广告 <b>${number(detail.sp)}</b></span><span>综合 <b>${number(detail.total)}</b></span></div><p>较前一天 · 综合 ${changeMarkup(detail.comparison.total.change)} · 自然 ${changeMarkup(detail.comparison.natural.change)} · SP ${changeMarkup(detail.comparison.sp.change)}</p><table><thead><tr><th>关键词</th><th>周搜索量</th><th>自然排名</th><th>SP 排名</th><th>自然分</th><th>广告分</th><th>综合变化</th></tr></thead><tbody>${rows || '<tr><td colspan="7">暂无可计算的关键词</td></tr>'}</tbody></table><small>按今日 / 昨日较高贡献排序；涨跌仅比较两日数据有效的同一批词。<br>— 表示未计分；旧排名及缺少搜索量不补零。排名日期须为快照当日或前一天。</small></div>`;
+}
+
+// Anchor the external bubble to the viewport, independently of the chart's
+// scrolling ancestors. Limit its scroll height when five rows cannot fit.
+function positionTrafficTooltip(element, point, dom) {
+  const chart = element.getBoundingClientRect();
+  const inset = 12, gap = 12;
+  const viewWidth = document.documentElement.clientWidth, viewHeight = document.documentElement.clientHeight;
+  dom.style.width = `${Math.min(940, viewWidth - inset * 2)}px`;
+  dom.style.maxHeight = `${viewHeight - inset * 2}px`;
+  const width = dom.offsetWidth, desiredHeight = dom.offsetHeight;
+  const clamp = (value, min, max) => Math.max(min, Math.min(value, Math.max(min, max)));
+  let x, y, availableHeight = viewHeight - inset * 2;
+  if (viewWidth - chart.right - gap - inset >= width) {
+    dom.dataset.placement = 'right';
+    x = chart.right + gap;
+    y = clamp(chart.top + point[1], inset, viewHeight - desiredHeight - inset);
+  } else if (chart.left - gap - inset >= width) {
+    dom.dataset.placement = 'left';
+    x = chart.left - gap - width;
+    y = clamp(chart.top + point[1], inset, viewHeight - desiredHeight - inset);
+  } else {
+    const below = viewHeight - chart.bottom - gap - inset, above = chart.top - gap - inset;
+    const useBelow = below >= Math.min(desiredHeight, 320) || (above < desiredHeight && below >= above);
+    availableHeight = Math.max(1, useBelow ? below : above);
+    dom.style.maxHeight = `${availableHeight}px`;
+    dom.dataset.placement = useBelow ? 'below' : 'above';
+    x = clamp(chart.left + point[0] - width / 2, inset, viewWidth - width - inset);
+    y = useBelow ? chart.bottom + gap : chart.top - gap - Math.min(desiredHeight, availableHeight);
+  }
+  dom.style.maxHeight = `${availableHeight}px`;
+  dom.style.setProperty('--traffic-tooltip-left', `${x}px`);
+  dom.style.setProperty('--traffic-tooltip-top', `${y}px`);
+  return [0, 0];
 }
 
 export default function TrafficOverview({ model, selectedDate, onDate, threshold, onSettings }) {
-  const node = useRef(null), chartRef = useRef(null);
+  const node = useRef(null), chartRef = useRef(null), tooltipRef = useRef(null);
   const [range, setRange] = useState('30');
   const [activeDate, setActiveDate] = useState('');
   const records = model?.historyRecords;
@@ -46,9 +87,16 @@ export default function TrafficOverview({ model, selectedDate, onDate, threshold
   useEffect(() => {
     const chart = echarts.init(node.current);
     chartRef.current = chart;
-    const resize = new ResizeObserver(() => chart.resize());
+    const hide = event => {
+      if (event?.target instanceof Element && event.target.closest('.traffic-tooltip-host')) return;
+      if (tooltipRef.current) tooltipRef.current.style.display = 'none';
+      chart.dispatchAction({ type: 'hideTip' });
+    };
+    const resize = new ResizeObserver(() => { hide(); chart.resize(); });
     resize.observe(node.current);
-    return () => { resize.disconnect(); chart.dispose(); chartRef.current = null; };
+    window.addEventListener('scroll', hide, { capture: true, passive: true });
+    window.addEventListener('resize', hide);
+    return () => { window.removeEventListener('scroll', hide, true); window.removeEventListener('resize', hide); resize.disconnect(); chart.dispose(); chartRef.current = null; tooltipRef.current = null; };
   }, []);
   useEffect(() => {
     const chart = chartRef.current;
@@ -59,10 +107,10 @@ export default function TrafficOverview({ model, selectedDate, onDate, threshold
       animationDuration: 280,
       color: ['#35a878', '#e66b67'],
       grid: { left: 58, right: 20, top: 26, bottom: 35 },
-      tooltip: { trigger: 'axis', confine: true, axisPointer: { type: 'shadow', shadowStyle: { color: '#173b6409' } },
-        enterable: true, backgroundColor: '#fff', borderColor: '#dce3e8', padding: 0,
-        extraCssText: 'z-index:210;max-width:calc(100vw - 48px);box-shadow:0 10px 32px #173b6424;border-radius:10px;white-space:normal;',
-        position: (point, params, dom, rect, size) => [Math.max(0, Math.min(point[0] + 15, size.viewSize[0] - size.contentSize[0])), Math.max(0, Math.min(point[1], size.viewSize[1] - size.contentSize[1]))],
+      tooltip: { trigger: 'axis', confine: false, appendTo: 'body', className: 'traffic-tooltip-host', axisPointer: { type: 'shadow', shadowStyle: { color: '#173b6409' } },
+        enterable: true, hideDelay: 250, transitionDuration: 0, backgroundColor: '#fff', borderColor: '#dce3e8', padding: 0,
+        extraCssText: 'position:fixed;z-index:210;box-sizing:border-box;overflow:auto;overscroll-behavior:contain;box-shadow:0 10px 32px #173b6424;border-radius:10px;white-space:normal;',
+        position: (point, params, dom) => { tooltipRef.current = dom; return positionTrafficTooltip(node.current, point, dom); },
         formatter: params => { const date = params?.[0]?.axisValue; if (date !== hoverDate) { hoverDate = date; hoverHtml = byDate.has(date) ? trafficTooltip(buildTrafficDetail(records, date)) : `<div class="traffic-tooltip">${html(date)} · 未导入数据</div>`; } return hoverHtml; } },
       xAxis: { type: 'category', data: dates, axisLabel: { color: '#778598', fontSize: 10, formatter: value => value.slice(5).replace('-', '/') }, axisTick: { show: false }, axisLine: { lineStyle: { color: '#dce4eb' } } },
       yAxis: { type: 'value', name: '指数', nameTextStyle: { color: '#8a96a5', fontSize: 10 }, splitLine: { lineStyle: { color: '#edf1f4', type: 'dashed' } }, axisLabel: { color: '#778598', fontSize: 10, formatter: value => value >= 10000 ? `${number(value / 10000)}万` : number(value) } },
