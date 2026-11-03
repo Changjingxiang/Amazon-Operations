@@ -6,10 +6,10 @@
 
 [简体中文](README.md) · **English**
 
-Keyword rank tracker v3.0.6: a local-first workspace for daily organic rankings, sponsored product (SP) rankings, ABA trends, and competitor comparisons. The application interface is currently in Chinese.
+Keyword rank tracker v3.0.7: a local-first workspace for daily organic rankings, sponsored product (SP) rankings, ABA trends, and competitor comparisons. The application interface is currently in Chinese.
 
 > [!TIP]
-> ## Try v3.0.6 online · Hosted on ChatGPT Sites
+> ## Try v3.0.7 online · Hosted on ChatGPT Sites
 >
 > **[Open the keyword tracking workspace →](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**
 >
@@ -29,7 +29,7 @@ Keyword rank tracker v3.0.6: a local-first workspace for daily organic rankings,
 
 ## Quick start: try it online
 
-1. Open the **[v3.0.6 ChatGPT-hosted site](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**. No download or local launcher is needed.
+1. Open the **[v3.0.7 ChatGPT-hosted site](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**. No download or local launcher is needed.
 2. Use the Chinese-language usage guide and explore the example product, ranking matrices, competitors, and ABA monthly view.
 3. Before using your own data, check product and marketplace settings. To migrate, export a JSON backup from your existing version and follow the migration guide.
 
@@ -39,11 +39,11 @@ The hosted site and a locally opened web release use separate site storage; data
 
 The complete web package needs no Node.js, Python, or Codex installation. GitHub’s **Code → Download ZIP** downloads source code, not the latest ready-to-use package.
 
-**[Download the latest v3.0.6 ZIP](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.6/keyword-rank-web-v3.0.6.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+**[Download the latest v3.0.7 ZIP](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.7/keyword-rank-web-v3.0.7.zip)** · [Release notes](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 
-The organic, SP, comparison, and ABA matrices now align their columns, support hiding translations, and let you click or drag across keywords to select them. Press Enter to copy one keyword per line; customize the selection shortcut in the top-right Settings menu.
+The dashboard now shows daily stacked organic and SP exposure scores based on weekly search volume and rank. Hover outside the plot to inspect the top five contributing keywords. Daily changes use the same totals as the bars, and the organic/SP comparison overview can be collapsed independently.
 
-Batch imports now end with a result dialog, including partial failures. Review errors, retry failed items, or confirm and refresh after data has been saved. Unsaved data requires a save retry or backup export before refreshing.
+Successful saved batch imports show a notice only when a score changes by more than the configured threshold (20% by default). Adjust it in the settings drawer. Progress and recovery details remain available when an import fails or data cannot be saved; successful imports no longer leave result text in the header.
 
 Before upgrading, export a JSON backup from your current version. In the annotation editor, Enter saves, Shift+Enter adds a line, and Esc cancels. Clicking outside the card also saves.
 
@@ -87,7 +87,7 @@ npm run dist:win
 npm run release:web
 
 # Check a generated web release
-npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0.6"
+npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0.7"
 ```
 
 Use `npm run release:web -- --output outputs/my-release` for a unique output directory. Existing release directories are not overwritten by default. Use `--force` only when intentionally replacing a release.
@@ -129,7 +129,14 @@ The following detailed guides are currently in Chinese:
 <details>
 <summary>Show recent updates</summary>
 
-### Latest updates — v3.0.6 · October 23, 2026
+### Latest updates — v3.0.7 · November 3, 2026
+
+- Added green organic and red SP stacked bars using the sum of weekly search volume divided by rank to the power of 0.8. Bars, summary, tooltip and notices compare the same daily totals: 1,444.9 to 1,469.9 correctly shows +1.7%.
+- Larger tooltips stay outside the plot and show the top five contributors with red increases and green decreases. The comparison overview collapses independently.
+- Saved batches show K notices and product shortcuts only for changes strictly above the threshold. The new settings drawer defaults to 20%; successful import text no longer remains in the header.
+- Includes SIF extension v1.1.9, lower import memory use and recovery from abandoned extension tasks. Update and reload older extensions. See the [v3.0.7 notes](docs/releases/web-v3.0.7.md).
+
+### v3.0.6 · October 23, 2026
 
 - Added Mexico (MX) and Australia (AU) throughout products, competitors, monthly ABA import, backup restoration, and Amazon product links.
 - Bundled SIF extension v1.1.8 preserves the selected marketplace and adds a marketplace selector to the standalone popup. Update and reload existing extension installations.

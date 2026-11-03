@@ -6,10 +6,10 @@
 
 **简体中文** · [English](README.en.md)
 
-> 关键词排名每日跟进 v3.0.6：把自然排名、SP、ABA 与竞品变化，整理成一张可追踪的运营工作台。
+> 关键词排名每日跟进 v3.0.7：把自然排名、SP、ABA 与竞品变化，整理成一张可追踪的运营工作台。
 
 > [!TIP]
-> ## v3.0.6 在线体验 · ChatGPT 站点版
+> ## v3.0.7 在线体验 · ChatGPT 站点版
 >
 > **[立即打开关键词跟进工作台 →](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**
 >
@@ -18,16 +18,16 @@
 > [!IMPORTANT]
 > ## 下载到本机使用
 >
-> **Amazon关键词每日跟进-v3.0.6**
+> **Amazon关键词每日跟进-v3.0.7**
 >
-> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.6/keyword-rank-web-v3.0.6.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
+> [**点击直接下载最新版 ZIP**](https://github.com/Changjingxiang/Amazon-Operations/releases/download/web-v3.0.7/keyword-rank-web-v3.0.7.zip) · [查看更新说明](https://github.com/Changjingxiang/Amazon-Operations/releases/latest)
 >
 > 下载后请先“解压全部”，再双击压缩包里的 `打开网页版.cmd`。**不要用 GitHub 的 `Code → Download ZIP`**，那是源码，不是给普通用户直接打开的发布包。
 
-本次对比矩阵更新加入底部日期滚动条，按导入详情读取自然/SP页码，悬停查看标注，并用深蓝和紫色区分排名数字。此前矩阵更新还修复了列错位；自然、SP、对比和 ABA 矩阵均可收起翻译，并可点选或按住鼠标左键拖选关键词。按 Enter 复制所选关键词，每词一行；多选快捷键可在右上角“设置”中自定义。
+v3.0.7 新增关键词曝光指数：用周搜索量结合排名展示自然与 SP 每日堆叠柱，悬停查看贡献 Top 5。涨跌按两天柱形所示总分计算；整批导入保存后，只有超过阈值才公示，默认 20%，可在设置抽屉调整。自然/SP 对比总览可独立收起。
 
 <p align="center">
-  <a href="https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/">在线体验 v3.0.6</a> ·
+  <a href="https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/">在线体验 v3.0.7</a> ·
   <a href="web/docs/使用说明.md">网页版使用说明</a> ·
   <a href="#快速开始">快速开始</a> ·
   <a href="web/extensions/sif-batch-reverse-downloader/README.md">SIF 扩展</a> ·
@@ -49,7 +49,7 @@
 
 ### 直接在线体验（推荐先看这里）
 
-1. 打开 **[v3.0.6 ChatGPT 站点版](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**，无需下载或启动本地程序。
+1. 打开 **[v3.0.7 ChatGPT 站点版](https://hans-keyword-tracker.chalky-fawn-4758.chatgpt.site/)**，无需下载或启动本地程序。
 2. 从「使用指南」熟悉操作，查看示例产品的自然/SP 矩阵、竞品排名与 ABA 月榜。
 3. 日常使用前检查产品与站点设置；需要从旧版本迁移时，先导出 JSON 备份，再参考「使用指南 → 从老版本迁移数据」。
 
@@ -132,7 +132,7 @@ npm run dist:win
 npm run release:web
 
 # 对指定发布目录做浏览器 smoke check
-npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0.6"
+npm run verify:web -- --dir "outputs/Amazon关键词每日跟进-v3.0.7"
 ```
 
 `npm run release:web` 始终从 `apps/keyword-rank` 和 `web/` 重新构建，并生成 `outputs/Amazon关键词每日跟进-v<版本>`。目标目录已存在时命令会安全退出；确认要替换同一版本时才使用：
@@ -176,7 +176,14 @@ npm run release:web -- --force
 <details>
 <summary>展开查看近期更新</summary>
 
-### 最新更新 · v3.0.6（2026-10-23）
+### 最新更新 · v3.0.7（2026-11-03）
+
+- 看板增加绿色自然、红色 SP 堆叠柱，按「周搜索量 ÷ 排名的 0.8 次方」逐词求和。柱形、顶部、悬停和提醒统一比较每日总分，自然 1,444.9 → 1,469.9 正确显示红色 ↑ +1.7%。
+- 悬停气泡放在绘图区外，文字放大、上涨标红、下跌标绿，展示贡献 Top 5；自然/SP 对比总览可独立收起。
+- 整批数据保存后，涨跌严格超过默认 20% 才显示 K 异动公示和产品快捷入口；设置抽屉可调整阈值。成功导入后不再常驻显示顶部结果小字。
+- 整合 SIF 扩展 v1.1.9 与批量导入内存、旧任务恢复修复；已安装旧扩展需更新并重新加载。详见 [v3.0.7 更新说明](docs/releases/web-v3.0.7.md)。
+
+### v3.0.6（2026-10-23）
 
 - 增加墨西哥站（MX）和澳大利亚站（AU），配齐产品、竞品、月 ABA、备份恢复和对应 Amazon 商品链接。
 - 配套 SIF 扩展 v1.1.9 支持两站反查与下载，弹窗可选择站点。已安装旧扩展需更新并重新加载。
