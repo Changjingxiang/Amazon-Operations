@@ -1,7 +1,7 @@
 // A relative search-visibility index, not visits, clicks, or SIF traffic scores.
 // Kept independent of the existing ranking / ABA / import calculations.
 export const TRAFFIC_EXPONENT = 0.8;
-export const TRAFFIC_VERSION = 'volume-rank-08-v1';
+export const TRAFFIC_VERSION = 'volume-rank-08-daily-total-v2';
 export const TRAFFIC_METRICS = [
   { key: 'total', label: '综合指数' },
   { key: 'natural', label: '自然指数' },
@@ -98,34 +98,22 @@ export function buildTrafficDetail(records, date) {
   const priorDate = previousDay(date);
   const groups = dailyRecords(records, new Set([date, priorDate]));
   const current = groups.get(date) || new Map(), prior = groups.get(priorDate) || new Map();
-  const comparison = Object.fromEntries(TRAFFIC_METRICS.map(({ key }) => [key, { current: 0, previous: 0, count: 0, change: null }]));
+  const today = summarize(date, current), yesterday = summarize(priorDate, prior);
+  // Use the same daily totals as the bars and displayed scores. A separate
+  // matched-keyword cohort can move in the opposite direction to those totals.
+  const comparison = Object.fromEntries(TRAFFIC_METRICS.map(({ key }) => [key, {
+    current: today[key], previous: yesterday[key], change: percentChange(today[key], yesterday[key]),
+  }]));
   const candidates = [];
   for (const keyword of new Set([...current.keys(), ...prior.keys()])) {
     const now = current.has(keyword) ? scoreRecord(current.get(keyword)) : null;
     const before = prior.has(keyword) ? scoreRecord(prior.get(keyword)) : null;
-    let comparableTotalNow = 0, comparableTotalBefore = 0, paired = false;
-    for (const metric of ['natural', 'sp']) {
-      if (now?.[metric] == null || before?.[metric] == null) continue;
-      comparison[metric].current += now[metric];
-      comparison[metric].previous += before[metric];
-      comparison[metric].count++;
-      comparableTotalNow += now[metric]; comparableTotalBefore += before[metric]; paired = true;
-    }
-    if (paired) {
-      comparison.total.current += comparableTotalNow;
-      comparison.total.previous += comparableTotalBefore;
-      comparison.total.count++;
-    }
     const weight = Math.max(now?.total || 0, before?.total || 0);
     if (weight > 0) candidates.push({ keyword: now?.keyword || before.keyword, now, before, weight,
-      change: paired ? percentChange(comparableTotalNow, comparableTotalBefore) : null });
-  }
-  for (const metric of TRAFFIC_METRICS) {
-    const item = comparison[metric.key];
-    item.change = item.count ? percentChange(item.current, item.previous) : null;
+      change: percentChange(now?.total, before?.total) });
   }
   candidates.sort((a, b) => b.weight - a.weight || a.keyword.localeCompare(b.keyword));
-  const detail = { ...summarize(date, current), previousDate: prior.size ? priorDate : null,
+  const detail = { ...today, previousDate: prior.size ? priorDate : null,
     comparison, topKeywords: candidates.slice(0, 5), signature: `${TRAFFIC_VERSION}:${date}:${fingerprint(current)}:${fingerprint(prior)}` };
   if (cache.size >= 8) cache.delete(cache.keys().next().value);
   cache.set(date, detail);
@@ -155,7 +143,7 @@ export function buildTrafficAlerts(data, threshold, beforeSignatures = new Map()
     if (seen.has(id)) continue;
     const metrics = TRAFFIC_METRICS.map(metric => ({ ...metric, ...detail.comparison[metric.key] }))
       .filter(metric => metric.change != null && Math.abs(metric.change) - threshold > 1e-9);
-    if (metrics.length) alerts.push({ id, modelKey, parentAsin: model.parentAsin, countryCode: model.countryCode || 'CA',
+    if (metrics.length) alerts.push({ id, calculationVersion: TRAFFIC_VERSION, modelKey, parentAsin: model.parentAsin, countryCode: model.countryCode || 'CA',
       modelName: model.modelName, date: detail.date, previousDate: detail.previousDate,
       volumeCount: detail.volumeCount, count: detail.count, metrics });
   }

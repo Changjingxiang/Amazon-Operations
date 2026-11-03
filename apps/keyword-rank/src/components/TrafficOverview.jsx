@@ -6,9 +6,10 @@ import './TrafficOverview.css';
 
 const number = value => value == null ? '—' : Number(value).toLocaleString('zh-CN', { maximumFractionDigits: 1 });
 const change = value => value == null ? '暂无可比数据' : `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+const changeArrow = value => value > 0 ? '↑ ' : value < 0 ? '↓ ' : '';
 const html = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const changeTone = value => value == null || value === 0 ? 'flat' : value > 0 ? 'up' : 'down';
-const changeMarkup = value => `<span class="traffic-change traffic-change-${changeTone(value)}">${value > 0 ? '↑ ' : value < 0 ? '↓ ' : ''}${change(value)}</span>`;
+const changeMarkup = value => `<span class="traffic-change traffic-change-${changeTone(value)}">${changeArrow(value)}${change(value)}</span>`;
 function rankText(point, metric) {
   if (!point) return '无记录';
   const state = point[`${metric}State`];
@@ -29,7 +30,7 @@ function movement(now, before, metric) {
 export function trafficTooltip(detail) {
   if (!detail) return '';
   const rows = detail.topKeywords.map(item => `<tr><td title="${html(item.keyword)}">${html(item.keyword)}</td><td>${number(item.now?.volume)}</td><td>${movement(item.now, item.before, 'natural')}</td><td>${movement(item.now, item.before, 'sp')}</td><td>${number(item.now?.natural)}</td><td>${number(item.now?.sp)}</td><td>${changeMarkup(item.change)}</td></tr>`).join('');
-  return `<div class="traffic-tooltip"><div class="traffic-tooltip-heading"><div><b>${html(detail.date)}</b><strong class="traffic-tooltip-subtitle">贡献关键词 TOP 5</strong></div><span>有效搜索量 ${detail.volumeCount} / ${detail.count} 词</span></div><div class="traffic-tooltip-totals"><span>自然 <b>${number(detail.natural)}</b></span><span>SP 广告 <b>${number(detail.sp)}</b></span><span>综合 <b>${number(detail.total)}</b></span></div><p>较前一天 · 综合 ${changeMarkup(detail.comparison.total.change)} · 自然 ${changeMarkup(detail.comparison.natural.change)} · SP ${changeMarkup(detail.comparison.sp.change)}</p><table><thead><tr><th>关键词</th><th>周搜索量</th><th>自然排名</th><th>SP 排名</th><th>自然分</th><th>广告分</th><th>综合变化</th></tr></thead><tbody>${rows || '<tr><td colspan="7">暂无可计算的关键词</td></tr>'}</tbody></table><small>按今日 / 昨日较高贡献排序；涨跌仅比较两日数据有效的同一批词。<br>— 表示未计分；旧排名及缺少搜索量不补零。排名日期须为快照当日或前一天。</small></div>`;
+  return `<div class="traffic-tooltip"><div class="traffic-tooltip-heading"><div><b>${html(detail.date)}</b><strong class="traffic-tooltip-subtitle">贡献关键词 TOP 5</strong></div><span>有效搜索量 ${detail.volumeCount} / ${detail.count} 词</span></div><div class="traffic-tooltip-totals"><span>自然 <b>${number(detail.natural)}</b></span><span>SP 广告 <b>${number(detail.sp)}</b></span><span>综合 <b>${number(detail.total)}</b></span></div><p>较前一天 · 综合 ${changeMarkup(detail.comparison.total.change)} · 自然 ${changeMarkup(detail.comparison.natural.change)} · SP ${changeMarkup(detail.comparison.sp.change)}</p><table><thead><tr><th>关键词</th><th>周搜索量</th><th>自然排名</th><th>SP 排名</th><th>自然分</th><th>广告分</th><th>综合变化</th></tr></thead><tbody>${rows || '<tr><td colspan="7">暂无可计算的关键词</td></tr>'}</tbody></table><small>按今日 / 昨日较高贡献排序；涨跌按两日各自得分比较，与柱形口径一致。<br>— 表示未计分；旧排名及缺少搜索量不补零。排名日期须为快照当日或前一天。</small></div>`;
 }
 
 // Anchor the external bubble to the viewport, independently of the chart's
@@ -127,9 +128,9 @@ export default function TrafficOverview({ model, selectedDate, onDate, threshold
       <div><h2>关键词曝光指数 <span>自然 + SP</span></h2><p>周搜索量 × 排名权重 · 按日快照 · 覆盖全部导入关键词</p></div>
       <div className="traffic-controls"><div className="traffic-range" aria-label="图表时间范围">{[['7', '7 天'], ['30', '30 天'], ['90', '90 天'], ['all', '全部']].map(([key, label]) => <button type="button" key={key} aria-pressed={range === key} onClick={() => setRange(key)}>{label}</button>)}</div><button type="button" className="traffic-settings-button" onClick={onSettings} title="设置异动阈值"><SlidersHorizontal size={14} />阈值 {threshold}%</button></div>
     </div>
-    <div className="traffic-summary"><span className="traffic-date">{focusedDate || '暂无日期'}</span>{[['natural', '自然', 'natural'], ['sp', 'SP 广告', 'sp'], ['total', '综合', 'total']].map(([metric, label, tone]) => <div key={metric} className={`traffic-stat traffic-stat-${tone}`}><span><i />{label}</span><strong>{number(detail?.[metric])}</strong><small>{change(detail?.comparison?.[metric]?.change)}<em>可比词较昨日</em></small></div>)}</div>
+    <div className="traffic-summary"><span className="traffic-date">{focusedDate || '暂无日期'}</span>{[['natural', '自然', 'natural'], ['sp', 'SP 广告', 'sp'], ['total', '综合', 'total']].map(([metric, label, tone]) => <div key={metric} className={`traffic-stat traffic-stat-${tone}`}><span><i />{label}</span><strong>{number(detail?.[metric])}</strong><small className={`traffic-stat-change traffic-change-${changeTone(detail?.comparison?.[metric]?.change)}`}>{changeArrow(detail?.comparison?.[metric]?.change)}{change(detail?.comparison?.[metric]?.change)}<em>较前一天</em></small></div>)}</div>
     <div className="traffic-chart" ref={node} role="img" aria-label="绿色自然指数在下、红色 SP 广告指数在上的每日堆叠柱状图" />
     {!series.length && <p className="traffic-empty">导入关键词日报后，在这里查看曝光指数走势。</p>}
-    <div className="traffic-chart-footer"><span>有效周搜索量 <b>{detail?.volumeCount || 0} / {detail?.count || 0}</b> 词 · 缺失数据不补零{detail?.staleCount > 0 ? ` · ${detail.staleCount} 词含旧排名或缺少排名日期` : ''}</span><details><summary>计算说明</summary><p>自然 / SP 指数 = Σ（周搜索量 ÷ 对应排名的 0.8 次方）。这是相对曝光指数，不是访客数或市场份额。只使用快照当日或前一天采集的排名；缺少搜索量、排名或排名日期时不计分。较昨日变化按连续两天均有有效数据的同一组关键词、同一渠道计算；零基数不计算百分比。柱形保留当日全部有效词，可能与可比词范围不同。</p></details></div>
+    <div className="traffic-chart-footer"><span>有效周搜索量 <b>{detail?.volumeCount || 0} / {detail?.count || 0}</b> 词 · 缺失数据不补零{detail?.staleCount > 0 ? ` · ${detail.staleCount} 词含旧排名或缺少排名日期` : ''}</span><details><summary>计算说明</summary><p>自然 / SP 指数 = Σ（周搜索量 ÷ 对应排名的 0.8 次方）。这是相对曝光指数，不是访客数或市场份额。只使用快照当日或前一天采集的排名；缺少搜索量、排名或排名日期时不计分。涨跌幅 =（当天总分 − 前一天总分）÷ 前一天总分 × 100%，与柱高、气泡和异动提醒使用同一口径。有效词数量变化也会影响总分；缺少任一天得分或前一天为零时不计算百分比。</p></details></div>
   </section>;
 }

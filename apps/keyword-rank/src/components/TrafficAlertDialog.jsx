@@ -19,7 +19,7 @@ export default function TrafficAlertDialog({ alerts, threshold, onClose, onOpen 
         <div className="traffic-alert-mascot"><img src={group.image} alt={group.sign > 0 ? 'K 开心地竖起大拇指' : 'K 露出失落的表情'} /><div><h3>{group.title}</h3><p>{group.sub}</p></div></div>
         <div className="traffic-alert-items">{group.items.map(item => <article key={item.id} className="traffic-alert-item"><div className="traffic-alert-product"><strong>{item.modelName}</strong><small>{item.countryCode} · {item.parentAsin}</small></div><p className="traffic-alert-dates">{item.previousDate} → {item.date}</p><div className="traffic-alert-metrics">{item.metrics.map(metric => <div key={metric.key}><span>{metric.label}<small>{value(metric.previous)} → {value(metric.current)}</small></span><strong><group.icon size={16} />{metric.change > 0 ? '+' : ''}{metric.change.toFixed(1)}%</strong></div>)}</div><div className="traffic-alert-links">{[['dashboard', '查看看板'], ['natural', '自然矩阵'], ['sp', 'SP 矩阵']].map(([tab, label]) => <button type="button" key={tab} onClick={() => onOpen(item, tab)}>{label}</button>)}</div></article>)}</div>
       </section>)}</div>
-      <footer className="traffic-alert-footer"><p>仅比较两日都有有效搜索量和排名的同一批词；缺失及旧排名不计作下跌。<br />同一产品不同分项可能分别上涨和下跌。</p><button type="button" onClick={onClose}>知道了，进入软件</button></footer>
+      <footer className="traffic-alert-footer"><p>按当天与前一天显示的总分计算涨跌，与柱形和气泡一致。<br />有效词数量变化也会影响总分；同一产品不同分项可能分别上涨和下跌。</p><button type="button" onClick={onClose}>知道了，进入软件</button></footer>
     </section>
   </div>;
 }

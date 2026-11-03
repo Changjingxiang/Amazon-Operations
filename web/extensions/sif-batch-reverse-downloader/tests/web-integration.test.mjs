@@ -15,7 +15,7 @@ for (const countries of [['CA', 'US'], ['MX', 'AU']]) {
 
 for (const currentOnly of [true, false]) {
   test(`${countries.join('/')} ${currentOnly ? 'current product' : 'all products'} action sends reports through staged extension import`, async () => {
-    const jobs = [], imported = [], events = [];
+    const jobs = [], imported = [], events = [], statuses = [];
     const listeners = new Set();
     const context = vm.createContext({
       window: { setTimeout, clearTimeout, setInterval, clearInterval, dispatchEvent: event => events.push({ type: event.type, imported: imported.length }) }, console,
@@ -54,13 +54,14 @@ for (const currentOnly of [true, false]) {
     context.window.keywordTracker = { getData: async () => data, startSifBatchImport: context.startSifBatchImport,
       getImportSaveState: async () => ({ saved: true, persistence: { main: { ok: true }, backup: { ok: true } } }) };
     const trigger = { dataset: {}, setAttribute() {}, removeAttribute() {} };
-    await context.runAllBatchImport({ trigger, setStatus() {}, currentOnly });
+    await context.runAllBatchImport({ trigger, setStatus(message) { statuses.push(message); }, currentOnly });
     assert.deepEqual(jobs.map(job => job.items.map(item => item.asin)), currentOnly
       ? [['B0CJQBTQ8V'], ['B0BBBBBBBB']]
       : [['B0CJQBTQ8V', 'B0AAAAAAAA'], ['B0BBBBBBBB', 'B0CCCCCCCC']]);
     assert.ok(jobs.every(job => job.concurrency === 1));
     assert.deepEqual(imported, jobs.flatMap(job => job.items.map(item => item.asin)));
     assert.deepEqual(events, [{ type: 'keyword-tracker-import-started', imported: 0 }, { type: 'keyword-tracker-import-completed', imported: imported.length }]);
+    assert.equal(statuses.at(-1), '', 'successful import must clear its header result text');
     assert.equal(jobs[0].items[0].countryCode, countries[0]);
     if (!currentOnly) assert.equal(jobs[0].items[1].countryCode, countries[1]);
   });

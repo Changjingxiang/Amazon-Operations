@@ -1,3 +1,5 @@
+import { TRAFFIC_VERSION } from './trafficIndex.mjs';
+
 export const TRAFFIC_SETTINGS_KEY = 'keyword-tracker:traffic-settings:v1';
 export const TRAFFIC_PENDING_KEY = 'keyword-tracker:traffic-pending:v1';
 export const TRAFFIC_SEEN_KEY = 'keyword-tracker:traffic-seen:v1';
@@ -17,6 +19,7 @@ export function readTrafficSeen(storage = globalThis.localStorage) {
   catch { return new Set(); }
 }
 export function readPendingTraffic(storage = globalThis.localStorage) {
-  try { const value = JSON.parse(storage.getItem(TRAFFIC_PENDING_KEY)); return Array.isArray(value) ? value.filter(x => x?.id && Array.isArray(x.metrics)) : []; }
+  // Old notices contain percentages from the previous comparison formula.
+  try { const value = JSON.parse(storage.getItem(TRAFFIC_PENDING_KEY)); return Array.isArray(value) ? value.filter(x => x?.id && x.calculationVersion === TRAFFIC_VERSION && Array.isArray(x.metrics)) : []; }
   catch { return []; }
 }

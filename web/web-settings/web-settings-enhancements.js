@@ -76,6 +76,7 @@
       .sif-all-import-button:disabled{cursor:wait;opacity:.65}
       .sif-all-import-status{display:block;flex:0 1 280px;min-width:120px;max-width:300px;margin:5px 0 0;color:#547089;font-size:11px;line-height:1.4;white-space:normal}
       .sif-all-import-status.is-error{color:#b43b3b}
+      .sif-all-import-status:empty{display:none}
       .settings-modal{max-height:calc(100vh - 36px);overflow:auto}
       .settings-aba-import{margin:14px 0 12px;padding:13px;border:1px solid #d5c2ec;border-radius:11px;background:linear-gradient(135deg,#fbf8ff,#f5fbff)}
       .settings-aba-import-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;color:#49356d;font-size:13px;font-weight:800}
@@ -1795,7 +1796,7 @@
       // values here also protect the ordering when callers pass custom data.
       const response = await api.startSifBatchImport({ items });
       outcome = response;
-      setStatus(response?.output || '全部产品已下载并导入。');
+      setStatus(response?.ok ? '' : (response?.output || '批量自动导入未完成，请查看结果。'), response?.ok === false);
     } catch (error) {
       outcome = { ok: false, output: error?.message || '批量自动导入失败。' };
       setStatus(error?.message || '批量自动导入失败，请重试。', true);
