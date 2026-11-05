@@ -48,6 +48,7 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
   const copy = useMatrixKeywordCopy(model?.parentAsin);
   const defaults = useMemo(() => ({ star: 52, traffic: 72, keyword: 190, translation: 130, naturalTrend: 92, spTrend: 92, trafficShare: 105, naturalRank: 82, spRank: 82, weeklyAbaRank: 98, weeklySearchVolume: 98, status: 128 }), []);
   const { widths, nudgeWidth, startResize } = useColumnWidths('keyword-tracker:columns:dashboard', defaults);
+  const tableWidth = Object.keys(defaults).reduce((total, column) => total + widths[column], 0);
   const sortedRows = useMemo(() => sortDashboardRows(rows, sortConditions, { sortWatched }), [rows, sortConditions, sortWatched]);
 
   useEffect(() => { setHovered(null); }, [model?.parentAsin, model?.selectedYear, rows, copy.active]);
@@ -60,7 +61,7 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
   const content = (
     <section className={`dashboard-panel ${expanded ? 'dashboard-expanded' : ''}`}>
       <div className="table-toolbar"><button type="button" className="sort-button" aria-expanded={expanded} onClick={() => { setHovered(null); setExpanded(value => !value); }}>{expanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}{expanded ? '恢复看板' : '放大表格'}</button>
-        <span>关注词置顶，其后保留完整流量前 1000</span>
+        <span title="关注词置顶，其后保留完整流量前 1000">{rows.length} 个关键词</span>
         <FilterCascade
           rows={sourceRows || rows}
           filter={filters}
@@ -75,7 +76,7 @@ export default function DashboardView({ rows, sourceRows, model, filters, onFilt
       </div>
       {copy.feedback}
       <div className="dashboard-scroll">
-        <table className="dashboard-table">
+        <table className="dashboard-table" style={{ width: tableWidth, minWidth: '100%' }}>
           <colgroup>{Object.keys(defaults).map((column) => <col key={column} style={widthStyle(column)} />)}</colgroup>
           <thead>
             <tr>

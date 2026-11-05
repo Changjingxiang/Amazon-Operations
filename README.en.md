@@ -129,8 +129,9 @@ The following detailed guides are currently in Chinese:
 <details>
 <summary>Show recent updates</summary>
 
-### Latest updates — v3.0.7 · November 3, 2026
+### Latest updates — v3.0.7 · November 5, 2026
 
+- Updated the dashboard keyword table on top of the daily-score correction release. The table fills the available width, keeps long keywords from expanding columns, and shows the current keyword count in its toolbar. The version remains v3.0.7.
 - Added green organic and red SP stacked bars using the sum of weekly search volume divided by rank to the power of 0.8. Bars, summary, tooltip and notices compare the same daily totals: 1,444.9 to 1,469.9 correctly shows +1.7%.
 - Larger tooltips stay outside the plot and show the top five contributors with red increases and green decreases. The comparison overview collapses independently.
 - Saved batches show K notices and product shortcuts only for changes strictly above the threshold. The new settings drawer defaults to 20%; successful import text no longer remains in the header.
